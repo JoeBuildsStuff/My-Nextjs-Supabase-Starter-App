@@ -62,3 +62,51 @@ export async function signup(formData: FormData) {
   revalidatePath('/', 'layout')
   redirect('/verify-email')
 }
+
+export async function signInWithGoogle() {
+  'use server'
+
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+    }
+  })
+
+  if (error) {
+    console.log("google-signin-error", error)
+    redirect('/error')
+  }
+
+  if (data.url) {
+    redirect(data.url)
+  }
+
+  revalidatePath('/', 'layout')
+}
+
+export async function signInWithGithub() {
+  'use server'
+  
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+    }
+  })
+
+  if (error) {
+    console.log("github-signin-error", error)
+    redirect('/error')
+  }
+
+  if (data.url) {
+    redirect(data.url)
+  }
+
+  revalidatePath('/', 'layout')
+}
