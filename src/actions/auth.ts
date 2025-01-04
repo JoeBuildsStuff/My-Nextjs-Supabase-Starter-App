@@ -31,9 +31,11 @@ export async function signInWithMagicLink(formData: FormData) {
     email: result.data.email,
     options: {
       shouldCreateUser: true,
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}`,
     },
   })
+
+  console.log("emailRedirectTo: ", `${process.env.NEXT_PUBLIC_SITE_URL}`)
 
   if (error) {
     console.log("magic-link-error", error)
