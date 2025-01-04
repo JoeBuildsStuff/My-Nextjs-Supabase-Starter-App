@@ -1,10 +1,8 @@
-import { login, signup, signInWithGoogle, signInWithGithub } from '@/actions/auth';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { signInWithMagicLink, signInWithGoogle, signInWithGithub } from '@/actions/auth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangleIcon } from 'lucide-react';
 
 const LoginPage = () => {
   return (
@@ -54,7 +52,7 @@ const LoginPage = () => {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
+                Or
               </span>
             </div>
           </div>
@@ -71,46 +69,18 @@ const LoginPage = () => {
                   required 
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  name="password"
-                  required
-                />
-              </div>
 
-              <div className="space-y-4">
-                <Button 
-                  type="submit" 
-                  variant="secondary"
-                  className="w-full"
-                  formAction={login}
-                >
-                  Sign In
-                </Button>
-                
-                <Button 
-                  type="submit" 
-                  variant="outline" 
-                  className="w-full"
-                  formAction={signup}
-                >
-                  Create Account
-                </Button>
-              </div>
+              <Button 
+                type="submit" 
+                variant="secondary"
+                className="w-full"
+                formAction={signInWithMagicLink}
+              >
+                Continue
+              </Button>
             </div>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <Alert variant="destructive" className="hidden">
-            <AlertTriangleIcon className="h-4 w-4" />
-            <AlertDescription>
-              Invalid login credentials. Please try again.
-            </AlertDescription>
-          </Alert>
-        </CardFooter>
       </Card>
     </div>
   );

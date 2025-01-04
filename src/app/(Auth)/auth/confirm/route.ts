@@ -10,21 +10,28 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type') as EmailOtpType | null
   const next = searchParams.get('next') ?? '/'
 
-  if (token_hash && type) {
-    const supabase = await createClient()
+  if (!token_hash || !type) {
+    redirect('/error')
+  }
 
+  const supabase = await createClient()
+
+  // Handle both signup and magic link verification
+  if (type === 'signup' || type === 'magiclink') {
     const { error } = await supabase.auth.verifyOtp({
       type,
       token_hash,
     })
-    if (!error) {
-      // redirect user to specified redirect URL or root of app
-      redirect(next)
+
+    if (error) {
+      console.log(`${type}-verification-error:`, error)
+      redirect('/error')
     }
 
-  console.log("error: ", error)
+    // Successful verification, redirect to the specified URL or home
+    redirect(next)
   }
 
-  // redirect the user to an error page with some instructions
+  // If type is neither signup nor magiclink, redirect to error page
   redirect('/error')
 }

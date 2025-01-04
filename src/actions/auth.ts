@@ -6,19 +6,20 @@ import { z } from 'zod'
 
 import { createClient } from '@/utils/supabase/server'
 
-// Add schema definition at the top
+// Update schema to only include email
 const authSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
 })
 
-export async function login(formData: FormData) {
+// Replace login and signup with a single magic link function
+export async function signInWithMagicLink(formData: FormData) {
+  'use server'
+  
   const supabase = await createClient()
 
-  // Parse and validate the input
+  // Parse and validate the email
   const result = authSchema.safeParse({
     email: formData.get('email'),
-    password: formData.get('password'),
   })
 
   if (!result.success) {
@@ -26,39 +27,19 @@ export async function login(formData: FormData) {
     redirect('/error')
   }
 
-  const { error } = await supabase.auth.signInWithPassword(result.data)
-
-  if (error) {
-    console.log("login-error", error)
-    redirect('/error')
-  }
-
-  revalidatePath('/', 'layout')
-  redirect('/')
-}
-
-export async function signup(formData: FormData) {
-  const supabase = await createClient()
-
-  // Parse and validate the input
-  const result = authSchema.safeParse({
-    email: formData.get('email'),
-    password: formData.get('password'),
+  const { error } = await supabase.auth.signInWithOtp({
+    email: result.data.email,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
   })
 
-  if (!result.success) {
-    console.log("validation-error", result.error)
-    redirect('/error')
-  }
-
-  const { error } = await supabase.auth.signUp(result.data)
-
   if (error) {
-    console.log("signup-error", error)
+    console.log("magic-link-error", error)
     redirect('/error')
   }
 
-  // Redirect to verify email page
   revalidatePath('/', 'layout')
   redirect('/verify-email')
 }
