@@ -44,20 +44,42 @@ The boilerplate includes dark mode support, beautiful typography, and a streamli
 - Example implementations for workspace, login, and settings pages.
 
 ### 6. **Table Components**
-Three levels of table implementations are provided:
-1. **Basic Table**
-   - Simple table with headers, footers, and captions
-   - Perfect for static data display
-   - Includes basic styling and layout options
+Three levels of table implementations are provided, with Supabase integration:
 
-2. **Advanced Data Table**
-   - Enhanced functionality for data management
+1. **Basic Table (Server-Side Data Fetching)**
+   - Server-side data fetching from Supabase
+   - Features:
+     - Simple table with headers, footers, and captions
+     - Error handling for failed data fetches
+     - Automatic total calculation in footer
+     - Displays invoice data including ID, status, method, and amount
+   - Table Structure:
+     ```typescript
+     // Example Supabase query
+     const { data } = await supabase
+       .from('my_nextjs_supabase_starter_app_invoices_example')
+       .select('id, invoice, payment_status, payment_method, total_amount')
+     ```
+
+2. **Advanced Data Table (Client-Side Data Fetching)**
+   - Client-side data fetching with React hooks
    - Features:
      - Column sorting and filtering
      - Pagination controls
      - Row selection
      - Column visibility toggle
-     - Basic row actions
+     - Loading states
+     - Data fetched from Supabase payments table
+   - Implementation:
+     ```typescript
+     // Example client-side data fetch
+     const fetchPayments = async () => {
+       const { data } = await supabase
+         .from('my_nextjs_supabase_starter_app_payments_example')
+         .select('*');
+       setPayments(data);
+     };
+     ```
 
 3. **Complex Table**
    - Full-featured implementation for advanced data handling
