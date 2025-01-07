@@ -69,7 +69,50 @@ Three levels of table implementations are provided:
      - Status and priority indicators
      - Data schema validation using Zod
 
-### 7. **Additional Libraries and Utilities**
+### 7. **Form Templates**
+Three levels of form implementations are provided:
+
+1. **Profile Form**
+   - User profile management
+   - Features:
+     - Username validation
+     - Email selection
+     - Bio text area
+     - Dynamic URL fields
+     - Form validation using Zod
+
+2. **Settings Forms**
+   - Account Settings
+     - Name input with validation
+     - Date of birth picker
+     - Language selection with search
+   
+   - Appearance Settings
+     - Theme selection (Light/Dark)
+     - Font preference
+     - Visual preview of theme options
+
+   - Display Settings
+     - Sidebar item visibility
+     - Multi-checkbox selection
+     - Validation for minimum selection
+
+   - Notifications Settings
+     - Notification type selection
+     - Email preference toggles
+     - Mobile device settings
+     - Security notifications
+
+3. **Form Features**
+   - React Hook Form integration
+   - Zod schema validation
+   - Custom form controls
+   - Responsive layout
+   - Error handling
+   - Toast notifications
+   - Accessible form elements
+
+### 8. **Additional Libraries and Utilities**
 #### UI Libraries
 - **Radix UI**: Includes components like Dialog, Tooltip, Accordion, and more (`@radix-ui/react-*`).
 - **cmdk**: Command menu for React applications.
