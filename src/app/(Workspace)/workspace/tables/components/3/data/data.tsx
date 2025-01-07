@@ -1,7 +1,4 @@
 import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
   CheckCircle,
   Circle,
   CircleOff,
@@ -11,42 +8,50 @@ import {
 
 export const labels = [
   {
-    value: "bug",
-    label: "Bug",
+    value: "Content Creation",
+    label: "Content Creation",
   },
   {
-    value: "feature",
-    label: "Feature",
+    value: "SEO",
+    label: "SEO",
   },
   {
-    value: "documentation",
-    label: "Documentation",
+    value: "Publishing",
+    label: "Publishing",
+  },
+  {
+    value: "Promotion",
+    label: "Promotion",
+  },
+  {
+    value: "Feedback",
+    label: "Feedback",
   },
 ]
 
 export const statuses = [
   {
-    value: "backlog",
+    value: "Backlog",
     label: "Backlog",
     icon: HelpCircle,
   },
   {
-    value: "todo",
+    value: "Todo",
     label: "Todo",
     icon: Circle,
   },
   {
-    value: "in progress",
+    value: "In Progress",
     label: "In Progress",
     icon: Timer,
   },
   {
-    value: "done",
+    value: "Done",
     label: "Done",
     icon: CheckCircle,
   },
   {
-    value: "canceled",
+    value: "Canceled",
     label: "Canceled",
     icon: CircleOff,
   },
@@ -55,17 +60,14 @@ export const statuses = [
 export const priorities = [
   {
     label: "Low",
-    value: "low",
-    icon: ArrowDown,
+    value: "Low",
   },
   {
     label: "Medium",
-    value: "medium",
-    icon: ArrowRight,
+    value: "Medium",
   },
   {
     label: "High",
-    value: "high",
-    icon: ArrowUp,
+    value: "High",
   },
 ]
