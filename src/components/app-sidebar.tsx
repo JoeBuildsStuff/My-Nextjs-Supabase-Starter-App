@@ -8,6 +8,7 @@ import {
   FormInput,
   Table,
   LayoutDashboard,
+  Badge,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -87,6 +88,11 @@ const data = {
               url: "/workspace/tables/3",
             },
           ],
+        },
+        {
+          title: "UI Stuff",
+          url: "/workspace/ui-stuff",
+          icon: Badge,
         },
       ],
     },

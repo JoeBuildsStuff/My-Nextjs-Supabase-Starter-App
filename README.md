@@ -42,6 +42,8 @@ The boilerplate includes dark mode support, beautiful typography, and a streamli
 ### 5. **Custom Pages and Layouts**
 - Workspace pages with a protected layout that redirects unauthenticated users to login.
 - Example implementations for workspace, login pages.
+- UI Components showcase page with:
+  - Badge variants demonstration
 
 ### 6. **Table Components**
 Three levels of table implementations are provided, with Supabase integration:
@@ -220,6 +222,9 @@ Ensure you have the following installed:
   |    |    |-- callback
   |    |-- (Workspace)
   |    |    |-- workspace
+  |    |    |    |-- forms
+  |    |    |    |-- tables
+  |    |    |    |-- ui-stuff
   |    |-- layout.tsx
   |    |-- page.tsx
   |-- components
