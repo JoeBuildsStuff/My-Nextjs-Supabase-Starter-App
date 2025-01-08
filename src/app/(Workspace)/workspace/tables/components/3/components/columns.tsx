@@ -5,10 +5,11 @@ import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 
-import { labels, priorities, statuses } from "../data/data"
+
 import { Task } from "../data/schema"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
+import { HelpCircle, Circle, Timer, CheckCircle, CircleOff } from "lucide-react"
 
 export const columns: ColumnDef<Task>[] = [
   {
@@ -50,11 +51,9 @@ export const columns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title="Title" />
     ),
     cell: ({ row }) => {
-      const label = labels.find((label) => label.value === row.original.label)
-
       return (
         <div className="flex space-x-2">
-          {label && <Badge variant="outline">{label.label}</Badge>}
+          <Badge variant="outline">{row.original.label}</Badge>
           <span className="max-w-[500px] truncate font-medium">
             {row.getValue("title")}
           </span>
@@ -68,20 +67,22 @@ export const columns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
-      const status = statuses.find(
-        (status) => status.value === row.getValue("status")
-      )
+      const status = {
+        "Backlog": { icon: HelpCircle },
+        "Todo": { icon: Circle },
+        "In Progress": { icon: Timer },
+        "Done": { icon: CheckCircle },
+        "Canceled": { icon: CircleOff },
+      }[row.getValue("status") as string]
 
-      if (!status) {
-        return null
-      }
+      if (!status) return null
 
       return (
         <div className="flex w-[100px] items-center">
           {status.icon && (
             <status.icon className="mr-2 h-4 w-4 text-muted-foreground" />
           )}
-          <span>{status.label}</span>
+          <span>{row.getValue("status")}</span>
         </div>
       )
     },
@@ -95,18 +96,13 @@ export const columns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title="Priority" />
     ),
     cell: ({ row }) => {
-      const priority = priorities.find(
-        (priority) => priority.value === row.getValue("priority")
-      )
-
-      if (!priority) {
-        return null
-      }
+      const priority = row.getValue("priority") as string
+      if (!["Low", "Medium", "High"].includes(priority)) return null
 
       return (
         <div className="flex items-center">
-          <Badge variant={priority.value === "High" ? "red" : priority.value === "Medium" ? "blue" : "green"}>
-            {priority.label}
+          <Badge variant={priority === "High" ? "red" : priority === "Medium" ? "blue" : "green"}>
+            {priority}
           </Badge>
         </div>
       )
