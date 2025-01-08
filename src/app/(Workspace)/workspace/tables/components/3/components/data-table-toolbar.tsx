@@ -7,12 +7,57 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTableViewOptions } from "./data-table-view-options"
 
-import { priorities, statuses } from "../data/data"
+import {
+  CheckCircle,
+  Circle,
+  CircleOff,
+  HelpCircle,
+  Timer,
+} from "lucide-react"
+
 import { DataTableFacetedFilter } from "./data-table-faceted-filter"
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>
 }
+
+const statuses = [
+  {
+    value: "Backlog",
+    icon: HelpCircle,
+  },
+  {
+    value: "Todo",
+    icon: Circle,
+  },
+  {
+    value: "In Progress",
+    icon: Timer,
+  },
+  {
+    value: "Done",
+    icon: CheckCircle,
+  },
+  {
+    value: "Canceled",
+    icon: CircleOff,
+  },
+]
+
+const priorities = [
+  {
+    label: "Low",
+    value: "Low",
+  },
+  {
+    label: "Medium",
+    value: "Medium",
+  },
+  {
+    label: "High",
+    value: "High",
+  },
+]
 
 export function DataTableToolbar<TData>({
   table,
