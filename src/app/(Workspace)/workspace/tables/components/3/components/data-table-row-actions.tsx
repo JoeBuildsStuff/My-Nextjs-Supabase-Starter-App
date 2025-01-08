@@ -1,7 +1,8 @@
 "use client"
 
 import { Row } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
+import { ExternalLink, MoreHorizontal } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -22,11 +23,21 @@ interface DataTableRowActionsProps<TData> {
 export function DataTableRowActions<TData>({
   row,
 }: DataTableRowActionsProps<TData>) {
-  
+  const router = useRouter()
+  const slugID = row.getValue('id') as string
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <div className="flex justify-end items-center space-x-2">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 p-0"
+        onClick={() => router.push(`/workspace/tables${slugID}`)}
+      >
+        <ExternalLink size={16}/>
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
@@ -36,10 +47,9 @@ export function DataTableRowActions<TData>({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[160px]">
-        <DropdownMenuLabel className="flex items-center justify-between">
-          Row: <Badge variant="outline">{row.id}</Badge>
+        <DropdownMenuLabel className="flex items-center justify-end">
+          <Badge variant="outline">{row.getValue('id')}</Badge>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
         <DropdownMenuItem>Edit</DropdownMenuItem>
         <DropdownMenuItem>Make a copy</DropdownMenuItem>
         <DropdownMenuItem>Favorite</DropdownMenuItem>
@@ -48,7 +58,8 @@ export function DataTableRowActions<TData>({
           Delete
           <DropdownMenuShortcut>⌘⌫</DropdownMenuShortcut>
         </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }

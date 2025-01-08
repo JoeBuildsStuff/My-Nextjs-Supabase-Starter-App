@@ -2,7 +2,7 @@
 
 ## Overview
 This project is a modern web application boilerplate built using:
-- **Next.js 14**: A React framework for building server-rendered and static web applications.
+- **Next.js 15.1.3**: A React framework for building server-rendered and static web applications.
 - **TailwindCSS**: A utility-first CSS framework for styling.
 - **Shadcn/UI**: A collection of pre-built UI components.
 - **Supabase**: A Firebase alternative for authentication, database, and API management.
@@ -41,7 +41,7 @@ The boilerplate includes dark mode support, beautiful typography, and a streamli
 
 ### 5. **Custom Pages and Layouts**
 - Workspace pages with a protected layout that redirects unauthenticated users to login.
-- Example implementations for workspace, login, and settings pages.
+- Example implementations for workspace, login pages.
 
 ### 6. **Table Components**
 Three levels of table implementations are provided, with Supabase integration:
@@ -92,7 +92,7 @@ Three levels of table implementations are provided, with Supabase integration:
      - Data schema validation using Zod
 
 ### 7. **Form Templates**
-Three levels of form implementations are provided:
+Various form templates are provided:
 
 1. **Profile Form**
    - User profile management
@@ -138,6 +138,9 @@ Three levels of form implementations are provided:
 #### UI Libraries
 - **Radix UI**: Includes components like Dialog, Tooltip, Accordion, and more (`@radix-ui/react-*`).
 - **cmdk**: Command menu for React applications.
+
+#### Typography
+- **tailwindcss-typography**: TailwindCSS plugin for typography.  Wraps the content in a `prose` class to apply the typography styles to common html elements
 
 #### Utilities
 - **clsx**: Utility for conditionally joining class names.
