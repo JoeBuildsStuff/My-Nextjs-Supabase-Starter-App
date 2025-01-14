@@ -101,9 +101,9 @@ const data = {
 
 export function AppSidebar({ userData, ...props }: AppSidebarProps) {
   const user = {
-    name: userData.email?.split('@')[0] || 'User',
+    name: userData.user_metadata?.full_name || userData.email?.split('@')[0] || 'User',
     email: userData.email || '',
-    avatar: `/avatars/${userData.id}.jpg`,
+    avatar: userData.user_metadata?.avatar_url || userData.user_metadata?.picture || '',
   }
 
   return (
