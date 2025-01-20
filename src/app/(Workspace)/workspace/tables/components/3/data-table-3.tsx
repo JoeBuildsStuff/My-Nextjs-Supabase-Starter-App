@@ -15,7 +15,7 @@ async function getTasks() {
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from('my_nextjs_supabase_staarter_app_tasks_example')
+    .from('my_nextjs_supabase_starter_app_tasks_example')
     .select('id,title, status, label, priority')
 
   if (error) {
@@ -27,8 +27,9 @@ async function getTasks() {
   return z.array(taskSchema).parse(data)
 }
 
-export default async function DataTable3() {
+export default async function DataTable3({}) {
   const tasks = await getTasks()
+
 
   return (
     <div className="hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">

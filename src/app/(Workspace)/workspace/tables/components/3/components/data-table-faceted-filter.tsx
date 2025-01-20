@@ -20,6 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
+import { useSearchParams } from "next/navigation"
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>
@@ -35,8 +36,29 @@ export function DataTableFacetedFilter<TData, TValue>({
   title,
   options,
 }: DataTableFacetedFilterProps<TData, TValue>) {
+  const searchParams = useSearchParams()
+
+  console.log("column id", column?.id)
+  console.log("column filter value", column?.getFilterValue())
+
+  for (const [key, value] of searchParams.entries()) {
+    console.log("key", key)
+    console.log("value", value)
+  }
+
   const facets = column?.getFacetedUniqueValues()
-  const selectedValues = new Set(column?.getFilterValue() as string[])
+  const selectedValues = new Set(
+    column?.getFilterValue() as string[] || 
+    (column?.id && searchParams.get(column.id)?.split(',')) || 
+    []
+  )
+
+  React.useEffect(() => {
+    if (column?.id && searchParams.get(column.id) && !column.getFilterValue()) {
+      const urlValues = searchParams.get(column.id)!.split(',')
+      column.setFilterValue(urlValues)
+    }
+  }, [column, searchParams])
 
   return (
     <Popover>
