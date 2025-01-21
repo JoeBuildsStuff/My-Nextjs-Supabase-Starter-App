@@ -38,14 +38,6 @@ export function DataTableFacetedFilter<TData, TValue>({
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const searchParams = useSearchParams()
 
-  console.log("column id", column?.id)
-  console.log("column filter value", column?.getFilterValue())
-
-  for (const [key, value] of searchParams.entries()) {
-    console.log("key", key)
-    console.log("value", value)
-  }
-
   const facets = column?.getFacetedUniqueValues()
   const selectedValues = new Set(
     column?.getFilterValue() as string[] || 
