@@ -10,7 +10,6 @@ export default async function Page({
 }) {
   const { 
     currentPage = '1', 
-    asc = true, 
     resultsPerPage = '10', 
     sort = '',
     filter = ''
@@ -158,7 +157,6 @@ export default async function Page({
         currentPage={Number(currentPage)}
         totalPages={totalPages}
         resultsPerPage={Number(resultsPerPage)}
-        asc={asc === 'true'}
       />
     </div>
   )

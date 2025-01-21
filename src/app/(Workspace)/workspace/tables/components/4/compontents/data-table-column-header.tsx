@@ -1,5 +1,5 @@
 import { Column } from "@tanstack/react-table"
-import { ArrowDown, ArrowUp, ChevronsUpDown, EyeOff, Filter } from "lucide-react"
+import { ArrowDown, ArrowUp, ChevronsUpDown, EyeOff } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -33,7 +33,7 @@ export function DataTableColumnHeader<TData, TValue>({
           <Button
             variant="ghost"
             size="sm"
-            className="-ml-3 h-8 data-[state=open]:bg-accent"
+            className="w-full h-8 data-[state=open]:bg-accent justify-between"
           >
             <span>{title}</span>
             {column.getIsSorted() === "desc" ? (
@@ -61,7 +61,6 @@ export function DataTableColumnHeader<TData, TValue>({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Filter className="h-4 w-4" />
     </div>
   )
 }

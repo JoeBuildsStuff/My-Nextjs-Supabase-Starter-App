@@ -8,16 +8,10 @@ export default function DataTablePagination({
     currentPage, // current page
     totalPages, // total pages
     resultsPerPage, // results per page
-    asc, // ascending
-    // selectedRows, // selected rows
-    // totalRows, // total rows
 }: {
     currentPage: number, // current page
     totalPages: number, // total pages
     resultsPerPage: number, // results per page
-    asc: boolean, // ascending
-    // selectedRows: number, // selected rows
-    // totalRows: number, // total rows
 }) {
 
     const router = useRouter();
@@ -26,7 +20,6 @@ export default function DataTablePagination({
   const createPageUrl = (pageNumber: number, rowsPerPage: number = resultsPerPage) => {
     const params = new URLSearchParams()
     params.set('currentPage', pageNumber.toString())
-    params.set('asc', asc.toString())
     params.set('resultsPerPage', rowsPerPage.toString())
     return `?${params.toString()}`
   }
