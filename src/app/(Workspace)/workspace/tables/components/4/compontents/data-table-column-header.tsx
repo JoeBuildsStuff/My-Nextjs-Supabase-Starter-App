@@ -23,11 +23,23 @@ export function DataTableColumnHeader<TData, TValue>({
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) {
   if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>
+    return (
+      <div className={cn("relative", className)}>
+        {title}
+        {column.getCanResize() && (
+          <div
+            className={cn(
+              "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-accent active:bg-accent",
+              column.getIsResizing() && "bg-accent"
+            )}
+          />
+        )}
+      </div>
+    )
   }
 
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
+    <div className={cn("flex items-center space-x-2 relative", className)}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -61,6 +73,14 @@ export function DataTableColumnHeader<TData, TValue>({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {column.getCanResize() && (
+        <div
+          className={cn(
+            "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-accent active:bg-accent",
+            column.getIsResizing() && "bg-accent"
+          )}
+        />
+      )}
     </div>
   )
 }

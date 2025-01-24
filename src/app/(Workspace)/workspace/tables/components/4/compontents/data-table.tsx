@@ -29,6 +29,7 @@ import {
   usePathname,
   useSearchParams
 } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 
 interface DataTableProps<TData, TValue> {
@@ -135,25 +136,46 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    enableColumnResizing: true,
+    columnResizeMode: "onChange",
   })
 
   return (
     <div className="space-y-2">
       <DataTableToolbar table={table} />
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border w-fit">
+        <Table className="w-fit">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} colSpan={header.colSpan} className="border-r">
+                    <TableHead 
+                      key={header.id} 
+                      colSpan={header.colSpan}
+                      style={{
+                        width: header.getSize(),
+                        position: "relative",
+                        whiteSpace: "nowrap"
+                      }}
+                      className="border-r"
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
                             header.getContext()
                           )}
+                      {header.column.getCanResize() && (
+                        <div
+                          onMouseDown={header.getResizeHandler()}
+                          onTouchStart={header.getResizeHandler()}
+                          className={cn(
+                            "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-accent active:bg-accent",
+                            header.column.getIsResizing() && "bg-accent"
+                          )}
+                        />
+                      )}
                     </TableHead>
                   )
                 })}
