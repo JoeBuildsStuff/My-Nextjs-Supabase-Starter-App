@@ -64,6 +64,8 @@ export const columns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title={column.id} />
     ),
     cell: ({ row }) => <div className="w-fit">{row.getValue("status")}</div>,
+    enableGrouping: true,
+    aggregationFn: 'count',
   },
   {
     accessorKey: "priority",
@@ -72,6 +74,8 @@ export const columns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title={column.id} />
     ),
     cell: ({ row }) => <div className="w-fit">{row.getValue("priority")}</div>,
+    enableGrouping: true,
+    aggregationFn: 'count',
   },
   {
     id: "actions",
