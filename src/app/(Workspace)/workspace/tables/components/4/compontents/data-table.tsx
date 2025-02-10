@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils"
 import { ChevronRight, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 
 interface DataTableProps<TData, TValue> {
@@ -226,7 +227,9 @@ export function DataTable<TData, TValue>({
                             cell.column.columnDef.cell,
                             cell.getContext()
                           )}{' '}
-                          ({row.subRows.length})
+                          <Badge variant="green">
+                            {row.subRows.length}
+                          </Badge>
                         </div>
                       ) : cell.getIsAggregated() ? (
                         flexRender(

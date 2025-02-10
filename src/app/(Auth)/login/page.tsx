@@ -1,4 +1,4 @@
-import { signInWithMagicLink, signInWithGoogle, signInWithGithub } from '@/actions/auth';
+import { signInWithMagicLink, signInWithGoogle, signInWithGithub, signInWithOTP } from '@/actions/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -70,14 +70,24 @@ const LoginPage = () => {
                 />
               </div>
 
-              <Button 
-                type="submit" 
-                variant="secondary"
-                className="w-full"
-                formAction={signInWithMagicLink}
-              >
-                Continue
-              </Button>
+              <div className="flex gap-4">
+                <Button 
+                  type="submit" 
+                  variant="secondary"
+                  className="w-full"
+                  formAction={signInWithMagicLink}
+                >
+                  Send Magic Link
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant="default"
+                  className="w-full"
+                  formAction={signInWithOTP}
+                >
+                  Send OTP Code
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>

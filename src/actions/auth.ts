@@ -35,15 +35,13 @@ export async function signInWithMagicLink(formData: FormData) {
     },
   })
 
-  console.log("emailRedirectTo: ", `${process.env.NEXT_PUBLIC_SITE_URL}`)
-
   if (error) {
     console.log("magic-link-error", error)
     redirect('/error')
   }
 
   revalidatePath('/', 'layout')
-  redirect('/verify-email')
+  redirect(`/verify-email?email=${result.data.email}`)
 }
 
 export async function signInWithGoogle() {
@@ -92,4 +90,35 @@ export async function signInWithGithub() {
   }
 
   revalidatePath('/', 'layout')
+}
+
+// Add OTP specific function
+export async function signInWithOTP(formData: FormData) {
+  'use server'
+  
+  const supabase = await createClient()
+
+  const result = authSchema.safeParse({
+    email: formData.get('email'),
+  })
+
+  if (!result.success) {
+    console.log("validation-error", result.error)
+    redirect('/error')
+  }
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email: result.data.email,
+    options: {
+      shouldCreateUser: true,
+    },
+  })
+
+  if (error) {
+    console.log("otp-error", error)
+    redirect('/error')
+  }
+
+  revalidatePath('/', 'layout')
+  redirect(`/verify-otp?email=${result.data.email}`)
 }
