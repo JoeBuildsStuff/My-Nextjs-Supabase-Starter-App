@@ -8,14 +8,13 @@ import { signInWithMagicLink } from '@/actions/auth';
 
 //params for server page
 interface VerifyEmailPageProps {
-  searchParams: {
-    email: string;
-  };
+  searchParams: { [key: string]: string | string[] | undefined }
 }
 
-export default function VerifyEmailPage({ searchParams }: VerifyEmailPageProps) {
-
-  const email = searchParams.email;
+export default async function VerifyEmailPage({
+  searchParams,
+}: VerifyEmailPageProps) {
+  const { email } = searchParams
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
