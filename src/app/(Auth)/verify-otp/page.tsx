@@ -16,7 +16,7 @@ interface VerifyOTPPageProps {
 }
 
 export default async function VerifyOTPPage({ searchParams }: VerifyOTPPageProps) {
-  const { email } = searchParams as { email: string };  // Type assertion for email
+  const { email } = await searchParams as { email: string };  // Type assertion for email
 
   async function verifyOTP(formData: FormData) {
     'use server'

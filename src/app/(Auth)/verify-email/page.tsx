@@ -14,7 +14,7 @@ interface VerifyEmailPageProps {
 export default async function VerifyEmailPage({
   searchParams,
 }: VerifyEmailPageProps) {
-  const { email } = searchParams
+  const { email } = await searchParams as { email: string };  // Type assertion for email
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
