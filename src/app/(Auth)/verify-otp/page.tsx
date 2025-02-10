@@ -11,12 +11,13 @@ import Link from "next/link";
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 
-interface VerifyOTPPageProps {
-  searchParams: { [key: string]: string | string[] | undefined }
-}
 
-export default async function VerifyOTPPage({ searchParams }: VerifyOTPPageProps) {
-  const { email } = await searchParams as { email: string };  // Type assertion for email
+export default async function VerifyOTPPage({   searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+
+  const { email } = await searchParams
 
   async function verifyOTP(formData: FormData) {
     'use server'
@@ -25,7 +26,7 @@ export default async function VerifyOTPPage({ searchParams }: VerifyOTPPageProps
     const token = formData.get('token') as string
     
     const { error } = await supabase.auth.verifyOtp({
-      email,
+      email: email as string,
       token,
       type: 'email'
     })
