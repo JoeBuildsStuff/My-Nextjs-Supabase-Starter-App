@@ -1,5 +1,5 @@
 import { Column } from "@tanstack/react-table"
-import { ArrowDown, ArrowUp, ChevronsUpDown, EyeOff, Filter } from "lucide-react"
+import { ArrowDown, ArrowUp, ChevronsUpDown, EyeOff } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -23,17 +23,29 @@ export function DataTableColumnHeader<TData, TValue>({
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) {
   if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>
+    return (
+      <div className={cn("relative", className)}>
+        {title}
+        {column.getCanResize() && (
+          <div
+            className={cn(
+              "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-accent active:bg-accent",
+              column.getIsResizing() && "bg-accent"
+            )}
+          />
+        )}
+      </div>
+    )
   }
 
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
+    <div className={cn("flex items-center space-x-2 relative", className)}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            className="-ml-3 h-8 data-[state=open]:bg-accent"
+            className="w-full h-8 data-[state=open]:bg-accent justify-between"
           >
             <span>{title}</span>
             {column.getIsSorted() === "desc" ? (
@@ -61,7 +73,14 @@ export function DataTableColumnHeader<TData, TValue>({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Filter className="h-4 w-4" />
+      {column.getCanResize() && (
+        <div
+          className={cn(
+            "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-accent active:bg-accent",
+            column.getIsResizing() && "bg-accent"
+          )}
+        />
+      )}
     </div>
   )
 }

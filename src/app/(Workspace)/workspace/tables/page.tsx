@@ -2,6 +2,7 @@ import { Card, CardTitle, CardContent, CardHeader, CardDescription } from "@/com
 import { DataTable1 } from "./components/1/data-table-1";
 import { DataTable2 } from "./components/2/data-table-2";
 import DataTable3 from "./components/3/data-table-3";
+import DataTable4 from "./components/4/data-table-4";
 
 export default function TablesPage() {
   return (
@@ -69,6 +70,28 @@ export default function TablesPage() {
         </CardHeader>
         <CardContent>
         <DataTable3 />
+        </CardContent>
+      </Card>
+
+      {/* Server-side Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Server-side Table</CardTitle>
+          <CardDescription><div className="prose dark:prose-invert max-w-none">
+          <p>
+            Server-side rendered table with URL-based state management.
+          </p>
+          <ul>
+            <li>Server-side pagination, sorting, and filtering</li>
+            <li>URL-based state persistence</li>
+            <li>Dynamic query building</li>
+            <li>Optimized for large datasets</li>
+          </ul>
+        </div>
+        </CardDescription>
+        </CardHeader>
+        <CardContent>
+        <DataTable4 searchParams={Promise.resolve({})} />
         </CardContent>
       </Card>
     </div>

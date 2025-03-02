@@ -3,14 +3,22 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
 
-
 import { Task } from "../data/schema"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
 
+//create default size for columns
+const defaultSizeTiny = 50
+const defaultSizeSmall = 100
+const defaultSizeMedium = 150
+// const defaultSizeLarge = 200
+const defaultSizeXLarge = 350
+
 export const columns: ColumnDef<Task>[] = [
   {
     id: "select",
+    size: defaultSizeTiny,
+
     header: ({ table }) => (
       <Checkbox
         checked={
@@ -35,13 +43,16 @@ export const columns: ColumnDef<Task>[] = [
   },
   {
     accessorKey: "id",
+    size: defaultSizeTiny,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={column.id} />
     ),
     cell: ({ row }) => <div className="w-fit">{row.getValue("id")}</div>,
+    // aggregationFn: 'count',
   },
   {
     accessorKey: "title",
+    size: defaultSizeXLarge,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={column.id} />
     ),
@@ -49,20 +60,27 @@ export const columns: ColumnDef<Task>[] = [
   },
   {
     accessorKey: "status",
+    size: defaultSizeMedium,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={column.id} />
     ),
     cell: ({ row }) => <div className="w-fit">{row.getValue("status")}</div>,
+    enableGrouping: true,
+    // aggregationFn: 'count',
   },
   {
     accessorKey: "priority",
+    size: defaultSizeMedium,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={column.id} />
     ),
     cell: ({ row }) => <div className="w-fit">{row.getValue("priority")}</div>,
+    enableGrouping: true,
+    // aggregationFn: 'count',
   },
   {
     id: "actions",
+    size: defaultSizeSmall,
     cell: ({ row }) => <DataTableRowActions row={row} />,
   },
 ]

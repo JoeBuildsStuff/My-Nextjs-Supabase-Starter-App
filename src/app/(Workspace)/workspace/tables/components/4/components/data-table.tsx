@@ -13,6 +13,8 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
+  getGroupedRowModel,
+  getExpandedRowModel,
 } from "@tanstack/react-table"
 
 import {
@@ -29,6 +31,10 @@ import {
   usePathname,
   useSearchParams
 } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { ChevronRight, ChevronDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 
 interface DataTableProps<TData, TValue> {
@@ -45,6 +51,7 @@ export function DataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
+  const [grouping, setGrouping] = React.useState<string[]>([])
 
   const router = useRouter()
   const pathname = usePathname()
@@ -116,6 +123,7 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
       columnFilters,
+      grouping,
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
@@ -130,30 +138,55 @@ export function DataTable<TData, TValue>({
       updateUrl(sorting, newFilters)
     },
     onColumnVisibilityChange: setColumnVisibility,
+    onGroupingChange: setGrouping,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    getGroupedRowModel: getGroupedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    enableColumnResizing: true,
+    columnResizeMode: "onChange",
+    enableExpanding: true,
   })
 
   return (
     <div className="space-y-2">
       <DataTableToolbar table={table} />
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border w-fit">
+        <Table className="w-fit">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} colSpan={header.colSpan}>
+                    <TableHead 
+                      key={header.id} 
+                      colSpan={header.colSpan}
+                      style={{
+                        width: header.getSize(),
+                        position: "relative",
+                        whiteSpace: "nowrap"
+                      }}
+                      className="border-r"
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
                             header.getContext()
                           )}
+                      {header.column.getCanResize() && (
+                        <div
+                          onMouseDown={header.getResizeHandler()}
+                          onTouchStart={header.getResizeHandler()}
+                          className={cn(
+                            "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-accent active:bg-accent",
+                            header.column.getIsResizing() && "bg-accent"
+                          )}
+                        />
+                      )}
                     </TableHead>
                   )
                 })}
@@ -168,10 +201,47 @@ export function DataTable<TData, TValue>({
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+                    <TableCell 
+                      key={cell.id} 
+                      className={cn(
+                        "border-r",
+                        cell.getIsGrouped() && "bg-muted/50",
+                        cell.getIsAggregated() && "bg-muted/20"
+                      )}
+                    >
+                      {cell.getIsGrouped() ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={row.getToggleExpandedHandler()}
+                          >
+                            {row.getIsExpanded() ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}{' '}
+                          <Badge variant="green">
+                            {row.subRows.length}
+                          </Badge>
+                        </div>
+                      ) : cell.getIsAggregated() ? (
+                        flexRender(
+                          cell.column.columnDef.aggregatedCell ?? 
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )
+                      ) : cell.getIsPlaceholder() ? null : (
+                        flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )
                       )}
                     </TableCell>
                   ))}

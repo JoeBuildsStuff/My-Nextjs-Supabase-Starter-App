@@ -1,9 +1,9 @@
 import { createClient } from '@/utils/supabase/server'
-import DataTablePagination from './compontents/data-table-pagination'
-import { DataTable } from './compontents/data-table'
-import { columns } from './compontents/columns'
+import DataTablePagination from './components/data-table-pagination'
+import { DataTable } from './components/data-table'
+import { columns } from './components/columns'
 
-export default async function Page({
+export default async function DataTable4({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
