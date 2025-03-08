@@ -9,6 +9,7 @@ import {
   Table,
   LayoutDashboard,
   Badge,
+  Presentation,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -55,6 +56,11 @@ const data = {
       icon: LayoutDashboard,
       isActive: true,
       items: [
+        {
+          title: "Canvas",
+          url: "/workspace/canvas",
+          icon: Presentation,
+        },
         {
           title: "Forms",
           url: "/workspace/forms",
