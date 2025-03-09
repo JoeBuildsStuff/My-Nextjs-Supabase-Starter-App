@@ -66,6 +66,8 @@ export interface CanvasState {
   moveSelectedToBack: () => void;
   moveSelectedForward: () => void;
   moveSelectedBackward: () => void;
+  duplicateSelectedNodes: () => void;
+  deleteSelectedNodes: () => void;
   
   // Viewport actions
   zoomIn: () => void;
@@ -401,6 +403,42 @@ export const useCanvasStore = create<CanvasState>()(
             [state.nodes[currentIndex - 1], state.nodes[currentIndex]];
           }
         }
+      }),
+    
+    duplicateSelectedNodes: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length === 0) return;
+        
+        // Deselect all nodes first
+        state.nodes.forEach(node => {
+          node.selected = false;
+        });
+        
+        // Create duplicates with new IDs and slightly offset positions
+        const duplicates = selectedNodes.map(node => ({
+          ...node,
+          id: `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          position: {
+            x: node.position.x + 20,
+            y: node.position.y + 20
+          },
+          selected: true
+        }));
+        
+        // Add duplicates to the nodes array
+        state.nodes.push(...duplicates);
+        
+        // Update selected elements
+        state.selectedElements = duplicates;
+      }),
+      
+    deleteSelectedNodes: () =>
+      set((state) => {
+        // Remove selected nodes from the array
+        state.nodes = state.nodes.filter(node => !node.selected);
+        // Clear selected elements
+        state.selectedElements = [];
       }),
     
     // Viewport actions

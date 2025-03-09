@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card} from '@/components/ui/card';
@@ -30,6 +30,9 @@ import {
   ChevronDown,
   ChevronsDown,
   SquareRoundCorner,
+  ChevronRight,
+  Copy,
+  Delete,
 } from 'lucide-react';
 
 // Import Slider component
@@ -40,6 +43,7 @@ import Canvas from './components/Canvas';
 import { useCanvasStore, ToolType } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuItem, DropdownMenuShortcut } from '@/components/ui/dropdown-menu';
 
 const DrawingCanvasUI = () => {
   // Use the canvas store instead of local state
@@ -59,7 +63,9 @@ const DrawingCanvasUI = () => {
     moveSelectedForward,
     moveSelectedBackward,
     borderRadius,
-    setBorderRadius
+    setBorderRadius,
+    duplicateSelectedNodes,
+    deleteSelectedNodes
   } = useCanvasStore();
   
   // Map tool IDs to tool types
@@ -136,6 +142,30 @@ const DrawingCanvasUI = () => {
     setFillColor(color);
   };
 
+  // Add keyboard event handlers
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if Command/Control + D is pressed for duplicate
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+        e.preventDefault(); // Prevent browser's default behavior
+        duplicateSelectedNodes();
+      }
+      
+      // Check if Delete or Backspace is pressed for delete
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        deleteSelectedNodes();
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [duplicateSelectedNodes, deleteSelectedNodes]);
+
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* Canvas takes up the full space */}
@@ -202,12 +232,12 @@ const DrawingCanvasUI = () => {
                       <Square className={`h-4 w-4 stroke-${strokeColor}`} />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent side="right">
+                  <PopoverContent side="right" sideOffset={15} align="start" className="grid grid-cols-8">
                     <ToggleGroupItem value="white" aria-label="Toggle white">
                       <Square className="h-4 w-4 stroke-white" />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="black" aria-label="Toggle black">
-                      <Square className="h-4 w-4 stroke-black" />
+                      <Square className="h-4 w-4 stroke-black dark:fill-secondary" />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="slate-500" aria-label="Toggle slate">
                       <Square className="h-4 w-4 stroke-slate-500" />
@@ -223,6 +253,12 @@ const DrawingCanvasUI = () => {
                     </ToggleGroupItem>
                     <ToggleGroupItem value="stone-500" aria-label="Toggle stone">
                       <Square className="h-4 w-4 stroke-stone-500" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="pink-500" aria-label="Toggle pink">
+                      <Square className="h-4 w-4 stroke-pink-500" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="rose-500" aria-label="Toggle rose">
+                      <Square className="h-4 w-4 stroke-rose-500" />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="red-500" aria-label="Toggle red">
                       <Square className="h-4 w-4 stroke-red-500" />
@@ -269,12 +305,7 @@ const DrawingCanvasUI = () => {
                     <ToggleGroupItem value="fuchsia-500" aria-label="Toggle fuchsia">
                       <Square className="h-4 w-4 stroke-fuchsia-500" />
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="pink-500" aria-label="Toggle pink">
-                      <Square className="h-4 w-4 stroke-pink-500" />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="rose-500" aria-label="Toggle rose">
-                      <Square className="h-4 w-4 stroke-rose-500" />
-                    </ToggleGroupItem>
+
                   </PopoverContent>
                 </Popover>
               </ToggleGroup>
@@ -290,12 +321,12 @@ const DrawingCanvasUI = () => {
                       <Square className={`h-4 w-4 fill-${fillColor} stroke-0`} />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent side="right">
+                  <PopoverContent side="right" sideOffset={15} align="start" className="grid grid-cols-8">
                     <ToggleGroupItem value="white" aria-label="Toggle white">
-                      <Square className="h-4 w-4 fill-white" />
+                      <Square className="h-4 w-4 fill-white " />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="black" aria-label="Toggle black">
-                      <Square className="h-4 w-4 fill-black stroke-0" />
+                      <Square className="h-4 w-4 fill-black stroke-0 dark:stroke-white/35 dark:stroke-1" />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="slate-500" aria-label="Toggle slate">
                       <Square className="h-4 w-4 fill-slate-500 stroke-0" />
@@ -311,6 +342,12 @@ const DrawingCanvasUI = () => {
                     </ToggleGroupItem>
                     <ToggleGroupItem value="stone-500" aria-label="Toggle stone">
                       <Square className="h-4 w-4 fill-stone-500 stroke-0" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="pink-500" aria-label="Toggle pink">
+                      <Square className="h-4 w-4 fill-pink-500 stroke-0" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="rose-500" aria-label="Toggle rose">
+                      <Square className="h-4 w-4 fill-rose-500 stroke-0" />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="red-500" aria-label="Toggle red">
                       <Square className="h-4 w-4 fill-red-500 stroke-0" />
@@ -357,12 +394,7 @@ const DrawingCanvasUI = () => {
                     <ToggleGroupItem value="fuchsia-500" aria-label="Toggle fuchsia">
                       <Square className="h-4 w-4 fill-fuchsia-500 stroke-0" />
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="pink-500" aria-label="Toggle pink">
-                      <Square className="h-4 w-4 fill-pink-500 stroke-0" />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="rose-500" aria-label="Toggle rose">
-                      <Square className="h-4 w-4 fill-rose-500 stroke-0" />
-                    </ToggleGroupItem>
+
                   </PopoverContent>
                 </Popover>
               </ToggleGroup>
@@ -377,7 +409,7 @@ const DrawingCanvasUI = () => {
                   <SquareRoundCorner className="w-4 h-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent side="right" className="w-fit">
+              <PopoverContent side="right" className="w-fit" sideOffset={15} align="start">
 
                   <div className="flex items-center justify-between mb-2">
                     <Label className="text-sm">Border Radius</Label>
@@ -422,7 +454,7 @@ const DrawingCanvasUI = () => {
                   <Layers className="w-4 h-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent side="right" className="w-fit h-fit p-1 m-0">
+              <PopoverContent side="right" className="w-fit h-fit p-1 m-0" sideOffset={15} align="start">
                 <div className="w-fit">
                   <Button variant="ghost" size="icon" onClick={moveSelectedToFront}>
                     <ChevronsUp className="h-4 w-4" />
@@ -439,8 +471,34 @@ const DrawingCanvasUI = () => {
                 </div>
               </PopoverContent>
             </Popover>
+            </div>
 
-          </div>
+                      {/* Action Controls */}
+          <div className="flex flex-row items-center justify-between w-full">
+              <Label className="text-sm font-medium text-muted-foreground">Actions</Label>
+              <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon"><ChevronRight className="w-4 h-4" /></Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="right" sideOffset={15} align="start" className="w-fit">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={duplicateSelectedNodes}>
+            <Copy className="mr-2 h-4 w-4" />
+            <span>Duplicate</span>
+            <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={deleteSelectedNodes}>
+            <Delete className="mr-2 h-4 w-4" />
+            <span>Delete</span>
+            <DropdownMenuShortcut>⌫</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+
+            </div>
           </div>
         </Card>
       </div>
