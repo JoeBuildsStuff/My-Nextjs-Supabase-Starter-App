@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Square } from 'lucide-react';
+import { Square, Slash } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 
@@ -21,6 +21,7 @@ const ColorControls = () => {
 
   // Color options with their HSL values
   const colorOptions = [
+    { name: "none", hsl: "0 0% 0%", special: true },
     { name: "white", hsl: "0 0% 100%" },
     { name: "black", hsl: "0 0% 0%" },
     { name: "slate-500", hsl: "215 16% 47%" },
@@ -51,6 +52,38 @@ const ColorControls = () => {
   const currentStrokeColor = colorOptions.find(c => c.name === strokeColor) || colorOptions[0];
   const currentFillColor = colorOptions.find(c => c.name === fillColor) || colorOptions[0];
 
+  // Render the color button in the trigger based on whether it's "none" or a regular color
+  const renderColorButton = (colorObj: typeof colorOptions[0], isStroke: boolean) => {
+    if (colorObj.name === "none") {
+      return (
+        <div className="relative h-4 w-4">
+          <Square 
+            className="h-4 w-4 absolute" 
+            style={{ 
+              stroke: "hsl(var(--border))",
+              fill: "transparent",
+              strokeWidth: "1px"
+            }} 
+          />
+          <Slash 
+            className="h-4 w-4 absolute text-muted-foreground" 
+          />
+        </div>
+      );
+    }
+
+    return (
+      <Square 
+        className="h-4 w-4" 
+        style={{ 
+          stroke: isStroke ? `hsl(${colorObj.hsl})` : "hsl(var(--border))",
+          fill: isStroke ? "transparent" : `hsl(${colorObj.hsl})`,
+          strokeWidth: isStroke ? "2px" : "1px"
+        }} 
+      />
+    );
+  };
+
   return (
     <div className="space-y-2">
       {/* Stroke color picker */}
@@ -59,14 +92,7 @@ const ColorControls = () => {
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon">
-              <Square 
-                className="h-4 w-4" 
-                style={{ 
-                  stroke: `hsl(${currentStrokeColor.hsl})`,
-                  fill: "transparent",
-                  strokeWidth: "2px"
-                }} 
-              />
+              {renderColorButton(currentStrokeColor, true)}
             </Button>
           </PopoverTrigger>
           <PopoverContent side="right" sideOffset={15} align="start" className="grid grid-cols-8 gap-1 p-2 w-64">
@@ -74,13 +100,20 @@ const ColorControls = () => {
               <Button 
                 key={`stroke-${color.name}`} 
                 variant="ghost" 
-                className="h-6 w-6 p-0 rounded-md"
+                className="h-6 w-6 p-0 rounded-md relative"
                 style={{ 
                   border: strokeColor === color.name ? '2px solid hsl(var(--primary))' : '1px solid hsl(var(--border))',
-                  background: `hsl(${color.hsl})` 
+                  background: color.name === "none" ? 'transparent' : `hsl(${color.hsl})` 
                 }}
                 onClick={() => handleStrokeColorChange(color.name)}
-              />
+              >
+                {color.name === "none" && (
+                  <>
+                    <Square className="h-4 w-4 absolute" style={{ stroke: "hsl(var(--border))", fill: "transparent" }} />
+                    <Slash className="h-4 w-4 absolute text-muted-foreground" />
+                  </>
+                )}
+              </Button>
             ))}
           </PopoverContent>
         </Popover>
@@ -92,14 +125,7 @@ const ColorControls = () => {
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon">
-              <Square 
-                className="h-4 w-4" 
-                style={{ 
-                  fill: `hsl(${currentFillColor.hsl})`,
-                  stroke: "hsl(var(--border))",
-                  strokeWidth: "1px"
-                }} 
-              />
+              {renderColorButton(currentFillColor, false)}
             </Button>
           </PopoverTrigger>
           <PopoverContent side="right" sideOffset={15} align="start" className="grid grid-cols-8 gap-1 p-2 w-64">
@@ -107,13 +133,20 @@ const ColorControls = () => {
               <Button 
                 key={`fill-${color.name}`} 
                 variant="ghost" 
-                className="h-6 w-6 p-0 rounded-md"
+                className="h-6 w-6 p-0 rounded-md relative"
                 style={{ 
                   border: fillColor === color.name ? '2px solid hsl(var(--primary))' : '1px solid hsl(var(--border))',
-                  background: `hsl(${color.hsl})` 
+                  background: color.name === "none" ? 'transparent' : `hsl(${color.hsl})` 
                 }}
                 onClick={() => handleFillColorChange(color.name)}
-              />
+              >
+                {color.name === "none" && (
+                  <>
+                    <Square className="h-4 w-4 absolute" style={{ stroke: "hsl(var(--border))", fill: "transparent" }} />
+                    <Slash className="h-4 w-4 absolute text-muted-foreground" />
+                  </>
+                )}
+              </Button>
             ))}
           </PopoverContent>
         </Popover>

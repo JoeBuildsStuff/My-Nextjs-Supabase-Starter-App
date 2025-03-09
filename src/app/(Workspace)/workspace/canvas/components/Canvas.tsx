@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { useCanvasStore, Node } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
+import ResizeHandles, { ResizeHandleDirection } from './ui/ResizeHandles';
 
 interface CanvasProps {
   width?: number;
@@ -26,7 +27,8 @@ const Canvas: React.FC<CanvasProps> = ({
     selectNode,
     updateNodePosition,
     deselectAllNodes,
-    selectMultipleNodes
+    selectMultipleNodes,
+    updateNodeDimensions
   } = useCanvasStore();
   
   // State for tracking mouse interactions
@@ -263,19 +265,28 @@ const Canvas: React.FC<CanvasProps> = ({
       console.log('Rendering selected node:', id, 'with style:', style);
     }
     
-    // Base styles for all nodes
-    const baseStyle: React.CSSProperties = {
+    // Create a container for the shape and resize handles
+    const containerStyle: React.CSSProperties = {
       position: 'absolute',
       left: `${position.x}px`,
       top: `${position.y}px`,
       width: `${dimensions.width}px`,
       height: `${dimensions.height}px`,
+      pointerEvents: selected ? 'auto' : 'none', // Only make selected shapes interactive
+    };
+    
+    // Base styles for all nodes, now relative to the container
+    const baseStyle: React.CSSProperties = {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      width: '100%',
+      height: '100%',
       backgroundColor: (style?.backgroundColor as string) || 'white',
       border: `${(style?.borderWidth as number) || 2}px solid ${(style?.borderColor as string) || 'black'}`,
       borderRadius: (style?.borderRadius as string) || '0px',
       boxSizing: 'border-box',
       cursor: 'move',
-      ...(selected ? { boxShadow: '0 0 0 2px blue' } : {})
     };
     
     // Log computed style for debugging
@@ -287,13 +298,12 @@ const Canvas: React.FC<CanvasProps> = ({
     let shapeElement;
     switch (type) {
       case 'rectangle':
-        shapeElement = <div key={id} style={baseStyle} />;
+        shapeElement = <div style={baseStyle} />;
         break;
         
       case 'circle':
         shapeElement = (
           <div 
-            key={id} 
             style={{ 
               ...baseStyle, 
               borderRadius: '50%' 
@@ -305,7 +315,6 @@ const Canvas: React.FC<CanvasProps> = ({
       case 'diamond':
         shapeElement = (
           <div 
-            key={id} 
             style={{ 
               ...baseStyle,
               transform: 'rotate(45deg)',
@@ -326,7 +335,6 @@ const Canvas: React.FC<CanvasProps> = ({
         
         shapeElement = (
           <div 
-            key={id} 
             style={{ 
               ...baseStyle,
               borderRadius: cylinderTopRadius,
@@ -351,7 +359,6 @@ const Canvas: React.FC<CanvasProps> = ({
       case 'line':
         shapeElement = (
           <div 
-            key={id} 
             style={{ 
               ...baseStyle,
               height: `${(style?.borderWidth as number) || 2}px`,
@@ -377,10 +384,87 @@ const Canvas: React.FC<CanvasProps> = ({
         break;
         
       default:
-        shapeElement = <div key={id} style={baseStyle} />;
+        shapeElement = <div style={baseStyle} />;
+        break;
     }
     
-    return shapeElement;
+    // Return the container with the shape and resize handles
+    return (
+      <div key={id} style={containerStyle}>
+        {shapeElement}
+        {selected && dimensions && (
+          <ResizeHandles 
+            node={node} 
+            onResize={handleResizeNode} 
+          />
+        )}
+      </div>
+    );
+  };
+  
+  // Handle resizing of nodes
+  const handleResizeNode = (nodeId: string, direction: ResizeHandleDirection, dx: number, dy: number) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || !node.dimensions) return;
+    
+    // Adjust dx and dy for zoom level
+    const adjustedDx = dx / transform.zoom;
+    const adjustedDy = dy / transform.zoom;
+    
+    let newWidth = node.dimensions.width;
+    let newHeight = node.dimensions.height;
+    let newX = node.position.x;
+    let newY = node.position.y;
+    
+    // Adjust dimensions and position based on resize direction
+    switch (direction) {
+      case 'e':
+        newWidth = Math.max(10, node.dimensions.width + adjustedDx);
+        break;
+      case 'w':
+        newWidth = Math.max(10, node.dimensions.width - adjustedDx);
+        newX = node.position.x + adjustedDx;
+        break;
+      case 's':
+        newHeight = Math.max(10, node.dimensions.height + adjustedDy);
+        break;
+      case 'n':
+        newHeight = Math.max(10, node.dimensions.height - adjustedDy);
+        newY = node.position.y + adjustedDy;
+        break;
+      case 'ne':
+        newWidth = Math.max(10, node.dimensions.width + adjustedDx);
+        newHeight = Math.max(10, node.dimensions.height - adjustedDy);
+        newY = node.position.y + adjustedDy;
+        break;
+      case 'nw':
+        newWidth = Math.max(10, node.dimensions.width - adjustedDx);
+        newHeight = Math.max(10, node.dimensions.height - adjustedDy);
+        newX = node.position.x + adjustedDx;
+        newY = node.position.y + adjustedDy;
+        break;
+      case 'se':
+        newWidth = Math.max(10, node.dimensions.width + adjustedDx);
+        newHeight = Math.max(10, node.dimensions.height + adjustedDy);
+        break;
+      case 'sw':
+        newWidth = Math.max(10, node.dimensions.width - adjustedDx);
+        newHeight = Math.max(10, node.dimensions.height + adjustedDy);
+        newX = node.position.x + adjustedDx;
+        break;
+    }
+    
+    // Apply snap to grid if enabled
+    if (snapToGrid) {
+      newWidth = Math.round(newWidth / gridSize) * gridSize;
+      newHeight = Math.round(newHeight / gridSize) * gridSize;
+      newX = Math.round(newX / gridSize) * gridSize;
+      newY = Math.round(newY / gridSize) * gridSize;
+    }
+    
+    // Update node position and dimensions
+    updateNodePosition(nodeId, newX, newY);
+    updateNodeDimensions(nodeId, newWidth, newHeight);
   };
   
   return (

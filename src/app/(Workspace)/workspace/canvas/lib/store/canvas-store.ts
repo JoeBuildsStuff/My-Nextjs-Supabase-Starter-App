@@ -85,6 +85,11 @@ export interface CanvasState {
 
 // Helper function to convert Tailwind color names to CSS color values
 const getTailwindColor = (colorName: string): string => {
+  // Special case for "none" color
+  if (colorName === "none") {
+    return "transparent";
+  }
+
   const colorMap: Record<string, string> = {
     'black': '#000000',
     'white': '#FFFFFF',
@@ -117,6 +122,11 @@ const getTailwindColor = (colorName: string): string => {
 
 // Helper function to convert CSS color values back to Tailwind color names
 const getTailwindColorName = (hexColor: string): string => {
+  // Special case for transparent color
+  if (hexColor === "transparent") {
+    return "none";
+  }
+
   const colorMap: Record<string, string> = {
     '#000000': 'black',
     '#FFFFFF': 'white',
