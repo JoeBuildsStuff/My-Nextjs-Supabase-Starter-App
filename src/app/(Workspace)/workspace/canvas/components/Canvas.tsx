@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { useCanvasStore, Node } from '@/lib/store/canvas-store';
+import { useCanvasStore, Node } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 
 interface CanvasProps {
   width?: number;
@@ -25,19 +25,28 @@ const Canvas: React.FC<CanvasProps> = ({
     createShapeAtPosition,
     selectNode,
     updateNodePosition,
-    updateNodeDimensions
+    deselectAllNodes,
+    selectMultipleNodes
   } = useCanvasStore();
   
   // State for tracking mouse interactions
   const [isDragging, setIsDragging] = useState(false);
   const [isMovingNode, setIsMovingNode] = useState(false);
-  const [isResizingNode, setIsResizingNode] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<{ start: { x: number, y: number }, end: { x: number, y: number } } | null>(null);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
-  const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
   const [nodeStartPos, setNodeStartPos] = useState({ x: 0, y: 0 });
-  const [nodeStartDimensions, setNodeStartDimensions] = useState({ width: 0, height: 0 });
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  
+  // Add a state to force re-renders
+  const [, setForceUpdate] = useState({});
+  
+  // Force a re-render when nodes change
+  useEffect(() => {
+    console.log('Nodes changed, forcing re-render');
+    setForceUpdate({});
+  }, [nodes]);
   
   // Set dimensions after component mounts on client side
   useEffect(() => {
@@ -67,6 +76,28 @@ const Canvas: React.FC<CanvasProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [width, height]);
   
+  // Helper function to check if a node is within the selection box
+  const isNodeInSelectionBox = (node: Node, selectionBox: { start: { x: number, y: number }, end: { x: number, y: number } }) => {
+    if (!node.dimensions) return false;
+    
+    const boxLeft = Math.min(selectionBox.start.x, selectionBox.end.x);
+    const boxRight = Math.max(selectionBox.start.x, selectionBox.end.x);
+    const boxTop = Math.min(selectionBox.start.y, selectionBox.end.y);
+    const boxBottom = Math.max(selectionBox.start.y, selectionBox.end.y);
+    
+    const nodeLeft = node.position.x;
+    const nodeRight = node.position.x + node.dimensions.width;
+    const nodeTop = node.position.y;
+    const nodeBottom = node.position.y + node.dimensions.height;
+    
+    return (
+      nodeLeft < boxRight &&
+      nodeRight > boxLeft &&
+      nodeTop < boxBottom &&
+      nodeBottom > boxTop
+    );
+  };
+  
   // Handle mouse down for panning, shape creation, or node interaction
   const handleMouseDown = (e: React.MouseEvent) => {
     if (activeTool === 'hand' || (e.button === 1) || (e.button === 0 && e.altKey)) {
@@ -89,7 +120,6 @@ const Canvas: React.FC<CanvasProps> = ({
         createShapeAtPosition(activeTool, snappedX, snappedY);
       }
     } else if (activeTool === 'select') {
-      // Handle selection logic
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect) {
         const x = (e.clientX - rect.left - transform.x) / transform.zoom;
@@ -99,39 +129,27 @@ const Canvas: React.FC<CanvasProps> = ({
         const clickedNode = findNodeAtPosition(x, y);
         if (clickedNode) {
           selectNode(clickedNode.id);
-          
-          // Check if we're clicking on a resize handle
-          const resizeHandle = getResizeHandle(clickedNode, x, y);
-          if (resizeHandle) {
-            // Start resizing
-            setIsResizingNode(true);
-            setActiveNodeId(clickedNode.id);
-            setResizeDirection(resizeHandle);
-            setLastMousePos({ x: e.clientX, y: e.clientY });
-            setNodeStartDimensions({
-              width: clickedNode.dimensions?.width || 0,
-              height: clickedNode.dimensions?.height || 0
-            });
-            setNodeStartPos({
-              x: clickedNode.position.x,
-              y: clickedNode.position.y
-            });
-          } else {
-            // Start moving
-            setIsMovingNode(true);
-            setActiveNodeId(clickedNode.id);
-            setLastMousePos({ x: e.clientX, y: e.clientY });
-            setNodeStartPos({
-              x: clickedNode.position.x,
-              y: clickedNode.position.y
-            });
-          }
+          setIsMovingNode(true);
+          setActiveNodeId(clickedNode.id);
+          setLastMousePos({ x: e.clientX, y: e.clientY });
+          setNodeStartPos({
+            x: clickedNode.position.x,
+            y: clickedNode.position.y
+          });
+        } else {
+          // Start selection box
+          setIsSelecting(true);
+          setSelectionBox({
+            start: { x, y },
+            end: { x, y }
+          });
+          deselectAllNodes();
         }
       }
     }
   };
   
-  // Handle mouse move for panning or node interaction
+  // Handle mouse move for panning, node movement, or selection box
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
       const dx = e.clientX - lastMousePos.x;
@@ -149,57 +167,34 @@ const Canvas: React.FC<CanvasProps> = ({
         nodeStartPos.x + dx,
         nodeStartPos.y + dy
       );
-    } else if (isResizingNode && activeNodeId && resizeDirection) {
-      const dx = (e.clientX - lastMousePos.x) / transform.zoom;
-      const dy = (e.clientY - lastMousePos.y) / transform.zoom;
-      
-      // Calculate new dimensions based on resize direction
-      let newWidth = nodeStartDimensions.width;
-      let newHeight = nodeStartDimensions.height;
-      let newX = nodeStartPos.x;
-      let newY = nodeStartPos.y;
-      
-      if (resizeDirection.includes('e')) {
-        newWidth = Math.max(20, nodeStartDimensions.width + dx);
+    } else if (isSelecting && selectionBox) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = (e.clientX - rect.left - transform.x) / transform.zoom;
+        const y = (e.clientY - rect.top - transform.y) / transform.zoom;
+        
+        setSelectionBox({
+          ...selectionBox,
+          end: { x, y }
+        });
+        
+        // Find all nodes within the selection box
+        const selectedNodeIds = nodes
+          .filter(node => isNodeInSelectionBox(node, { ...selectionBox, end: { x, y } }))
+          .map(node => node.id);
+        
+        selectMultipleNodes(selectedNodeIds);
       }
-      if (resizeDirection.includes('w')) {
-        const widthChange = Math.min(nodeStartDimensions.width - 20, dx);
-        newWidth = nodeStartDimensions.width - widthChange;
-        newX = nodeStartPos.x + widthChange;
-      }
-      if (resizeDirection.includes('s')) {
-        newHeight = Math.max(20, nodeStartDimensions.height + dy);
-      }
-      if (resizeDirection.includes('n')) {
-        const heightChange = Math.min(nodeStartDimensions.height - 20, dy);
-        newHeight = nodeStartDimensions.height - heightChange;
-        newY = nodeStartPos.y + heightChange;
-      }
-      
-      // Update node position if it changed
-      if (newX !== nodeStartPos.x || newY !== nodeStartPos.y) {
-        updateNodePosition(activeNodeId, newX, newY);
-      }
-      
-      // Update node dimensions
-      updateNodeDimensions(activeNodeId, newWidth, newHeight);
     }
   };
   
-  // Handle mouse up to stop interactions
+  // Handle mouse up to end all interactions
   const handleMouseUp = () => {
-    if (isDragging) {
-      setIsDragging(false);
-    }
-    if (isMovingNode) {
-      setIsMovingNode(false);
-      setActiveNodeId(null);
-    }
-    if (isResizingNode) {
-      setIsResizingNode(false);
-      setActiveNodeId(null);
-      setResizeDirection(null);
-    }
+    setIsDragging(false);
+    setIsMovingNode(false);
+    setIsSelecting(false);
+    setSelectionBox(null);
+    setActiveNodeId(null);
   };
   
   // Helper function to find a node at a specific position
@@ -223,45 +218,6 @@ const Canvas: React.FC<CanvasProps> = ({
     }
     
     return undefined;
-  };
-  
-  // Helper function to check if a point is on a resize handle
-  const getResizeHandle = (node: Node, x: number, y: number): string | null => {
-    const { position, dimensions } = node;
-    if (!dimensions) return null;
-    
-    const handleSize = 8 / transform.zoom; // Size of the resize handle
-    const halfHandleSize = handleSize / 2;
-    
-    // Check each corner and edge
-    if (Math.abs(x - position.x) <= handleSize && Math.abs(y - position.y) <= handleSize) {
-      return 'nw'; // Northwest
-    }
-    if (Math.abs(x - (position.x + dimensions.width)) <= handleSize && Math.abs(y - position.y) <= handleSize) {
-      return 'ne'; // Northeast
-    }
-    if (Math.abs(x - position.x) <= handleSize && Math.abs(y - (position.y + dimensions.height)) <= handleSize) {
-      return 'sw'; // Southwest
-    }
-    if (Math.abs(x - (position.x + dimensions.width)) <= handleSize && Math.abs(y - (position.y + dimensions.height)) <= handleSize) {
-      return 'se'; // Southeast
-    }
-    
-    // Check edges
-    if (Math.abs(x - position.x) <= handleSize && y > position.y + halfHandleSize && y < position.y + dimensions.height - halfHandleSize) {
-      return 'w'; // West
-    }
-    if (Math.abs(x - (position.x + dimensions.width)) <= handleSize && y > position.y + halfHandleSize && y < position.y + dimensions.height - halfHandleSize) {
-      return 'e'; // East
-    }
-    if (Math.abs(y - position.y) <= handleSize && x > position.x + halfHandleSize && x < position.x + dimensions.width - halfHandleSize) {
-      return 'n'; // North
-    }
-    if (Math.abs(y - (position.y + dimensions.height)) <= handleSize && x > position.x + halfHandleSize && x < position.x + dimensions.width - halfHandleSize) {
-      return 's'; // South
-    }
-    
-    return null;
   };
   
   // Clean up event listeners
@@ -302,6 +258,11 @@ const Canvas: React.FC<CanvasProps> = ({
     
     if (!dimensions) return null;
     
+    // Log node style for debugging
+    if (selected) {
+      console.log('Rendering selected node:', id, 'with style:', style);
+    }
+    
     // Base styles for all nodes
     const baseStyle: React.CSSProperties = {
       position: 'absolute',
@@ -311,10 +272,16 @@ const Canvas: React.FC<CanvasProps> = ({
       height: `${dimensions.height}px`,
       backgroundColor: (style?.backgroundColor as string) || 'white',
       border: `${(style?.borderWidth as number) || 2}px solid ${(style?.borderColor as string) || 'black'}`,
+      borderRadius: (style?.borderRadius as string) || '0px',
       boxSizing: 'border-box',
       cursor: 'move',
       ...(selected ? { boxShadow: '0 0 0 2px blue' } : {})
     };
+    
+    // Log computed style for debugging
+    if (selected) {
+      console.log('Computed baseStyle for node:', id, baseStyle);
+    }
     
     // Render different shapes based on type
     let shapeElement;
@@ -349,12 +316,20 @@ const Canvas: React.FC<CanvasProps> = ({
         break;
         
       case 'cylinder':
+        // For cylinder, we need to preserve the top border radius but allow the bottom to be customized
+        const cylinderTopRadius = '50% 50% 0 0 / 20% 20% 0 0';
+        const customRadius = (style?.borderRadius as string) || '0px';
+        // Extract the pixel value from the borderRadius string (e.g., "10px" -> 10)
+        const radiusValue = parseInt((customRadius.match(/\d+/) || ['0'])[0], 10);
+        // Create a custom bottom radius that scales with the user's setting
+        const cylinderBottomRadius = `0 0 ${radiusValue * 2}% ${radiusValue * 2}% / 0 0 ${radiusValue}% ${radiusValue}%`;
+        
         shapeElement = (
           <div 
             key={id} 
             style={{ 
               ...baseStyle,
-              borderRadius: '50% 50% 0 0 / 20% 20% 0 0',
+              borderRadius: cylinderTopRadius,
               position: 'relative',
               overflow: 'hidden'
             }}
@@ -366,7 +341,7 @@ const Canvas: React.FC<CanvasProps> = ({
               width: '100%',
               height: '20%',
               borderTop: `${(style?.borderWidth as number) || 2}px solid ${(style?.borderColor as string) || 'black'}`,
-              borderRadius: '0 0 50% 50% / 0 0 20% 20%',
+              borderRadius: cylinderBottomRadius,
             }} />
           </div>
         );
@@ -405,37 +380,6 @@ const Canvas: React.FC<CanvasProps> = ({
         shapeElement = <div key={id} style={baseStyle} />;
     }
     
-    // If selected, add resize handles
-    if (selected && !['arrow', 'line'].includes(type)) {
-      const handleSize = 8;
-      const handleStyle: React.CSSProperties = {
-        position: 'absolute',
-        width: `${handleSize}px`,
-        height: `${handleSize}px`,
-        backgroundColor: 'white',
-        border: '1px solid blue',
-        borderRadius: '50%',
-      };
-      
-      return (
-        <div key={id} style={{ position: 'absolute', left: 0, top: 0 }}>
-          {shapeElement}
-          
-          {/* Resize handles */}
-          <div style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'nwse-resize' }} />
-          <div style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'nesw-resize' }} />
-          <div style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'nesw-resize' }} />
-          <div style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'nwse-resize' }} />
-          
-          {/* Edge handles */}
-          <div style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y + dimensions.height / 2 - handleSize / 2}px`, cursor: 'ew-resize' }} />
-          <div style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y + dimensions.height / 2 - handleSize / 2}px`, cursor: 'ew-resize' }} />
-          <div style={{ ...handleStyle, left: `${position.x + dimensions.width / 2 - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'ns-resize' }} />
-          <div style={{ ...handleStyle, left: `${position.x + dimensions.width / 2 - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'ns-resize' }} />
-        </div>
-      );
-    }
-    
     return shapeElement;
   };
   
@@ -450,6 +394,19 @@ const Canvas: React.FC<CanvasProps> = ({
     >
       {/* Grid */}
       {renderGrid()}
+      
+      {/* Selection Box */}
+      {isSelecting && selectionBox && (
+        <div
+          className="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none"
+          style={{
+            left: `${Math.min(selectionBox.start.x, selectionBox.end.x) * transform.zoom + transform.x}px`,
+            top: `${Math.min(selectionBox.start.y, selectionBox.end.y) * transform.zoom + transform.y}px`,
+            width: `${Math.abs(selectionBox.end.x - selectionBox.start.x) * transform.zoom}px`,
+            height: `${Math.abs(selectionBox.end.y - selectionBox.start.y) * transform.zoom}px`,
+          }}
+        />
+      )}
       
       {/* Canvas Content */}
       <div 

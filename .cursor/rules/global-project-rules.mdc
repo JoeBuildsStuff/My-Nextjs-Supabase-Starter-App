@@ -106,3 +106,131 @@ const ControlPanel = ({ zoom, handleZoomIn, handleZoomOut }) => {
 
 export default ControlPanel;
 ```
+
+## Color Usage Guidelines
+
+### Core Principles
+- NEVER use hardcoded color values like hex codes (#ddd, #333, etc.) or named colors (red, blue, etc.)
+- ALWAYS use HSL variables defined in globals.css via the `hsl(var(--variable-name))` syntax
+
+### Correct Color Usage
+
+✅ CORRECT:
+```jsx
+backgroundImage: 'radial-gradient(circle, hsl(var(--secondary)) 1px, transparent 1px)'
+```
+
+❌ INCORRECT:
+```jsx
+backgroundImage: 'radial-gradient(circle, #ddd 1px, transparent 1px)'
+```
+
+### Available Color Variables with HSL Values
+All colors must come from these predefined variables in globals.css:
+
+Light Mode:
+- `--background: 0 0% 100%` (white)
+- `--foreground: 0 0% 3.9%` (near black)
+- `--card: 0 0% 100%` (white)
+- `--card-foreground: 0 0% 3.9%` (near black)
+- `--popover: 0 0% 100%` (white)
+- `--popover-foreground: 0 0% 3.9%` (near black)
+- `--primary: 0 0% 9%` (dark gray)
+- `--primary-foreground: 0 0% 98%` (off-white)
+- `--secondary: 0 0% 96.1%` (light gray)
+- `--secondary-foreground: 0 0% 9%` (dark gray)
+- `--muted: 0 0% 96.1%` (light gray)
+- `--muted-foreground: 0 0% 45.1%` (medium gray)
+- `--accent: 0 0% 96.1%` (light gray)
+- `--accent-foreground: 0 0% 9%` (dark gray)
+- `--destructive: 0 84.2% 60.2%` (red)
+- `--destructive-foreground: 0 0% 98%` (off-white)
+- `--border: 0 0% 89.8%` (light gray)
+- `--input: 0 0% 89.8%` (light gray)
+- `--ring: 0 0% 3.9%` (near black)
+- `--chart-1: 12 76% 61%` (orange-red)
+- `--chart-2: 173 58% 39%` (teal)
+- `--chart-3: 197 37% 24%` (dark blue)
+- `--chart-4: 43 74% 66%` (yellow)
+- `--chart-5: 27 87% 67%` (orange)
+- `--sidebar-background: 0 0% 98%` (off-white)
+- `--sidebar-foreground: 240 5.3% 26.1%` (slate gray)
+- `--sidebar-primary: 240 5.9% 10%` (dark slate)
+- `--sidebar-primary-foreground: 0 0% 98%` (off-white)
+- `--sidebar-accent: 240 4.8% 95.9%` (light slate)
+- `--sidebar-accent-foreground: 240 5.9% 10%` (dark slate)
+- `--sidebar-border: 220 13% 91%` (light gray-blue)
+- `--sidebar-ring: 217.2 91.2% 59.8%` (blue)
+
+Dark Mode:
+- `--background: 0 0% 3.9%` (near black)
+- `--foreground: 0 0% 98%` (off-white)
+- `--card: 0 0% 3.9%` (near black)
+- `--card-foreground: 0 0% 98%` (off-white)
+- `--popover: 0 0% 3.9%` (near black)
+- `--popover-foreground: 0 0% 98%` (off-white)
+- `--primary: 0 0% 98%` (off-white)
+- `--primary-foreground: 0 0% 9%` (dark gray)
+- `--secondary: 0 0% 14.9%` (dark gray)
+- `--secondary-foreground: 0 0% 98%` (off-white)
+- `--muted: 0 0% 14.9%` (dark gray)
+- `--muted-foreground: 0 0% 63.9%` (medium gray)
+- `--accent: 0 0% 14.9%` (dark gray)
+- `--accent-foreground: 0 0% 98%` (off-white)
+- `--destructive: 0 62.8% 30.6%` (dark red)
+- `--destructive-foreground: 0 0% 98%` (off-white)
+- `--border: 0 0% 14.9%` (dark gray)
+- `--input: 0 0% 14.9%` (dark gray)
+- `--ring: 0 0% 83.1%` (light gray)
+- `--chart-1: 220 70% 50%` (blue)
+- `--chart-2: 160 60% 45%` (green)
+- `--chart-3: 30 80% 55%` (orange)
+- `--chart-4: 280 65% 60%` (purple)
+- `--chart-5: 340 75% 55%` (pink)
+- `--sidebar-background: 240 5.9% 10%` (dark slate)
+- `--sidebar-foreground: 240 4.8% 95.9%` (light slate)
+- `--sidebar-primary: 224.3 76.3% 48%` (blue)
+- `--sidebar-primary-foreground: 0 0% 100%` (white)
+- `--sidebar-accent: 240 3.7% 15.9%` (dark slate)
+- `--sidebar-accent-foreground: 240 4.8% 95.9%` (light slate)
+- `--sidebar-border: 240 3.7% 15.9%` (dark slate)
+- `--sidebar-ring: 217.2 91.2% 59.8%` (blue)
+
+### Implementation Examples
+
+For backgrounds:
+```jsx
+// ❌ AVOID:
+<div style={{ backgroundColor: '#f9f9f9' }} />
+
+// ✅ USE:
+<div className="bg-background" />
+// OR if inline style is absolutely necessary:
+<div style={{ backgroundColor: 'hsl(var(--background))' }} />
+```
+
+For text colors:
+```jsx
+// ❌ AVOID:
+<span style={{ color: '#666' }}>Text</span>
+
+// ✅ USE:
+<span className="text-muted-foreground">Text</span>
+// OR if inline style is absolutely necessary:
+<span style={{ color: 'hsl(var(--muted-foreground))' }}>Text</span>
+```
+
+For gradients and complex styling:
+```jsx
+// ❌ AVOID:
+backgroundImage: 'radial-gradient(circle, #ddd 1px, transparent 1px)'
+
+// ✅ USE:
+backgroundImage: 'radial-gradient(circle, hsl(var(--secondary)) 1px, transparent 1px)'
+```
+
+### Reminder
+Always check if a Tailwind utility class exists first before using inline styles. Inline styles should be a last resort when Tailwind doesn't provide the needed functionality.
+
+
+
