@@ -1,0 +1,116 @@
+'use client';
+
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Card } from '@/components/ui/card';
+import {
+  Hand,
+  MousePointer,
+  Square,
+  Circle,
+  ArrowRight,
+  Minus,
+  Pen,
+  Type,
+  Eraser,
+  Diamond,
+  Cylinder,
+} from 'lucide-react';
+import { useCanvasStore, ToolType } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
+
+const Toolbar = () => {
+  const { activeTool, setActiveTool, transform, createShapeAtPosition } = useCanvasStore();
+  
+  // Map tool IDs to tool types
+  const toolMap: Record<number, ToolType> = {
+    0: 'hand',
+    1: 'select',
+    2: 'rectangle',
+    3: 'diamond',
+    4: 'circle',
+    5: 'cylinder' as ToolType,
+    6: 'arrow',
+    7: 'line',
+    8: 'pen',
+    9: 'text',
+    10: 'eraser'
+  };
+  
+  const tools = [
+    // Navigation tools
+    { id: 0, icon: <Hand className="" size={16} />, name: "Hand" },
+    { id: 1, icon: <MousePointer className="" size={16} />, name: "Select"},
+    { type: 'separator' },
+    // Shape tools
+    { id: 2, icon: <Square className="" size={16} />, name: "Rectangle"},
+    { id: 3, icon: <Diamond className="" size={16} />, name: "Diamond"},
+    { id: 4, icon: <Circle className="" size={16} />, name: "Circle"},
+    { id: 5, icon: <Cylinder className="" size={16} />, name: "Cylinder"},
+    { type: 'separator' },
+    // Line tools
+    { id: 6, icon: <ArrowRight className="" size={16} />, name: "Arrow"},
+    { id: 7, icon: <Minus className="" size={16} />, name: "Line"},
+    { id: 8, icon: <Pen className="" size={16} />, name: "Pen"},
+    { type: 'separator' },
+    // Content tools
+    { id: 9, icon: <Type className="" size={16} />, name: "Text"},
+    { id: 10, icon: <Eraser className="" size={16} />, name: "Eraser"}
+  ];
+
+  // Handle tool selection
+  const handleToolSelect = (toolId: number) => {
+    const toolType = toolMap[toolId];
+    if (toolType) {
+      setActiveTool(toolType);
+      
+      // If a shape tool is selected, create the shape below the toolbar
+      if (['rectangle', 'diamond', 'circle', 'cylinder', 'arrow', 'line'].includes(toolType)) {
+        // Calculate position below the toolbar
+        const toolbarHeight = 60; // Approximate height of toolbar + margin
+        
+        // Calculate the center of the screen horizontally
+        const centerX = window.innerWidth / 2;
+        
+        // Calculate the position in canvas coordinates
+        const canvasX = (centerX - transform.x) / transform.zoom;
+        const canvasY = (toolbarHeight - transform.y) / transform.zoom;
+        
+        // Create the shape at the calculated position
+        createShapeAtPosition(toolType, canvasX, canvasY);
+      }
+    }
+  };
+
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2">
+      <Card className="flex items-center space-x-1 p-2 bg-background/80 backdrop-blur-sm">
+        <TooltipProvider>
+          {tools.map((tool, index) => (
+            tool.type === 'separator' ? (
+              <div key={`separator-${index}`} className="h-6 w-px bg-border mx-1" />
+            ) : (
+              <Tooltip key={tool.id}>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`relative ${activeTool === (tool.id !== undefined ? toolMap[tool.id] : '') ? 'bg-secondary' : ''}`}
+                    onClick={() => tool.id !== undefined && handleToolSelect(tool.id)}
+                  >
+                    {tool.icon}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={10}>
+                  <p>{tool.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            )
+          ))}
+        </TooltipProvider>
+      </Card>
+    </div>
+  );
+};
+
+export default Toolbar; 
