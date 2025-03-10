@@ -78,6 +78,43 @@ const Canvas: React.FC<CanvasProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [width, height]);
   
+  // Initialize history when canvas first loads
+  useEffect(() => {
+    console.log('Canvas useEffect for history initialization');
+    console.log('Current nodes:', nodes.length, 'History length:', useCanvasStore.getState().history.length);
+    
+    // Initialize history with empty state if it's empty
+    if (useCanvasStore.getState().history.length === 0) {
+      console.log('Initializing history with empty state');
+      
+      // First, add an empty state
+      useCanvasStore.setState(state => {
+        state.history = [{
+          nodes: [],
+          edges: []
+        }];
+        state.historyIndex = 0;
+        return state;
+      });
+      
+      // Then, if we have nodes, add the current state
+      if (nodes.length > 0) {
+        console.log('Adding current state with nodes to history');
+        useCanvasStore.setState(state => {
+          state.history.push({
+            nodes: JSON.parse(JSON.stringify(nodes)),
+            edges: JSON.parse(JSON.stringify(state.edges))
+          });
+          state.historyIndex = 1;
+          return state;
+        });
+      }
+      
+      console.log('History initialized:', useCanvasStore.getState().history.length, 
+                 'Index:', useCanvasStore.getState().historyIndex);
+    }
+  }, [nodes]);
+  
   // Helper function to check if a node is within the selection box
   const isNodeInSelectionBox = (node: Node, selectionBox: { start: { x: number, y: number }, end: { x: number, y: number } }) => {
     if (!node.dimensions) return false;
@@ -107,6 +144,7 @@ const Canvas: React.FC<CanvasProps> = ({
       setLastMousePos({ x: e.clientX, y: e.clientY });
       e.preventDefault();
     } else if (['rectangle', 'circle', 'diamond', 'cylinder', 'arrow', 'line'].includes(activeTool)) {
+      console.log('Creating new shape:', activeTool);
       // Get the position relative to the canvas and adjusted for transform
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect) {
@@ -118,6 +156,7 @@ const Canvas: React.FC<CanvasProps> = ({
         const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
         const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
         
+        console.log('Creating shape at position:', snappedX, snappedY);
         // Create the shape at the calculated position
         createShapeAtPosition(activeTool, snappedX, snappedY);
       }

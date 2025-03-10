@@ -55,6 +55,13 @@ export interface CanvasState {
   strokeWidth: number;
   strokeStyle: 'solid' | 'dashed' | 'dotted';
   
+  // History tracking
+  history: Array<{
+    nodes: Node[];
+    edges: Edge[];
+  }>;
+  historyIndex: number;
+  
   // Actions
   setTransform: (transform: Partial<{ x: number; y: number; zoom: number }>) => void;
   setActiveTool: (tool: ToolType) => void;
@@ -75,6 +82,11 @@ export interface CanvasState {
   moveSelectedBackward: () => void;
   duplicateSelectedNodes: () => void;
   deleteSelectedNodes: () => void;
+  
+  // History actions
+  pushToHistory: () => void;
+  undo: () => void;
+  redo: () => void;
   
   // Group actions
   groupSelectedNodes: () => void;
@@ -787,7 +799,7 @@ const getTailwindColorName = (hexColor: string): string => {
 
 // Create the store with immer middleware for immutable updates
 export const useCanvasStore = create<CanvasState>()(
-  immer((set) => ({
+  immer((set, get) => ({
     // Initial state
     nodes: [],
     edges: [],
@@ -802,6 +814,81 @@ export const useCanvasStore = create<CanvasState>()(
     borderRadius: 8,
     strokeWidth: 2,
     strokeStyle: 'solid',
+    
+    // History tracking
+    history: [],
+    historyIndex: -1,
+    
+    // History actions
+    pushToHistory: () => 
+      set((state) => {
+        console.log('Pushing to history, current index:', state.historyIndex, 'history length:', state.history.length);
+        
+        // Create a deep copy of the current state
+        const currentState = {
+          nodes: JSON.parse(JSON.stringify(state.nodes)),
+          edges: JSON.parse(JSON.stringify(state.edges))
+        };
+        
+        // If we're not at the end of the history, remove future states
+        if (state.historyIndex < state.history.length - 1) {
+          console.log('Removing future history states');
+          state.history = state.history.slice(0, state.historyIndex + 1);
+        }
+        
+        // Add the current state to history
+        state.history.push(currentState);
+        state.historyIndex = state.history.length - 1;
+        
+        console.log('After push: index:', state.historyIndex, 'history length:', state.history.length);
+        
+        // Limit history size to prevent memory issues
+        if (state.history.length > 50) {
+          state.history.shift();
+          state.historyIndex--;
+          console.log('History limit reached, removed oldest state');
+        }
+      }),
+    
+    undo: () => 
+      set((state) => {
+        console.log('Undo called, current index:', state.historyIndex, 'history length:', state.history.length);
+        
+        if (state.historyIndex > 0) {
+          state.historyIndex--;
+          console.log('Undoing to index:', state.historyIndex);
+          
+          const previousState = state.history[state.historyIndex];
+          console.log('Previous state has', previousState.nodes.length, 'nodes');
+          
+          state.nodes = JSON.parse(JSON.stringify(previousState.nodes));
+          state.edges = JSON.parse(JSON.stringify(previousState.edges));
+          
+          console.log('Undo complete, now at index:', state.historyIndex);
+        } else {
+          console.log('Cannot undo: already at oldest state');
+        }
+      }),
+    
+    redo: () => 
+      set((state) => {
+        console.log('Redo called, current index:', state.historyIndex, 'history length:', state.history.length);
+        
+        if (state.historyIndex < state.history.length - 1) {
+          state.historyIndex++;
+          console.log('Redoing to index:', state.historyIndex);
+          
+          const nextState = state.history[state.historyIndex];
+          console.log('Next state has', nextState.nodes.length, 'nodes');
+          
+          state.nodes = JSON.parse(JSON.stringify(nextState.nodes));
+          state.edges = JSON.parse(JSON.stringify(nextState.edges));
+          
+          console.log('Redo complete, now at index:', state.historyIndex);
+        } else {
+          console.log('Cannot redo: already at newest state');
+        }
+      }),
     
     // Actions
     setTransform: (newTransform) => 
@@ -835,7 +922,32 @@ export const useCanvasStore = create<CanvasState>()(
         console.log('Setting stroke color to:', strokeColorHex);
         
         let updatedAnyNode = false;
+        let shouldPushToHistory = false;
         
+        // Check if any node will be updated
+        state.nodes.forEach(node => {
+          if (node.selected) {
+            shouldPushToHistory = true;
+          }
+        });
+        
+        // Push to history before making changes
+        if (shouldPushToHistory) {
+          console.log('Pushing to history before changing stroke color');
+          // Create a deep copy of the current state
+          const currentState = {
+            nodes: JSON.parse(JSON.stringify(state.nodes)),
+            edges: JSON.parse(JSON.stringify(state.edges))
+          };
+          
+          // Add the current state to history
+          state.history.push(currentState);
+          state.historyIndex = state.history.length - 1;
+          
+          console.log('After push in setStrokeColor: index:', state.historyIndex, 'history length:', state.history.length);
+        }
+        
+        // Now update the nodes
         state.nodes.forEach(node => {
           if (node.selected) {
             console.log('Updating stroke for node:', node.id);
@@ -879,6 +991,12 @@ export const useCanvasStore = create<CanvasState>()(
         
         state.nodes.forEach(node => {
           if (node.selected) {
+            // Push current state to history before making changes
+            if (!updatedAnyNode) {
+              get().pushToHistory();
+              updatedAnyNode = true;
+            }
+            
             console.log('Updating fill for node:', node.id);
             
             // If this is a group, only update its children, not the group container
@@ -890,14 +1008,12 @@ export const useCanvasStore = create<CanvasState>()(
                 }
                 childNode.style.backgroundColor = fillColorHex;
               });
-              updatedAnyNode = true;
             } else {
               // For regular nodes, update as normal
               if (!node.style) {
                 node.style = {};
               }
               node.style.backgroundColor = fillColorHex;
-              updatedAnyNode = true;
             }
           }
         });
@@ -923,6 +1039,12 @@ export const useCanvasStore = create<CanvasState>()(
         
         state.nodes.forEach(node => {
           if (node.selected) {
+            // Push current state to history before making changes
+            if (!updatedAnyNode) {
+              get().pushToHistory();
+              updatedAnyNode = true;
+            }
+            
             console.log('Updating border radius for node:', node.id);
             
             // If this is a group, only update its children, not the group container
@@ -939,7 +1061,6 @@ export const useCanvasStore = create<CanvasState>()(
                   childNode.style.borderRadius = `${radius}px`;
                 }
               });
-              updatedAnyNode = true;
             } else {
               // For regular nodes, update as normal
               if (!node.style) {
@@ -947,7 +1068,6 @@ export const useCanvasStore = create<CanvasState>()(
               }
               node.style.borderRadius = `${radius}px`;
               console.log('Node style after update:', node.style);
-              updatedAnyNode = true;
             }
           }
         });
@@ -969,6 +1089,12 @@ export const useCanvasStore = create<CanvasState>()(
         
         state.nodes.forEach(node => {
           if (node.selected) {
+            // Push current state to history before making changes
+            if (!updatedAnyNode) {
+              get().pushToHistory();
+              updatedAnyNode = true;
+            }
+            
             // If this is a group, only update its children, not the group container
             if (node.data?.isGroup === true) {
               const childNodes = state.nodes.filter(n => n.parentId === node.id);
@@ -978,14 +1104,12 @@ export const useCanvasStore = create<CanvasState>()(
                 }
                 childNode.style.borderWidth = width;
               });
-              updatedAnyNode = true;
             } else {
               // For regular nodes, update as normal
               if (!node.style) {
                 node.style = {};
               }
               node.style.borderWidth = width;
-              updatedAnyNode = true;
             }
           }
         });
@@ -1005,6 +1129,12 @@ export const useCanvasStore = create<CanvasState>()(
         
         state.nodes.forEach(node => {
           if (node.selected) {
+            // Push current state to history before making changes
+            if (!updatedAnyNode) {
+              get().pushToHistory();
+              updatedAnyNode = true;
+            }
+            
             // If this is a group, only update its children, not the group container
             if (node.data?.isGroup === true) {
               const childNodes = state.nodes.filter(n => n.parentId === node.id);
@@ -1014,14 +1144,12 @@ export const useCanvasStore = create<CanvasState>()(
                 }
                 childNode.style.borderStyle = style;
               });
-              updatedAnyNode = true;
             } else {
               // For regular nodes, update as normal
               if (!node.style) {
                 node.style = {};
               }
               node.style.borderStyle = style;
-              updatedAnyNode = true;
             }
           }
         });
@@ -1037,8 +1165,16 @@ export const useCanvasStore = create<CanvasState>()(
         const strokeColorHex = getTailwindColor(state.strokeColor);
         const fillColorHex = getTailwindColor(state.fillColor);
         
+        let updatedAnyNode = false;
+        
         state.nodes.forEach(node => {
           if (node.selected) {
+            // Push current state to history before making changes
+            if (!updatedAnyNode) {
+              get().pushToHistory();
+              updatedAnyNode = true;
+            }
+            
             // If this is a group, only update its children, not the group container
             if (node.data?.isGroup === true) {
               const childNodes = state.nodes.filter(n => n.parentId === node.id);
@@ -1099,6 +1235,9 @@ export const useCanvasStore = create<CanvasState>()(
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length === 0) return;
         
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
         // Remove selected nodes from the array
         state.nodes = state.nodes.filter(node => !node.selected);
         
@@ -1111,6 +1250,9 @@ export const useCanvasStore = create<CanvasState>()(
         // Get all selected nodes
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length === 0) return;
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
         
         // Remove selected nodes from the array
         state.nodes = state.nodes.filter(node => !node.selected);
@@ -1127,6 +1269,9 @@ export const useCanvasStore = create<CanvasState>()(
           .filter(index => index !== -1);
         
         if (selectedIndices.length === 0) return;
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
         
         // Process from last to first to avoid index shifting problems
         for (let i = selectedIndices.length - 1; i >= 0; i--) {
@@ -1148,6 +1293,9 @@ export const useCanvasStore = create<CanvasState>()(
         
         if (selectedIndices.length === 0) return;
         
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
         // Process from first to last to avoid index shifting problems
         for (let i = 0; i < selectedIndices.length; i++) {
           const currentIndex = selectedIndices[i];
@@ -1163,6 +1311,9 @@ export const useCanvasStore = create<CanvasState>()(
       set((state) => {
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length === 0) return;
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
         
         // Deselect all nodes first
         state.nodes.forEach(node => {
@@ -1189,6 +1340,9 @@ export const useCanvasStore = create<CanvasState>()(
       
     deleteSelectedNodes: () =>
       set((state) => {
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
         // Remove selected nodes from the array
         state.nodes = state.nodes.filter(node => !node.selected);
         // Clear selected elements
@@ -1218,13 +1372,13 @@ export const useCanvasStore = create<CanvasState>()(
         state.transform.x += dx;
         state.transform.y += dy;
       }),
-      
+    
     // Node actions
     addNode: (node) =>
       set((state) => {
         state.nodes.push(node);
       }),
-      
+    
     selectNode: (nodeId) =>
       set((state) => {
         // Deselect all nodes first
@@ -1276,8 +1430,14 @@ export const useCanvasStore = create<CanvasState>()(
       
     createShapeAtPosition: (type, x, y) =>
       set((state) => {
+        console.log('createShapeAtPosition called with type:', type, 'at position:', x, y);
+        
+        // We'll handle history at the end of this function
+        // Don't push to history here to avoid double-pushing
+        
         // Generate a unique ID for the new node
         const id = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        console.log('Generated node ID:', id);
         
         // Default dimensions for different shape types
         let dimensions = { width: 100, height: 100 };
@@ -1302,8 +1462,11 @@ export const useCanvasStore = create<CanvasState>()(
           }
         };
         
+        console.log('Created new node:', newNode);
+        
         // Add the node to the canvas
         state.nodes.push(newNode);
+        console.log('Total nodes after adding:', state.nodes.length);
         
         // Select the new node
         state.nodes.forEach(node => {
@@ -1314,12 +1477,41 @@ export const useCanvasStore = create<CanvasState>()(
         
         // Switch to select tool after creating a shape
         state.activeTool = 'select';
+        console.log('Switched to select tool');
+        
+        // Push the new state to history
+        // We don't call pushToHistory here to avoid double-pushing
+        // Instead, we'll manually update the history
+        const newState = {
+          nodes: JSON.parse(JSON.stringify(state.nodes)),
+          edges: JSON.parse(JSON.stringify(state.edges))
+        };
+        
+        // If this is the first node, initialize history with empty state first
+        if (state.history.length === 0) {
+          state.history.push({
+            nodes: [],
+            edges: []
+          });
+          state.historyIndex = 0;
+        }
+        
+        // Add the new state to history
+        state.history.push(newState);
+        state.historyIndex = state.history.length - 1;
+        
+        console.log('After shape creation: index:', state.historyIndex, 'history length:', state.history.length);
       }),
       
     updateNodePosition: (nodeId, x, y) =>
       set((state) => {
         const node = state.nodes.find(n => n.id === nodeId);
         if (node) {
+          // Push current state to history before making changes
+          if (!state.nodes.some(n => n.selected && n.id !== nodeId)) {
+            get().pushToHistory();
+          }
+          
           // Apply grid snapping if enabled
           if (state.snapToGrid) {
             node.position.x = Math.round(x / state.gridSize) * state.gridSize;
@@ -1335,6 +1527,9 @@ export const useCanvasStore = create<CanvasState>()(
       set((state) => {
         const node = state.nodes.find(n => n.id === nodeId);
         if (node && node.dimensions) {
+          // Push current state to history before making changes
+          get().pushToHistory();
+          
           // Apply grid snapping if enabled
           if (state.snapToGrid) {
             node.dimensions.width = Math.round(width / state.gridSize) * state.gridSize;
@@ -1352,6 +1547,9 @@ export const useCanvasStore = create<CanvasState>()(
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
         
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
         // Find the topmost position among selected nodes
         const topPosition = Math.min(...selectedNodes.map(node => node.position.y));
         console.log('Aligning to top position:', topPosition);
@@ -1366,6 +1564,9 @@ export const useCanvasStore = create<CanvasState>()(
       set((state) => {
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
         
         // Calculate the average vertical center of all selected nodes
         const centerY = selectedNodes.reduce((sum, node) => {
@@ -1386,6 +1587,9 @@ export const useCanvasStore = create<CanvasState>()(
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
         
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
         // Find the bottommost position among selected nodes
         const bottomPosition = Math.max(...selectedNodes.map(node => {
           const nodeHeight = node.dimensions?.height || 0;
@@ -1405,6 +1609,9 @@ export const useCanvasStore = create<CanvasState>()(
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
         
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
         // Find the leftmost position among selected nodes
         const leftPosition = Math.min(...selectedNodes.map(node => node.position.x));
         console.log('Aligning to left position:', leftPosition);
@@ -1419,6 +1626,9 @@ export const useCanvasStore = create<CanvasState>()(
       set((state) => {
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
         
         // Calculate the average horizontal center of all selected nodes
         const centerX = selectedNodes.reduce((sum, node) => {
@@ -1439,6 +1649,9 @@ export const useCanvasStore = create<CanvasState>()(
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
         
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
         // Find the rightmost position among selected nodes
         const rightPosition = Math.max(...selectedNodes.map(node => {
           const nodeWidth = node.dimensions?.width || 0;
@@ -1457,6 +1670,9 @@ export const useCanvasStore = create<CanvasState>()(
       set((state) => {
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length <= 2) return; // Need at least 3 nodes to distribute
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
         
         // Sort nodes by their x position
         const sortedNodes = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
@@ -1490,6 +1706,9 @@ export const useCanvasStore = create<CanvasState>()(
         const selectedNodes = state.nodes.filter(node => node.selected);
         if (selectedNodes.length <= 2) return; // Need at least 3 nodes to distribute
         
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
         // Sort nodes by their y position
         const sortedNodes = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
         
@@ -1520,11 +1739,23 @@ export const useCanvasStore = create<CanvasState>()(
     // Group selected nodes
     groupSelectedNodes: () =>
       set((state) => {
+        console.log('groupSelectedNodes called');
+        
         const selectedNodes = state.nodes.filter(node => node.selected);
-        if (selectedNodes.length <= 1) return; // Need at least 2 nodes to group
+        if (selectedNodes.length <= 1) {
+          console.log('Not enough nodes selected for grouping, need at least 2');
+          return;
+        }
+        
+        console.log('Grouping', selectedNodes.length, 'nodes');
+        
+        // Push current state to history before making changes
+        console.log('Pushing to history before grouping, current index:', state.historyIndex, 'history length:', state.history.length);
+        get().pushToHistory();
         
         // Generate a unique ID for the group
         const groupId = `group-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        console.log('Generated group ID:', groupId);
         
         // Calculate the bounding box of all selected nodes
         let minX = Infinity;
@@ -1593,21 +1824,37 @@ export const useCanvasStore = create<CanvasState>()(
         
         // Update selected elements
         state.selectedElements = [groupNode];
+        
+        console.log('Grouping complete, created group with ID:', groupId);
       }),
       
     // Ungroup selected nodes
     ungroupSelectedNodes: () =>
       set((state) => {
+        console.log('ungroupSelectedNodes called');
+        
         const selectedGroups = state.nodes.filter(node => 
           node.selected && node.data?.isGroup === true
         );
         
-        if (selectedGroups.length === 0) return;
+        if (selectedGroups.length === 0) {
+          console.log('No groups selected for ungrouping');
+          return;
+        }
+        
+        console.log('Ungrouping', selectedGroups.length, 'groups');
+        
+        // Push current state to history before making changes
+        console.log('Pushing to history before ungrouping, current index:', state.historyIndex, 'history length:', state.history.length);
+        get().pushToHistory();
         
         // Process each selected group
         selectedGroups.forEach(group => {
+          console.log('Processing group:', group.id);
+          
           // Find all child nodes of this group
           const childNodes = state.nodes.filter(node => node.parentId === group.id);
+          console.log('Found', childNodes.length, 'child nodes in group');
           
           // Adjust positions back to absolute coordinates
           childNodes.forEach(node => {
@@ -1625,6 +1872,8 @@ export const useCanvasStore = create<CanvasState>()(
         
         // Update selected elements to be the child nodes
         state.selectedElements = state.nodes.filter(node => node.selected);
+        
+        console.log('Ungrouping complete, selected', state.selectedElements.length, 'child nodes');
       }),
   }))
 ); 
