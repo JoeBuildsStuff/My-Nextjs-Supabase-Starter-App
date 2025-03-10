@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Canvas from './components/Canvas';
-// import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import Toolbar from './components/ui/Toolbar';
 import SideControls from './components/ui/SideControls';
 import ZoomControls from './components/ui/ZoomControls';
@@ -10,8 +9,6 @@ import UndoRedoControls from './components/ui/UndoRedoControls';
 import TopMenuControls from './components/ui/TopMenuControls';
 
 const DrawingCanvasUI = () => {
-  // Use the canvas store
-  // const { transform } = useCanvasStore();
   
   return (
     <div className="relative w-full h-full overflow-hidden">
