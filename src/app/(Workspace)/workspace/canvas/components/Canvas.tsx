@@ -482,7 +482,7 @@ const Canvas: React.FC<CanvasProps> = ({
       {/* Selection Box */}
       {isSelecting && selectionBox && (
         <div
-          className="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none"
+          className="absolute border border-blue-500 bg-blue-500/10 pointer-events-none"
           style={{
             left: `${Math.min(selectionBox.start.x, selectionBox.end.x) * transform.zoom + transform.x}px`,
             top: `${Math.min(selectionBox.start.y, selectionBox.end.y) * transform.zoom + transform.y}px`,
