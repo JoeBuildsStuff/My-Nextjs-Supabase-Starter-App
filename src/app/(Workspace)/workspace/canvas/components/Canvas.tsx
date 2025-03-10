@@ -176,6 +176,13 @@ const Canvas: React.FC<CanvasProps> = ({
     };
   }, [lineInProgress, cancelLineDraw, selectedPointIndices, deleteSelectedPoints]);
   
+  // Add effect to deselect all nodes when line tool is selected
+  useEffect(() => {
+    if (['line', 'arrow'].includes(activeTool)) {
+      deselectAllNodes();
+    }
+  }, [activeTool, deselectAllNodes]);
+  
   // Helper function to check if a node is within the selection box
   const isNodeInSelectionBox = (node: Node, selectionBox: { start: { x: number, y: number }, end: { x: number, y: number } }) => {
     if (!node.dimensions) return false;

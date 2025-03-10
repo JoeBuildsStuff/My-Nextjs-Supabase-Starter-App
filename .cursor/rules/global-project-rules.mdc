@@ -5,6 +5,8 @@ alwaysApply: false
 ---
 # Global Rules for the Project
 
+Do not run npm run dev I will test the application myself.
+
 # Utilize the Card of ui.Shadcn.com instead of div
 
 # Cursor UI Style Guidelines

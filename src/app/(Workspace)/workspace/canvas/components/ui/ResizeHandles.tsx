@@ -12,7 +12,10 @@ interface ResizeHandlesProps {
 
 const ResizeHandles: React.FC<ResizeHandlesProps> = ({ node, onResize }) => {
   const handleSize = 12; // Slightly larger handles for better usability
-  const handleOffset = 10; // Distance from the shape edge to the handle center
+  const baseHandleOffset = 10; // Distance from the shape edge to the handle center for most shapes
+  
+  // Use a larger offset for diamond shapes
+  const handleOffset = node.type === 'diamond' ? 27 : baseHandleOffset;
   
   // Handle mouse down on a resize handle
   const handleMouseDown = (e: React.MouseEvent, direction: ResizeHandleDirection) => {
