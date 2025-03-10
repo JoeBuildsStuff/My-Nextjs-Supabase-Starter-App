@@ -28,7 +28,8 @@ const Canvas: React.FC<CanvasProps> = ({
     updateNodePosition,
     deselectAllNodes,
     selectMultipleNodes,
-    updateNodeDimensions
+    updateNodeDimensions,
+    presentationMode
   } = useCanvasStore();
   
   // State for tracking mouse interactions
@@ -328,7 +329,8 @@ const Canvas: React.FC<CanvasProps> = ({
   
   // Render grid based on zoom level and grid size
   const renderGrid = () => {
-    if (!snapToGrid) return null;
+    // Don't render grid if snap to grid is disabled or if in presentation mode
+    if (!snapToGrid || presentationMode) return null;
     
     const scaledGridSize = gridSize * transform.zoom;
     

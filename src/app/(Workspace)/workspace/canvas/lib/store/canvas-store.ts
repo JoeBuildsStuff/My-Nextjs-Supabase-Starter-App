@@ -54,6 +54,7 @@ export interface CanvasState {
   borderRadius: number;
   strokeWidth: number;
   strokeStyle: 'solid' | 'dashed' | 'dotted';
+  presentationMode: boolean;
   
   // History tracking
   history: Array<{
@@ -82,6 +83,7 @@ export interface CanvasState {
   moveSelectedBackward: () => void;
   duplicateSelectedNodes: () => void;
   deleteSelectedNodes: () => void;
+  togglePresentationMode: () => void;
   
   // History actions
   pushToHistory: () => void;
@@ -814,6 +816,7 @@ export const useCanvasStore = create<CanvasState>()(
     borderRadius: 8,
     strokeWidth: 2,
     strokeStyle: 'solid',
+    presentationMode: false,
     
     // History tracking
     history: [],
@@ -1875,5 +1878,12 @@ export const useCanvasStore = create<CanvasState>()(
         
         console.log('Ungrouping complete, selected', state.selectedElements.length, 'child nodes');
       }),
+    
+    // Toggle presentation mode
+    togglePresentationMode: () => {
+      set(state => {
+        state.presentationMode = !state.presentationMode;
+      });
+    },
   }))
 ); 
