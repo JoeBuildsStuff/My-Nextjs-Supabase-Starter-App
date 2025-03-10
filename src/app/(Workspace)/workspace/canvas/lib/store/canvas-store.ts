@@ -30,6 +30,7 @@ export type ToolType =
   | 'select' 
   | 'hand' 
   | 'rectangle' 
+  | 'triangle'
   | 'diamond' 
   | 'circle' 
   | 'arrow' 
@@ -51,6 +52,8 @@ export interface CanvasState {
   fillColor: string;
   defaultShade: string;
   borderRadius: number;
+  strokeWidth: number;
+  strokeStyle: 'solid' | 'dashed' | 'dotted';
   
   // Actions
   setTransform: (transform: Partial<{ x: number; y: number; zoom: number }>) => void;
@@ -61,6 +64,8 @@ export interface CanvasState {
   setFillColor: (color: string) => void;
   setDefaultShade: (shade: string) => void;
   setBorderRadius: (radius: number) => void;
+  setStrokeWidth: (width: number) => void;
+  setStrokeStyle: (style: 'solid' | 'dashed' | 'dotted') => void;
   updateSelectedNodeStyles: () => void;
   deselectAllNodes: () => void;
   selectMultipleNodes: (nodeIds: string[]) => void;
@@ -791,6 +796,8 @@ export const useCanvasStore = create<CanvasState>()(
     fillColor: 'none',
     defaultShade: '500',
     borderRadius: 8,
+    strokeWidth: 2,
+    strokeStyle: 'solid',
     
     // Actions
     setTransform: (newTransform) => 
@@ -902,46 +909,53 @@ export const useCanvasStore = create<CanvasState>()(
         }
       }),
       
-    updateSelectedNodeStyles: () =>
+    setStrokeWidth: (width) =>
       set((state) => {
-        console.log('Updating styles for selected nodes');
-        console.log('Current stroke color:', state.strokeColor);
-        console.log('Current fill color:', state.fillColor);
-        console.log('Current border radius:', state.borderRadius);
+        state.strokeWidth = width;
         
-        let updatedAnyNode = false;
-        
+        // Update selected nodes
         state.nodes.forEach(node => {
           if (node.selected) {
-            console.log('Found selected node:', node.id);
-            
             if (!node.style) {
               node.style = {};
             }
-            
-            // Convert colors to hex values
-            const strokeColorHex = getTailwindColor(state.strokeColor);
-            const fillColorHex = getTailwindColor(state.fillColor);
-            
-            console.log('Setting stroke color to:', strokeColorHex);
-            console.log('Setting fill color to:', fillColorHex);
-            console.log('Setting border radius to:', `${state.borderRadius}px`);
-            
-            // Update the node styles
+            node.style.borderWidth = width;
+          }
+        });
+      }),
+      
+    setStrokeStyle: (style) =>
+      set((state) => {
+        state.strokeStyle = style;
+        
+        // Update selected nodes
+        state.nodes.forEach(node => {
+          if (node.selected) {
+            if (!node.style) {
+              node.style = {};
+            }
+            node.style.borderStyle = style;
+          }
+        });
+      }),
+      
+    updateSelectedNodeStyles: () =>
+      set((state) => {
+        const strokeColorHex = getTailwindColor(state.strokeColor);
+        const fillColorHex = getTailwindColor(state.fillColor);
+        
+        state.nodes.forEach(node => {
+          if (node.selected) {
+            if (!node.style) {
+              node.style = {};
+            }
             node.style.borderColor = strokeColorHex;
             node.style.backgroundColor = fillColorHex;
             node.style.borderRadius = `${state.borderRadius}px`;
-            
-            updatedAnyNode = true;
+            node.style.borderWidth = state.strokeWidth;
+            node.style.borderStyle = state.strokeStyle;
           }
         });
-        
-        console.log('Updated any nodes:', updatedAnyNode);
-        
-        // Create a new nodes array to trigger a re-render
-        if (updatedAnyNode) {
-          state.nodes = [...state.nodes];
-        }
       }),
     
     deselectAllNodes: () =>
@@ -1113,6 +1127,8 @@ export const useCanvasStore = create<CanvasState>()(
             const borderColor = node.style.borderColor as string;
             const backgroundColor = node.style.backgroundColor as string;
             const borderRadius = node.style.borderRadius as string;
+            const borderWidth = node.style.borderWidth as number;
+            const borderStyle = node.style.borderStyle as string;
             
             if (borderColor) {
               state.strokeColor = getTailwindColorName(borderColor);
@@ -1126,7 +1142,14 @@ export const useCanvasStore = create<CanvasState>()(
               // Extract the numeric value from the borderRadius string (e.g., "10px" -> 10)
               const radiusValue = parseInt((borderRadius.match(/\d+/) || ['0'])[0], 10);
               state.borderRadius = radiusValue;
-              console.log('Updated border radius state to:', radiusValue);
+            }
+            
+            if (borderWidth !== undefined) {
+              state.strokeWidth = borderWidth;
+            }
+            
+            if (borderStyle && ['solid', 'dashed', 'dotted'].includes(borderStyle)) {
+              state.strokeStyle = borderStyle as 'solid' | 'dashed' | 'dotted';
             }
           }
         }
@@ -1154,8 +1177,9 @@ export const useCanvasStore = create<CanvasState>()(
           style: {
             backgroundColor: getTailwindColor(state.fillColor),
             borderColor: getTailwindColor(state.strokeColor),
-            borderWidth: 2,
+            borderWidth: state.strokeWidth,
             borderRadius: `${state.borderRadius}px`,
+            borderStyle: state.strokeStyle,
           }
         };
         

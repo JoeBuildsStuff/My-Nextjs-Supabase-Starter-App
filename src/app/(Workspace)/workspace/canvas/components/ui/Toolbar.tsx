@@ -16,6 +16,7 @@ import {
   Eraser,
   Diamond,
   Cylinder,
+  Triangle,
 } from 'lucide-react';
 import { useCanvasStore, ToolType } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 
@@ -27,14 +28,15 @@ const Toolbar = () => {
     0: 'hand',
     1: 'select',
     2: 'rectangle',
-    3: 'diamond',
-    4: 'circle',
-    5: 'cylinder' as ToolType,
-    6: 'arrow',
-    7: 'line',
-    8: 'pen',
-    9: 'text',
-    10: 'eraser'
+    3: 'triangle',
+    4: 'diamond',
+    5: 'circle',
+    6: 'cylinder' as ToolType,
+    7: 'arrow',
+    8: 'line',
+    9: 'pen',
+    10: 'text',
+    11: 'eraser'
   };
   
   const tools = [
@@ -44,18 +46,19 @@ const Toolbar = () => {
     { type: 'separator' },
     // Shape tools
     { id: 2, icon: <Square className="" size={16} />, name: "Rectangle"},
-    { id: 3, icon: <Diamond className="" size={16} />, name: "Diamond"},
-    { id: 4, icon: <Circle className="" size={16} />, name: "Circle"},
-    { id: 5, icon: <Cylinder className="" size={16} />, name: "Cylinder"},
+    { id: 3, icon: <Triangle className="" size={16} />, name: "Triangle"},
+    { id: 4, icon: <Diamond className="" size={16} />, name: "Diamond"},
+    { id: 5, icon: <Circle className="" size={16} />, name: "Circle"},
+    { id: 6, icon: <Cylinder className="" size={16} />, name: "Cylinder"},
     { type: 'separator' },
     // Line tools
-    { id: 6, icon: <ArrowRight className="" size={16} />, name: "Arrow"},
-    { id: 7, icon: <Minus className="" size={16} />, name: "Line"},
-    { id: 8, icon: <Pen className="" size={16} />, name: "Pen"},
+    { id: 7, icon: <ArrowRight className="" size={16} />, name: "Arrow"},
+    { id: 8, icon: <Minus className="" size={16} />, name: "Line"},
+    { id: 9, icon: <Pen className="" size={16} />, name: "Pen"},
     { type: 'separator' },
     // Content tools
-    { id: 9, icon: <Type className="" size={16} />, name: "Text"},
-    { id: 10, icon: <Eraser className="" size={16} />, name: "Eraser"}
+    { id: 10, icon: <Type className="" size={16} />, name: "Text"},
+    { id: 11, icon: <Eraser className="" size={16} />, name: "Eraser"}
   ];
 
   // Handle tool selection
@@ -65,7 +68,7 @@ const Toolbar = () => {
       setActiveTool(toolType);
       
       // If a shape tool is selected, create the shape below the toolbar
-      if (['rectangle', 'diamond', 'circle', 'cylinder', 'arrow', 'line'].includes(toolType)) {
+      if (['rectangle', 'triangle', 'diamond', 'circle', 'cylinder', 'arrow', 'line'].includes(toolType)) {
         // Calculate position below the toolbar
         const toolbarHeight = 60; // Approximate height of toolbar + margin
         

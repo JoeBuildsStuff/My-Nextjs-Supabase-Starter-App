@@ -283,7 +283,7 @@ const Canvas: React.FC<CanvasProps> = ({
       width: '100%',
       height: '100%',
       backgroundColor: (style?.backgroundColor as string) || 'white',
-      border: `${(style?.borderWidth as number) || 2}px solid ${(style?.borderColor as string) || 'black'}`,
+      border: `${(style?.borderWidth as number) || 2}px ${(style?.borderStyle as string) || 'solid'} ${(style?.borderColor as string) || 'black'}`,
       borderRadius: (style?.borderRadius as string) || '0px',
       boxSizing: 'border-box',
       cursor: 'move',
@@ -299,6 +299,38 @@ const Canvas: React.FC<CanvasProps> = ({
     switch (type) {
       case 'rectangle':
         shapeElement = <div style={baseStyle} />;
+        break;
+        
+      case 'triangle':
+        // Get the dimensions and style properties
+        const triangleWidth = dimensions?.width || 100;
+        const triangleHeight = dimensions?.height || 100;
+        const triangleBgColor = style?.backgroundColor as string || 'transparent';
+        const triangleBorderColor = style?.borderColor as string || 'black';
+        const triangleBorderWidth = (style?.borderWidth as number) || 2;
+        const triangleBorderStyle = style?.borderStyle as string || 'solid';
+        
+        // Create SVG triangle with visible borders
+        shapeElement = (
+          <svg 
+            width={triangleWidth} 
+            height={triangleHeight} 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+            }}
+          >
+            <polygon 
+              points={`${triangleWidth/2},0 0,${triangleHeight} ${triangleWidth},${triangleHeight}`}
+              fill={triangleBgColor}
+              stroke={triangleBorderColor}
+              strokeWidth={triangleBorderWidth}
+              strokeLinejoin="round"
+              strokeDasharray={triangleBorderStyle === 'dashed' ? '5,5' : triangleBorderStyle === 'dotted' ? '2,2' : 'none'}
+            />
+          </svg>
+        );
         break;
         
       case 'circle':
@@ -357,30 +389,61 @@ const Canvas: React.FC<CanvasProps> = ({
         
       case 'arrow':
       case 'line':
-        shapeElement = (
-          <div 
-            style={{ 
-              ...baseStyle,
-              height: `${(style?.borderWidth as number) || 2}px`,
-              border: 'none',
-              backgroundColor: (style?.borderColor as string) || 'black',
-              transform: type === 'arrow' ? 'none' : 'none',
-            }} 
-          >
-            {type === 'arrow' && (
-              <div style={{
-                position: 'absolute',
-                right: '-10px',
-                top: '-8px',
-                width: '0',
+        // For dashed and dotted lines, we need to use a different approach
+        const borderStyle = (style?.borderStyle as string) || 'solid';
+        
+        if (borderStyle === 'solid') {
+          shapeElement = (
+            <div 
+              style={{ 
+                ...baseStyle,
+                height: `${(style?.borderWidth as number) || 2}px`,
+                border: 'none',
+                backgroundColor: (style?.borderColor as string) || 'black',
+                transform: type === 'arrow' ? 'none' : 'none',
+              }} 
+            >
+              {type === 'arrow' && (
+                <div style={{
+                  position: 'absolute',
+                  right: '-10px',
+                  top: '-8px',
+                  width: '0',
+                  height: '0',
+                  borderTop: '10px solid transparent',
+                  borderBottom: '10px solid transparent',
+                  borderLeft: `15px solid ${(style?.borderColor as string) || 'black'}`,
+                }} />
+              )}
+            </div>
+          );
+        } else {
+          // For dashed and dotted lines, use a div with border-top
+          shapeElement = (
+            <div 
+              style={{ 
+                ...baseStyle,
                 height: '0',
-                borderTop: '10px solid transparent',
-                borderBottom: '10px solid transparent',
-                borderLeft: `15px solid ${(style?.borderColor as string) || 'black'}`,
-              }} />
-            )}
-          </div>
-        );
+                border: 'none',
+                borderTop: `${(style?.borderWidth as number) || 2}px ${borderStyle} ${(style?.borderColor as string) || 'black'}`,
+                backgroundColor: 'transparent',
+              }} 
+            >
+              {type === 'arrow' && (
+                <div style={{
+                  position: 'absolute',
+                  right: '-10px',
+                  top: `-${(style?.borderWidth as number) / 2 + 8}px`,
+                  width: '0',
+                  height: '0',
+                  borderTop: '10px solid transparent',
+                  borderBottom: '10px solid transparent',
+                  borderLeft: `15px solid ${(style?.borderColor as string) || 'black'}`,
+                }} />
+              )}
+            </div>
+          );
+        }
         break;
         
       default:

@@ -3,19 +3,24 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Square, Slash } from 'lucide-react';
+import { Square, Slash, Minus, MoreHorizontal, Grip } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import { Card } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const ColorControls = () => {
   const { 
     strokeColor, 
     fillColor, 
     defaultShade,
+    strokeWidth,
+    strokeStyle,
     setStrokeColor, 
     setFillColor,
-    setDefaultShade
+    setDefaultShade,
+    setStrokeWidth,
+    setStrokeStyle
   } = useCanvasStore();
   
   // State for tracking selected color base and shade
@@ -26,6 +31,16 @@ const ColorControls = () => {
   
   // Available shades
   const shades = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+  
+  // Available stroke widths
+  const strokeWidths = [1, 2, 3, 4, 6];
+  
+  // Available stroke styles
+  const strokeStyles = [
+    { name: 'solid', icon: <Minus className="h-4 w-4" /> },
+    { name: 'dashed', icon: <MoreHorizontal className="h-4 w-4" /> },
+    { name: 'dotted', icon: <Grip className="h-4 w-4" /> }
+  ];
   
   // Base color options (without shade)
   const baseColorOptions = [
@@ -458,6 +473,16 @@ const ColorControls = () => {
     }
   };
 
+  // Handle preset width click
+  const handlePresetWidthClick = (width: number) => {
+    setStrokeWidth(width);
+  };
+
+  // Handle stroke style change
+  const handleStrokeStyleChange = (style: 'solid' | 'dashed' | 'dotted') => {
+    setStrokeStyle(style);
+  };
+
   // Initialize selected base colors from current colors
   useEffect(() => {
     if (strokeColor) {
@@ -543,82 +568,89 @@ const ColorControls = () => {
         style={{ 
           stroke: isStroke ? `hsl(${hsl})` : "hsl(var(--border))",
           fill: isStroke ? "transparent" : `hsl(${hsl})`,
-          strokeWidth: isStroke ? "2px" : "1px"
+          strokeWidth: isStroke ? `${strokeWidth}px` : "1px",
+          strokeDasharray: isStroke && strokeStyle === 'dashed' ? "4,2" : "none",
+          strokeDashoffset: isStroke && strokeStyle === 'dashed' ? "0" : "none",
+          strokeLinecap: isStroke && strokeStyle === 'dotted' ? "round" : "butt",
+          strokeLinejoin: isStroke && strokeStyle === 'dotted' ? "round" : "miter",
+          ...(isStroke && strokeStyle === 'dotted' ? { strokeDasharray: "0,3" } : {})
         }} 
       />
     );
   };
 
-  // Split shades into two rows
-  const firstRowShades = shades.slice(0, 5); // 100-500
-  const secondRowShades = shades.slice(5);   // 600-950
-
   // Render shade buttons
   const renderShadeButtons = (baseColor: string, selectedShade: string, handleShadeChange: (shade: string) => void) => {
     const isDisabled = baseColor === 'none';
     
+    // Split shades into rows of 5
+    const firstRow = shades.slice(0, 5);
+    const secondRow = shades.slice(5);
+    
     return (
-      <div className="space-y-1">
-        <div className="flex space-x-1">
-          {firstRowShades.map((shade) => {
-            let hsl;
-            if (baseColor === 'black') {
-              hsl = blackShades[shade];
-            } else if (baseColor === 'white') {
-              hsl = whiteShades[shade];
-            } else {
-              hsl = colorShades[baseColor]?.[shade] || '0 0% 0%';
-            }
-            
-            return (
-              <Button 
-                key={`shade-${shade}-1`} 
-                variant="ghost"
-                className="h-6 w-6 p-0 rounded-sm"
-                disabled={isDisabled}
-                style={{
-                  background: `hsl(${hsl})`,
-                  opacity: isDisabled ? 0.5 : 1
-                }}
-                onClick={() => handleShadeChange(shade)}
-              >
-                {selectedShade === shade && !isDisabled && (
-                  <div className="h-2 w-2 rounded-full bg-white shadow-sm" />
-                )}
-              </Button>
-            );
-          })}
-        </div>
-        <div className="flex space-x-1">
-          {secondRowShades.map((shade) => {
-            let hsl;
-            if (baseColor === 'black') {
-              hsl = blackShades[shade];
-            } else if (baseColor === 'white') {
-              hsl = whiteShades[shade];
-            } else {
-              hsl = colorShades[baseColor]?.[shade] || '0 0% 0%';
-            }
-            
-            return (
-              <Button 
-                key={`shade-${shade}-2`} 
-                variant="ghost"
-                className="h-6 w-6 p-0 rounded-sm"
-                disabled={isDisabled}
-                style={{
-                  background: `hsl(${hsl})`,
-                  opacity: isDisabled ? 0.5 : 1
-                }}
-                onClick={() => handleShadeChange(shade)}
-              >
-                {selectedShade === shade && !isDisabled && (
-                  <div className="h-2 w-2 rounded-full bg-white shadow-sm" />
-                )}
-              </Button>
-            );
-          })}
-        </div>
+      <div>
+        <ToggleGroup type="single" className="justify-start" value={selectedShade} onValueChange={(value) => handleShadeChange(value)} disabled={isDisabled}>
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-1">
+              {firstRow.map((shade) => {
+                let hsl;
+                if (baseColor === 'black') {
+                  hsl = blackShades[shade];
+                } else if (baseColor === 'white') {
+                  hsl = whiteShades[shade];
+                } else {
+                  hsl = colorShades[baseColor]?.[shade] || '0 0% 0%';
+                }
+                
+                return (
+                  <ToggleGroupItem 
+                    key={`shade-${shade}`} 
+                    value={shade}
+                    className="h-8 w-8 p-0 flex items-center justify-center rounded-sm"
+                  >
+                    <div 
+                      className="w-4 h-4 rounded-sm" 
+                      style={{
+                        background: `hsl(${hsl})`,
+                        opacity: isDisabled ? 0.5 : 1,
+                        border: '1px solid hsl(var(--border))'
+                      }}
+                    />
+                  </ToggleGroupItem>
+                );
+              })}
+            </div>
+            <div className="flex gap-1">
+              {secondRow.map((shade) => {
+                let hsl;
+                if (baseColor === 'black') {
+                  hsl = blackShades[shade];
+                } else if (baseColor === 'white') {
+                  hsl = whiteShades[shade];
+                } else {
+                  hsl = colorShades[baseColor]?.[shade] || '0 0% 0%';
+                }
+                
+                return (
+                  <ToggleGroupItem 
+                    key={`shade-${shade}`} 
+                    value={shade}
+                    className="h-8 w-8 p-0 flex items-center justify-center rounded-sm"
+                  >
+                    <div 
+                      className="w-4 h-4 rounded-sm" 
+                      style={{
+                        background: `hsl(${hsl})`,
+                        opacity: isDisabled ? 0.5 : 1,
+                        border: '1px solid hsl(var(--border))'
+                      }}
+                    />
+                  </ToggleGroupItem>
+                );
+              })}
+            </div>
+          </div>
+        </ToggleGroup>
       </div>
     );
   };
@@ -632,32 +664,37 @@ const ColorControls = () => {
     }
     
     return (
-      <div className="space-y-1">
-        {rows.map((row, rowIndex) => (
-          <div key={`color-row-${rowIndex}`} className="flex space-x-1">
-            {row.map((color) => (
-              <Button 
-                key={`color-${color.name}`} 
-                variant="ghost" 
-                className="h-6 w-6 p-0 rounded-sm relative"
-                style={{ 
-                  background: color.name === "none" ? 'transparent' : `hsl(${color.hsl})` 
-                }}
-                onClick={() => handleColorChange(color.name)}
-              >
-                {selectedBase === color.name && (
-                  <div className="h-2 w-2 rounded-full bg-white shadow-sm" />
-                )}
-                {color.name === "none" && (
-                  <>
-                    <Square className="h-3 w-3 absolute" style={{ stroke: "hsl(var(--border))", fill: "transparent" }} />
-                    <Slash className="h-3 w-3 absolute text-muted-foreground" />
-                  </>
-                )}
-              </Button>
+      <div>
+        <ToggleGroup type="single" className="justify-start" value={selectedBase} onValueChange={(value) => handleColorChange(value)}>
+          <div className="flex flex-col gap-1">
+            {rows.map((row, rowIndex) => (
+              <div key={`color-row-${rowIndex}`} className="flex gap-1">
+                {row.map((color) => (
+                  <ToggleGroupItem 
+                    key={`color-${color.name}`} 
+                    value={color.name}
+                    className="h-8 w-8 p-0 flex items-center justify-center rounded-sm"
+                  >
+                    {color.name === "none" ? (
+                      <div className="relative w-4 h-4">
+                        <Square className="h-4 w-4 absolute" style={{ stroke: "hsl(var(--border))", fill: "transparent" }} />
+                        <Slash className="h-4 w-4 absolute text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <div 
+                        className="w-4 h-4 rounded-sm" 
+                        style={{ 
+                          background: `hsl(${color.hsl})`,
+                          border: '1px solid hsl(var(--border))'
+                        }}
+                      />
+                    )}
+                  </ToggleGroupItem>
+                ))}
+              </div>
             ))}
           </div>
-        ))}
+        </ToggleGroup>
       </div>
     );
   };
@@ -674,19 +711,71 @@ const ColorControls = () => {
             </Button>
           </PopoverTrigger>
           <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
-            <div className="space-y-4">
-              {/* Color grid */}
-              <Card className="p-2 border-none">
-                <Label className="text-xs text-muted-foreground mb-2 block">Color</Label>
-                {renderColorButtons(selectedStrokeBase, handleStrokeColorChange)}
-              </Card>
+                {/* Color grid */}
+                <Card className="p-2 border-none">
+                  <Label className="text-xs text-muted-foreground mb-2 block">Color</Label>
+                  {renderColorButtons(selectedStrokeBase, handleStrokeColorChange)}
+                </Card>
+                
+                {/* Shade selector */}
+                <Card className="p-2 border-none">
+                  <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
+                  {renderShadeButtons(selectedStrokeBase, selectedStrokeShade, handleStrokeShadeChange)}
+                </Card>
               
-              {/* Shade selector */}
-              <Card className="p-2 border-none">
-                <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
-                {renderShadeButtons(selectedStrokeBase, selectedStrokeShade, handleStrokeShadeChange)}
-              </Card>
-            </div>
+                {/* Stroke width slider */}
+                <Card className="p-2 border-none">
+                    {/* width buttons */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Width</Label>
+                      <ToggleGroup type="single" className="justify-start" value={strokeWidth.toString()} onValueChange={(value) => handlePresetWidthClick(Number(value))}>
+                        <div className="flex gap-1">
+                          {strokeWidths.map((width) => (
+                            <ToggleGroupItem 
+                              key={`width-${width}`}
+                              value={width.toString()}
+                              className="h-8 w-8 p-0 flex items-center justify-center"
+                            >
+                              <div 
+                                className="w-4 h-4" 
+                                style={{ 
+                                  border: `${width}px solid ${selectedStrokeBase === 'none' ? 'hsl(var(--muted-foreground))' : `hsl(${getCurrentColorHsl(strokeColor)})`}`,
+                                  borderRadius: '2px',
+                                  backgroundColor: 'transparent'
+                                }}
+                              />
+                            </ToggleGroupItem>
+                          ))}
+                        </div>
+                      </ToggleGroup>
+                    </div>
+                </Card>
+
+                {/* Stroke style selector */}
+                <Card className="p-2 border-none">
+                  <Label className="text-xs text-muted-foreground mb-2 block">Line Style</Label>
+                  <ToggleGroup type="single" className="justify-start" value={strokeStyle} onValueChange={(value) => handleStrokeStyleChange(value as 'solid' | 'dashed' | 'dotted')}>
+                    <div className="flex flex-row">
+                      {strokeStyles.map((style) => (
+                        <ToggleGroupItem 
+                          key={`style-${style.name}`}
+                          value={style.name}
+                          className="h-8 w-8 p-0 flex items-center justify-center"
+                        >
+                          <div 
+                            className="w-4 h-4" 
+                            style={{ 
+                              border: `2px ${style.name} ${selectedStrokeBase === 'none' ? 'hsl(var(--muted-foreground))' : `hsl(${getCurrentColorHsl(strokeColor)})`}`,
+                              borderRadius: '2px',
+                              backgroundColor: 'transparent'
+                            }}
+                          />
+                        </ToggleGroupItem>
+                      ))}
+                    </div>
+                  </ToggleGroup>
+                </Card>
+
           </PopoverContent>
         </Popover>
       </div>
