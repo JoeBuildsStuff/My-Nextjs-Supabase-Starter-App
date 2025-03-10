@@ -76,6 +76,10 @@ export interface CanvasState {
   duplicateSelectedNodes: () => void;
   deleteSelectedNodes: () => void;
   
+  // Group actions
+  groupSelectedNodes: () => void;
+  ungroupSelectedNodes: () => void;
+  
   // Alignment actions
   alignTop: () => void;
   alignMiddle: () => void;
@@ -835,11 +839,25 @@ export const useCanvasStore = create<CanvasState>()(
         state.nodes.forEach(node => {
           if (node.selected) {
             console.log('Updating stroke for node:', node.id);
-            if (!node.style) {
-              node.style = {};
+            
+            // If this is a group, only update its children, not the group container
+            if (node.data?.isGroup === true) {
+              const childNodes = state.nodes.filter(n => n.parentId === node.id);
+              childNodes.forEach(childNode => {
+                if (!childNode.style) {
+                  childNode.style = {};
+                }
+                childNode.style.borderColor = strokeColorHex;
+              });
+              updatedAnyNode = true;
+            } else {
+              // For regular nodes, update as normal
+              if (!node.style) {
+                node.style = {};
+              }
+              node.style.borderColor = strokeColorHex;
+              updatedAnyNode = true;
             }
-            node.style.borderColor = strokeColorHex;
-            updatedAnyNode = true;
           }
         });
         
@@ -862,11 +880,25 @@ export const useCanvasStore = create<CanvasState>()(
         state.nodes.forEach(node => {
           if (node.selected) {
             console.log('Updating fill for node:', node.id);
-            if (!node.style) {
-              node.style = {};
+            
+            // If this is a group, only update its children, not the group container
+            if (node.data?.isGroup === true) {
+              const childNodes = state.nodes.filter(n => n.parentId === node.id);
+              childNodes.forEach(childNode => {
+                if (!childNode.style) {
+                  childNode.style = {};
+                }
+                childNode.style.backgroundColor = fillColorHex;
+              });
+              updatedAnyNode = true;
+            } else {
+              // For regular nodes, update as normal
+              if (!node.style) {
+                node.style = {};
+              }
+              node.style.backgroundColor = fillColorHex;
+              updatedAnyNode = true;
             }
-            node.style.backgroundColor = fillColorHex;
-            updatedAnyNode = true;
           }
         });
         
@@ -892,12 +924,31 @@ export const useCanvasStore = create<CanvasState>()(
         state.nodes.forEach(node => {
           if (node.selected) {
             console.log('Updating border radius for node:', node.id);
-            if (!node.style) {
-              node.style = {};
+            
+            // If this is a group, only update its children, not the group container
+            if (node.data?.isGroup === true) {
+              const childNodes = state.nodes.filter(n => n.parentId === node.id);
+              childNodes.forEach(childNode => {
+                if (!childNode.style) {
+                  childNode.style = {};
+                }
+                // For circles, maintain the 50% border radius
+                if (childNode.type === 'circle') {
+                  childNode.style.borderRadius = '50%';
+                } else {
+                  childNode.style.borderRadius = `${radius}px`;
+                }
+              });
+              updatedAnyNode = true;
+            } else {
+              // For regular nodes, update as normal
+              if (!node.style) {
+                node.style = {};
+              }
+              node.style.borderRadius = `${radius}px`;
+              console.log('Node style after update:', node.style);
+              updatedAnyNode = true;
             }
-            node.style.borderRadius = `${radius}px`;
-            console.log('Node style after update:', node.style);
-            updatedAnyNode = true;
           }
         });
         
@@ -914,14 +965,35 @@ export const useCanvasStore = create<CanvasState>()(
         state.strokeWidth = width;
         
         // Update selected nodes
+        let updatedAnyNode = false;
+        
         state.nodes.forEach(node => {
           if (node.selected) {
-            if (!node.style) {
-              node.style = {};
+            // If this is a group, only update its children, not the group container
+            if (node.data?.isGroup === true) {
+              const childNodes = state.nodes.filter(n => n.parentId === node.id);
+              childNodes.forEach(childNode => {
+                if (!childNode.style) {
+                  childNode.style = {};
+                }
+                childNode.style.borderWidth = width;
+              });
+              updatedAnyNode = true;
+            } else {
+              // For regular nodes, update as normal
+              if (!node.style) {
+                node.style = {};
+              }
+              node.style.borderWidth = width;
+              updatedAnyNode = true;
             }
-            node.style.borderWidth = width;
           }
         });
+        
+        // Create a new nodes array to trigger a re-render
+        if (updatedAnyNode) {
+          state.nodes = [...state.nodes];
+        }
       }),
       
     setStrokeStyle: (style) =>
@@ -929,14 +1001,35 @@ export const useCanvasStore = create<CanvasState>()(
         state.strokeStyle = style;
         
         // Update selected nodes
+        let updatedAnyNode = false;
+        
         state.nodes.forEach(node => {
           if (node.selected) {
-            if (!node.style) {
-              node.style = {};
+            // If this is a group, only update its children, not the group container
+            if (node.data?.isGroup === true) {
+              const childNodes = state.nodes.filter(n => n.parentId === node.id);
+              childNodes.forEach(childNode => {
+                if (!childNode.style) {
+                  childNode.style = {};
+                }
+                childNode.style.borderStyle = style;
+              });
+              updatedAnyNode = true;
+            } else {
+              // For regular nodes, update as normal
+              if (!node.style) {
+                node.style = {};
+              }
+              node.style.borderStyle = style;
+              updatedAnyNode = true;
             }
-            node.style.borderStyle = style;
           }
         });
+        
+        // Create a new nodes array to trigger a re-render
+        if (updatedAnyNode) {
+          state.nodes = [...state.nodes];
+        }
       }),
       
     updateSelectedNodeStyles: () =>
@@ -946,14 +1039,37 @@ export const useCanvasStore = create<CanvasState>()(
         
         state.nodes.forEach(node => {
           if (node.selected) {
-            if (!node.style) {
-              node.style = {};
+            // If this is a group, only update its children, not the group container
+            if (node.data?.isGroup === true) {
+              const childNodes = state.nodes.filter(n => n.parentId === node.id);
+              childNodes.forEach(childNode => {
+                if (!childNode.style) {
+                  childNode.style = {};
+                }
+                childNode.style.borderColor = strokeColorHex;
+                childNode.style.backgroundColor = fillColorHex;
+                
+                // For circles, maintain the 50% border radius
+                if (childNode.type === 'circle') {
+                  childNode.style.borderRadius = '50%';
+                } else {
+                  childNode.style.borderRadius = `${state.borderRadius}px`;
+                }
+                
+                childNode.style.borderWidth = state.strokeWidth;
+                childNode.style.borderStyle = state.strokeStyle;
+              });
+            } else {
+              // For regular nodes, update as normal
+              if (!node.style) {
+                node.style = {};
+              }
+              node.style.borderColor = strokeColorHex;
+              node.style.backgroundColor = fillColorHex;
+              node.style.borderRadius = `${state.borderRadius}px`;
+              node.style.borderWidth = state.strokeWidth;
+              node.style.borderStyle = state.strokeStyle;
             }
-            node.style.borderColor = strokeColorHex;
-            node.style.backgroundColor = fillColorHex;
-            node.style.borderRadius = `${state.borderRadius}px`;
-            node.style.borderWidth = state.strokeWidth;
-            node.style.borderStyle = state.strokeStyle;
           }
         });
       }),
@@ -1122,34 +1238,37 @@ export const useCanvasStore = create<CanvasState>()(
           node.selected = true;
           state.selectedElements = [node];
           
-          // Update the current stroke and fill colors based on the selected node
-          if (node.style) {
-            const borderColor = node.style.borderColor as string;
-            const backgroundColor = node.style.backgroundColor as string;
-            const borderRadius = node.style.borderRadius as string;
-            const borderWidth = node.style.borderWidth as number;
-            const borderStyle = node.style.borderStyle as string;
-            
-            if (borderColor) {
-              state.strokeColor = getTailwindColorName(borderColor);
-            }
-            
-            if (backgroundColor) {
-              state.fillColor = getTailwindColorName(backgroundColor);
-            }
-            
-            if (borderRadius) {
-              // Extract the numeric value from the borderRadius string (e.g., "10px" -> 10)
-              const radiusValue = parseInt((borderRadius.match(/\d+/) || ['0'])[0], 10);
-              state.borderRadius = radiusValue;
-            }
-            
-            if (borderWidth !== undefined) {
-              state.strokeWidth = borderWidth;
-            }
-            
-            if (borderStyle && ['solid', 'dashed', 'dotted'].includes(borderStyle)) {
-              state.strokeStyle = borderStyle as 'solid' | 'dashed' | 'dotted';
+          // Only update the current style settings if this is not a group
+          if (!node.data?.isGroup) {
+            // Update the current stroke and fill colors based on the selected node
+            if (node.style) {
+              const borderColor = node.style.borderColor as string;
+              const backgroundColor = node.style.backgroundColor as string;
+              const borderRadius = node.style.borderRadius as string;
+              const borderWidth = node.style.borderWidth as number;
+              const borderStyle = node.style.borderStyle as string;
+              
+              if (borderColor) {
+                state.strokeColor = getTailwindColorName(borderColor);
+              }
+              
+              if (backgroundColor) {
+                state.fillColor = getTailwindColorName(backgroundColor);
+              }
+              
+              if (borderRadius) {
+                // Extract the numeric value from the borderRadius string (e.g., "10px" -> 10)
+                const radiusValue = parseInt((borderRadius.match(/\d+/) || ['0'])[0], 10);
+                state.borderRadius = radiusValue;
+              }
+              
+              if (borderWidth !== undefined) {
+                state.strokeWidth = borderWidth;
+              }
+              
+              if (borderStyle && ['solid', 'dashed', 'dotted'].includes(borderStyle)) {
+                state.strokeStyle = borderStyle as 'solid' | 'dashed' | 'dotted';
+              }
             }
           }
         }
@@ -1396,6 +1515,116 @@ export const useCanvasStore = create<CanvasState>()(
           console.log(`Node ${index} positioned at ${newY}`);
           node.position.y = newY;
         });
+      }),
+      
+    // Group selected nodes
+    groupSelectedNodes: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 1) return; // Need at least 2 nodes to group
+        
+        // Generate a unique ID for the group
+        const groupId = `group-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        
+        // Calculate the bounding box of all selected nodes
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        
+        selectedNodes.forEach(node => {
+          const nodeWidth = node.dimensions?.width || 0;
+          const nodeHeight = node.dimensions?.height || 0;
+          
+          minX = Math.min(minX, node.position.x);
+          minY = Math.min(minY, node.position.y);
+          maxX = Math.max(maxX, node.position.x + nodeWidth);
+          maxY = Math.max(maxY, node.position.y + nodeHeight);
+        });
+        
+        // Add some padding around the group
+        const padding = 20; // Increased padding
+        minX -= padding;
+        minY -= padding;
+        maxX += padding;
+        maxY += padding;
+        
+        const groupWidth = maxX - minX;
+        const groupHeight = maxY - minY;
+        
+        // Create a group node with invisible border by default
+        // The border will only be visible when selected
+        const groupNode: Node = {
+          id: groupId,
+          type: 'rectangle',
+          position: { x: minX, y: minY },
+          data: { isGroup: true },
+          dimensions: { width: groupWidth, height: groupHeight },
+          style: {
+            backgroundColor: 'transparent', // Always transparent
+            borderColor: 'transparent', // Invisible by default
+            borderWidth: 2,
+            borderStyle: 'dashed',
+            borderRadius: '4px',
+            pointerEvents: 'all', // Make sure the group is interactive
+          },
+          selected: true,
+        };
+        
+        // Set the parentId for all selected nodes
+        selectedNodes.forEach(node => {
+          node.parentId = groupId;
+          node.selected = false;
+          
+          // Adjust positions to be relative to the group
+          node.position = {
+            x: node.position.x - minX,
+            y: node.position.y - minY
+          };
+        });
+        
+        // Deselect all nodes and select only the group
+        state.nodes.forEach(node => {
+          node.selected = false;
+        });
+        
+        // Add the group node to the nodes array
+        state.nodes.push(groupNode);
+        
+        // Update selected elements
+        state.selectedElements = [groupNode];
+      }),
+      
+    // Ungroup selected nodes
+    ungroupSelectedNodes: () =>
+      set((state) => {
+        const selectedGroups = state.nodes.filter(node => 
+          node.selected && node.data?.isGroup === true
+        );
+        
+        if (selectedGroups.length === 0) return;
+        
+        // Process each selected group
+        selectedGroups.forEach(group => {
+          // Find all child nodes of this group
+          const childNodes = state.nodes.filter(node => node.parentId === group.id);
+          
+          // Adjust positions back to absolute coordinates
+          childNodes.forEach(node => {
+            node.position = {
+              x: node.position.x + group.position.x,
+              y: node.position.y + group.position.y
+            };
+            node.parentId = undefined;
+            node.selected = true;
+          });
+          
+          // Remove the group node
+          state.nodes = state.nodes.filter(node => node.id !== group.id);
+        });
+        
+        // Update selected elements to be the child nodes
+        state.selectedElements = state.nodes.filter(node => node.selected);
       }),
   }))
 ); 

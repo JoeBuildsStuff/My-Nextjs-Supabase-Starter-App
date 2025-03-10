@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { ChevronRight, Copy, Delete } from 'lucide-react';
+import { ChevronRight, Copy, Delete, Group, Ungroup } from 'lucide-react';
 import { 
   DropdownMenu, 
   DropdownMenuTrigger, 
@@ -17,7 +17,12 @@ import {
 import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 
 const ActionControls = () => {
-  const { duplicateSelectedNodes, deleteSelectedNodes } = useCanvasStore();
+  const { 
+    duplicateSelectedNodes, 
+    deleteSelectedNodes,
+    groupSelectedNodes,
+    ungroupSelectedNodes
+  } = useCanvasStore();
 
   // Add keyboard event handlers
   useEffect(() => {
@@ -32,6 +37,18 @@ const ActionControls = () => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteSelectedNodes();
       }
+      
+      // Check if Command/Control + G is pressed for group
+      if ((e.metaKey || e.ctrlKey) && e.key === 'g' && !e.shiftKey) {
+        e.preventDefault();
+        groupSelectedNodes();
+      }
+      
+      // Check if Command/Control + Shift + G is pressed for ungroup
+      if ((e.metaKey || e.ctrlKey) && e.key === 'g' && e.shiftKey) {
+        e.preventDefault();
+        ungroupSelectedNodes();
+      }
     };
 
     // Add event listener
@@ -41,7 +58,7 @@ const ActionControls = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [duplicateSelectedNodes, deleteSelectedNodes]);
+  }, [duplicateSelectedNodes, deleteSelectedNodes, groupSelectedNodes, ungroupSelectedNodes]);
 
   return (
     <div className="flex flex-row items-center justify-between w-full">
@@ -63,6 +80,17 @@ const ActionControls = () => {
               <Delete className="mr-2 h-4 w-4" />
               <span>Delete</span>
               <DropdownMenuShortcut>⌫</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={groupSelectedNodes}>
+              <Group className="mr-2 h-4 w-4" />
+              <span>Group</span>
+              <DropdownMenuShortcut>⌘G</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={ungroupSelectedNodes}>
+              <Ungroup className="mr-2 h-4 w-4" />
+              <span>Ungroup</span>
+              <DropdownMenuShortcut>⇧⌘G</DropdownMenuShortcut>
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
