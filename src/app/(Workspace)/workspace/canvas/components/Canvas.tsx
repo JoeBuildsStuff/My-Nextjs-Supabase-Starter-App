@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useCanvasStore, Node } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import ResizeHandles, { ResizeHandleDirection } from './ui/ResizeHandles';
+import ConnectionPoints, { ConnectionPointPosition } from './ui/ConnectionPoints';
 
 interface CanvasProps {
   width?: number;
@@ -652,7 +653,7 @@ const Canvas: React.FC<CanvasProps> = ({
       top: `${position.y}px`,
       width: `${dimensions.width}px`,
       height: `${dimensions.height}px`,
-      pointerEvents: selected ? 'auto' : 'none', // Only make selected shapes interactive
+      pointerEvents: selected || ['arrow', 'line'].includes(activeTool) ? 'auto' : 'none', // Make shapes interactive when selected or when line tool is active
     };
     
     // Check if this is a group node
@@ -892,6 +893,26 @@ const Canvas: React.FC<CanvasProps> = ({
       );
     }
     
+    // Determine if we should show connection points
+    const showConnectionPoints = ['arrow', 'line'].includes(activeTool) && 
+                                !isGroup && 
+                                !node.points; // Don't show connection points on line/arrow nodes
+    
+    // Handle connection point click
+    const handleConnectionPointClick = (nodeId: string, position: ConnectionPointPosition, x: number, y: number) => {
+      console.log('Connection point clicked:', nodeId, position, x, y);
+      
+      // If we're already drawing a line, we can connect to this point
+      if (lineInProgress) {
+        // For now, just finish the line at this point
+        updateLineDraw(x, y, isShiftPressed);
+        finishLineDraw();
+      } else {
+        // Start drawing a new line from this point
+        startLineDraw(x, y, activeTool as 'line' | 'arrow');
+      }
+    };
+    
     // Render different shapes based on type
     let shapeElement;
     switch (type) {
@@ -1128,7 +1149,17 @@ const Canvas: React.FC<CanvasProps> = ({
     
     // Return the container with the shape and resize handles
     return (
-      <div key={id} style={containerStyle}>
+      <div 
+        key={id}
+        style={containerStyle}
+        className={`node ${selected ? 'selected' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (activeTool === 'select') {
+            selectNode(id);
+          }
+        }}
+      >
         {/* For selected groups, render a selection indicator as an overlay */}
         {isGroup && selected && (
           <div 
@@ -1152,6 +1183,12 @@ const Canvas: React.FC<CanvasProps> = ({
           <ResizeHandles 
             node={node} 
             onResize={handleResizeNode} 
+          />
+        )}
+        {showConnectionPoints && dimensions && (
+          <ConnectionPoints 
+            node={node}
+            onConnectionPointClick={handleConnectionPointClick}
           />
         )}
       </div>
