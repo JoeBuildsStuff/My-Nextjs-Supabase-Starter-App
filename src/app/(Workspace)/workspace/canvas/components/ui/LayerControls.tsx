@@ -4,7 +4,16 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Layers, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { 
+  DropdownMenu, 
+  DropdownMenuTrigger, 
+  DropdownMenuContent, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuGroup, 
+  DropdownMenuItem, 
+  DropdownMenuShortcut 
+} from '@/components/ui/dropdown-menu';
 import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 
 const LayerControls = () => {
@@ -18,29 +27,39 @@ const LayerControls = () => {
   return (
     <div className="flex flex-row items-center justify-between w-full">
       <Label className="text-sm font-medium text-muted-foreground">Order</Label>
-      <Popover>
-        <PopoverTrigger asChild>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon">
             <Layers className="w-4 h-4" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent side="right" className="w-fit h-fit p-1 m-0" sideOffset={15} align="start">
-          <div className="w-fit">
-            <Button variant="ghost" size="icon" onClick={moveSelectedToFront}>
-              <ChevronsUp className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={moveSelectedForward}>
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={moveSelectedBackward}>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={moveSelectedToBack}>
-              <ChevronsDown className="h-4 w-4" />
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="right" sideOffset={15} align="start" className="w-fit">
+          <DropdownMenuLabel>Layer Order</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={moveSelectedToFront}>
+              <ChevronsUp className="mr-2 h-4 w-4" />
+              <span>Bring to Front</span>
+              <DropdownMenuShortcut>⇧⌘↑</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={moveSelectedForward}>
+              <ChevronUp className="mr-2 h-4 w-4" />
+              <span>Bring Forward</span>
+              <DropdownMenuShortcut>⌘↑</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={moveSelectedBackward}>
+              <ChevronDown className="mr-2 h-4 w-4" />
+              <span>Send Backward</span>
+              <DropdownMenuShortcut>⌘↓</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={moveSelectedToBack}>
+              <ChevronsDown className="mr-2 h-4 w-4" />
+              <span>Send to Back</span>
+              <DropdownMenuShortcut>⇧⌘↓</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 };

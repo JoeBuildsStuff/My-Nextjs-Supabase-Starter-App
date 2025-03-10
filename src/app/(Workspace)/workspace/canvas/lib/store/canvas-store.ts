@@ -71,6 +71,16 @@ export interface CanvasState {
   duplicateSelectedNodes: () => void;
   deleteSelectedNodes: () => void;
   
+  // Alignment actions
+  alignTop: () => void;
+  alignMiddle: () => void;
+  alignBottom: () => void;
+  alignLeft: () => void;
+  alignCenter: () => void;
+  alignRight: () => void;
+  distributeHorizontally: () => void;
+  distributeVertically: () => void;
+  
   // Viewport actions
   zoomIn: () => void;
   zoomOut: () => void;
@@ -1191,6 +1201,177 @@ export const useCanvasStore = create<CanvasState>()(
             node.dimensions.height = height;
           }
         }
+      }),
+    
+    // Alignment actions
+    alignTop: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
+        
+        // Find the topmost position among selected nodes
+        const topPosition = Math.min(...selectedNodes.map(node => node.position.y));
+        console.log('Aligning to top position:', topPosition);
+        
+        // Align all selected nodes to the topmost position
+        selectedNodes.forEach(node => {
+          node.position.y = topPosition;
+        });
+      }),
+      
+    alignMiddle: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
+        
+        // Calculate the average vertical center of all selected nodes
+        const centerY = selectedNodes.reduce((sum, node) => {
+          const nodeHeight = node.dimensions?.height || 0;
+          return sum + (node.position.y + nodeHeight / 2);
+        }, 0) / selectedNodes.length;
+        console.log('Aligning to middle position:', centerY);
+        
+        // Align all selected nodes to the average center
+        selectedNodes.forEach(node => {
+          const nodeHeight = node.dimensions?.height || 0;
+          node.position.y = centerY - nodeHeight / 2;
+        });
+      }),
+      
+    alignBottom: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
+        
+        // Find the bottommost position among selected nodes
+        const bottomPosition = Math.max(...selectedNodes.map(node => {
+          const nodeHeight = node.dimensions?.height || 0;
+          return node.position.y + nodeHeight;
+        }));
+        console.log('Aligning to bottom position:', bottomPosition);
+        
+        // Align all selected nodes to the bottommost position
+        selectedNodes.forEach(node => {
+          const nodeHeight = node.dimensions?.height || 0;
+          node.position.y = bottomPosition - nodeHeight;
+        });
+      }),
+      
+    alignLeft: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
+        
+        // Find the leftmost position among selected nodes
+        const leftPosition = Math.min(...selectedNodes.map(node => node.position.x));
+        console.log('Aligning to left position:', leftPosition);
+        
+        // Align all selected nodes to the leftmost position
+        selectedNodes.forEach(node => {
+          node.position.x = leftPosition;
+        });
+      }),
+      
+    alignCenter: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
+        
+        // Calculate the average horizontal center of all selected nodes
+        const centerX = selectedNodes.reduce((sum, node) => {
+          const nodeWidth = node.dimensions?.width || 0;
+          return sum + (node.position.x + nodeWidth / 2);
+        }, 0) / selectedNodes.length;
+        console.log('Aligning to center position:', centerX);
+        
+        // Align all selected nodes to the average center
+        selectedNodes.forEach(node => {
+          const nodeWidth = node.dimensions?.width || 0;
+          node.position.x = centerX - nodeWidth / 2;
+        });
+      }),
+      
+    alignRight: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 1) return; // Need at least 2 nodes to align
+        
+        // Find the rightmost position among selected nodes
+        const rightPosition = Math.max(...selectedNodes.map(node => {
+          const nodeWidth = node.dimensions?.width || 0;
+          return node.position.x + nodeWidth;
+        }));
+        console.log('Aligning to right position:', rightPosition);
+        
+        // Align all selected nodes to the rightmost position
+        selectedNodes.forEach(node => {
+          const nodeWidth = node.dimensions?.width || 0;
+          node.position.x = rightPosition - nodeWidth;
+        });
+      }),
+      
+    distributeHorizontally: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 2) return; // Need at least 3 nodes to distribute
+        
+        // Sort nodes by their x position
+        const sortedNodes = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
+        
+        // Find the leftmost and rightmost positions
+        const leftmostNode = sortedNodes[0];
+        const rightmostNode = sortedNodes[sortedNodes.length - 1];
+        
+        const leftX = leftmostNode.position.x;
+        const rightX = rightmostNode.position.x + (rightmostNode.dimensions?.width || 0);
+        const totalWidth = rightX - leftX;
+        
+        console.log('Distributing horizontally from', leftX, 'to', rightX);
+        
+        // Calculate the spacing between nodes
+        const spacing = totalWidth / (sortedNodes.length - 1);
+        
+        // Distribute the nodes evenly
+        sortedNodes.forEach((node, index) => {
+          if (index === 0 || index === sortedNodes.length - 1) return; // Skip first and last nodes
+          
+          const nodeWidth = node.dimensions?.width || 0;
+          const newX = leftX + spacing * index - nodeWidth / 2;
+          console.log(`Node ${index} positioned at ${newX}`);
+          node.position.x = newX;
+        });
+      }),
+      
+    distributeVertically: () =>
+      set((state) => {
+        const selectedNodes = state.nodes.filter(node => node.selected);
+        if (selectedNodes.length <= 2) return; // Need at least 3 nodes to distribute
+        
+        // Sort nodes by their y position
+        const sortedNodes = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
+        
+        // Find the topmost and bottommost positions
+        const topmostNode = sortedNodes[0];
+        const bottommostNode = sortedNodes[sortedNodes.length - 1];
+        
+        const topY = topmostNode.position.y;
+        const bottomY = bottommostNode.position.y + (bottommostNode.dimensions?.height || 0);
+        const totalHeight = bottomY - topY;
+        
+        console.log('Distributing vertically from', topY, 'to', bottomY);
+        
+        // Calculate the spacing between nodes
+        const spacing = totalHeight / (sortedNodes.length - 1);
+        
+        // Distribute the nodes evenly
+        sortedNodes.forEach((node, index) => {
+          if (index === 0 || index === sortedNodes.length - 1) return; // Skip first and last nodes
+          
+          const nodeHeight = node.dimensions?.height || 0;
+          const newY = topY + spacing * index - nodeHeight / 2;
+          console.log(`Node ${index} positioned at ${newY}`);
+          node.position.y = newY;
+        });
       }),
   }))
 ); 
