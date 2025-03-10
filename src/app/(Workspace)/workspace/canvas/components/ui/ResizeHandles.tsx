@@ -50,12 +50,11 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ node, onResize }) => {
     height: `${handleSize}px`,
     backgroundColor: 'hsl(var(--background))',
     border: '1px solid hsl(var(--border))',
-    borderRadius: '50%',
+    borderRadius: '3px', // Changed from 50% to 4px for rounded squares
     zIndex: 100, // Higher z-index to ensure visibility
     pointerEvents: 'auto', // Make sure handles are clickable
     touchAction: 'none', // Prevent touch actions for better mobile experience
   };
-  
   // Calculate positions for each handle with offset
   const handlePositions = {
     n: { top: -handleSize / 2 - handleOffset, left: '50%', transform: 'translateX(-50%)', cursor: 'ns-resize' },

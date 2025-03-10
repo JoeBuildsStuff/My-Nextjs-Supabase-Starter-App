@@ -12,6 +12,7 @@ export interface Node {
   selected?: boolean;
   dragHandle?: string;
   parentId?: string; // For grouping/nesting
+  points?: Array<{ x: number, y: number }>; // For multi-point lines
 }
 
 export interface Edge {
@@ -55,6 +56,10 @@ export interface CanvasState {
   strokeWidth: number;
   strokeStyle: 'solid' | 'dashed' | 'dotted';
   presentationMode: boolean;
+  
+  // Line drawing state
+  lineInProgress: Node | null;
+  selectedPointIndices: number[] | null;
   
   // History tracking
   history: Array<{
@@ -116,6 +121,20 @@ export interface CanvasState {
   createShapeAtPosition: (type: string, x: number, y: number) => void;
   updateNodePosition: (nodeId: string, x: number, y: number) => void;
   updateNodeDimensions: (nodeId: string, width: number, height: number) => void;
+  
+  // Line drawing actions
+  startLineDraw: (x: number, y: number, type: 'line' | 'arrow') => void;
+  updateLineDraw: (x: number, y: number, isShiftPressed?: boolean) => void;
+  addPointToLine: () => void;
+  finishLineDraw: () => void;
+  cancelLineDraw: () => void;
+  
+  // Line point editing actions
+  selectLinePoint: (nodeId: string, pointIndex: number, multiSelect?: boolean) => void;
+  deselectLinePoints: () => void;
+  moveLinePoint: (nodeId: string, pointIndex: number, x: number, y: number) => void;
+  addPointToExistingLine: (nodeId: string, segmentIndex: number, x: number, y: number) => void;
+  deleteSelectedPoints: () => void;
 }
 
 // Helper function to convert Tailwind color names to CSS color values
@@ -799,6 +818,9 @@ const getTailwindColorName = (hexColor: string): string => {
   return hexColor;
 };
 
+// Define a constant for the padding
+const LINE_BOUNDING_BOX_PADDING = 10; // 5px on each side
+
 // Create the store with immer middleware for immutable updates
 export const useCanvasStore = create<CanvasState>()(
   immer((set, get) => ({
@@ -817,6 +839,10 @@ export const useCanvasStore = create<CanvasState>()(
     strokeWidth: 2,
     strokeStyle: 'solid',
     presentationMode: false,
+    
+    // Line drawing state
+    lineInProgress: null,
+    selectedPointIndices: null,
     
     // History tracking
     history: [],
@@ -1031,7 +1057,7 @@ export const useCanvasStore = create<CanvasState>()(
       set((state) => {
         state.defaultShade = shade;
       }),
-      
+    
     setBorderRadius: (radius) =>
       set((state) => {
         state.borderRadius = radius;
@@ -1885,5 +1911,439 @@ export const useCanvasStore = create<CanvasState>()(
         state.presentationMode = !state.presentationMode;
       });
     },
+    
+    // Line drawing actions
+    startLineDraw: (x, y, type) =>
+      set((state) => {
+        // If there's already a line in progress, finish it first
+        if (state.lineInProgress) {
+          // Add the current line to the canvas
+          state.nodes.push(state.lineInProgress);
+          
+          // Reset line in progress
+          state.lineInProgress = null;
+        }
+        
+        // Generate a unique ID for the new line
+        const id = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        
+        // Create a new line node with initial points
+        const newLine: Node = {
+          id,
+          type,
+          position: { x, y },
+          data: {},
+          dimensions: { width: 1, height: 1 }, // Will be calculated based on points
+          style: {
+            backgroundColor: 'transparent',
+            borderColor: getTailwindColor(state.strokeColor),
+            borderWidth: state.strokeWidth,
+            borderStyle: state.strokeStyle,
+          },
+          points: [
+            { x: 0, y: 0 }, // First point is at the origin (relative to position)
+            { x: 0, y: 0 }  // Second point starts at the same place, will be updated
+          ]
+        };
+        
+        state.lineInProgress = newLine;
+        
+        // Keep the line tool active
+        state.activeTool = type === 'arrow' ? 'arrow' : 'line';
+      }),
+    
+    updateLineDraw: (x, y, isShiftPressed = false) =>
+      set((state) => {
+        if (!state.lineInProgress) return;
+        
+        // Get the current line
+        const line = state.lineInProgress;
+        
+        // Calculate the position relative to the line's origin
+        const relativeX = x - line.position.x;
+        const relativeY = y - line.position.y;
+        
+        // Apply grid snapping if enabled
+        let snappedX = state.snapToGrid 
+          ? Math.round(relativeX / state.gridSize) * state.gridSize 
+          : relativeX;
+        let snappedY = state.snapToGrid 
+          ? Math.round(relativeY / state.gridSize) * state.gridSize 
+          : relativeY;
+        
+        // If shift is pressed, constrain to perfect angles
+        if (isShiftPressed && line.points && line.points.length > 0) {
+          const startPoint = line.points[0];
+          const dx = snappedX - startPoint.x;
+          const dy = snappedY - startPoint.y;
+          const angle = Math.atan2(dy, dx);
+          
+          // Snap to 45-degree increments (π/4 radians)
+          const SHIFT_LOCKING_ANGLE = Math.PI / 4;
+          const snappedAngle = Math.round(angle / SHIFT_LOCKING_ANGLE) * SHIFT_LOCKING_ANGLE;
+          
+          // Calculate distance from start point
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // If angle is horizontal (0 or π)
+          if (snappedAngle === 0 || Math.abs(snappedAngle) === Math.PI) {
+            snappedY = startPoint.y;
+            snappedX = startPoint.x + (snappedAngle === 0 ? distance : -distance);
+          } 
+          // If angle is vertical (π/2 or -π/2)
+          else if (Math.abs(snappedAngle) === Math.PI / 2) {
+            snappedX = startPoint.x;
+            snappedY = startPoint.y + (snappedAngle === Math.PI / 2 ? distance : -distance);
+          } 
+          // If angle is diagonal
+          else {
+            const diagDistance = distance / Math.sqrt(2); // Adjust for 45-degree angle
+            snappedX = startPoint.x + diagDistance * Math.cos(snappedAngle);
+            snappedY = startPoint.y + diagDistance * Math.sin(snappedAngle);
+            
+            // Re-apply grid snapping if enabled
+            if (state.snapToGrid) {
+              snappedX = Math.round(snappedX / state.gridSize) * state.gridSize;
+              snappedY = Math.round(snappedY / state.gridSize) * state.gridSize;
+            }
+          }
+        }
+        
+        // Update the last point
+        if (line.points && line.points.length > 0) {
+          line.points[line.points.length - 1] = { x: snappedX, y: snappedY };
+          
+          // Calculate dimensions based on points
+          const allX = line.points.map(p => p.x);
+          const allY = line.points.map(p => p.y);
+          const minX = Math.min(...allX);
+          const maxX = Math.max(...allX);
+          const minY = Math.min(...allY);
+          const maxY = Math.max(...allY);
+          
+          // Add padding to the bounding box
+          const paddedMinX = minX - LINE_BOUNDING_BOX_PADDING;
+          const paddedMaxX = maxX + LINE_BOUNDING_BOX_PADDING;
+          const paddedMinY = minY - LINE_BOUNDING_BOX_PADDING;
+          const paddedMaxY = maxY + LINE_BOUNDING_BOX_PADDING;
+          
+          // Update position and dimensions to properly contain all points with padding
+          if (paddedMinX < 0 || paddedMinY < 0) {
+            // Adjust position to the top-left corner of the padded bounding box
+            line.position.x += paddedMinX;
+            line.position.y += paddedMinY;
+            
+            // Adjust all points to be relative to the new position
+            for (let i = 0; i < line.points.length; i++) {
+              line.points[i].x -= paddedMinX;
+              line.points[i].y -= paddedMinY;
+            }
+            
+            // Update dimensions to the size of the padded bounding box
+            line.dimensions = {
+              width: Math.max(paddedMaxX - paddedMinX, 1),
+              height: Math.max(paddedMaxY - paddedMinY, 1)
+            };
+          } else {
+            // No need to adjust position, just update dimensions with padding
+            line.dimensions = {
+              width: Math.max(paddedMaxX, 1),
+              height: Math.max(paddedMaxY, 1)
+            };
+          }
+        }
+      }),
+    
+    addPointToLine: () =>
+      set((state) => {
+        if (!state.lineInProgress || !state.lineInProgress.points) return;
+        
+        // Get the current line
+        const line = state.lineInProgress;
+        
+        // We've already checked that line.points exists
+        const points = line.points!;
+        
+        // Get the last point
+        const lastPoint = points[points.length - 1];
+        
+        // Add a new point at the same position as the last point
+        points.push({ ...lastPoint });
+      }),
+    
+    finishLineDraw: () =>
+      set((state) => {
+        if (!state.lineInProgress) return;
+        
+        // Only add the line if it has at least two distinct points
+        if (state.lineInProgress.points && state.lineInProgress.points.length >= 2) {
+          // Add the line to the canvas
+          state.nodes.push(state.lineInProgress);
+          
+          // Select the new line
+          state.nodes.forEach(node => {
+            node.selected = node.id === state.lineInProgress?.id;
+          });
+          
+          state.selectedElements = state.lineInProgress ? [state.lineInProgress] : [];
+          
+          // Push to history
+          get().pushToHistory();
+        }
+        
+        // Reset line in progress
+        state.lineInProgress = null;
+        
+        // Switch to select tool
+        state.activeTool = 'select';
+      }),
+    
+    cancelLineDraw: () =>
+      set((state) => {
+        // Reset line in progress
+        state.lineInProgress = null;
+        
+        // Switch to select tool
+        state.activeTool = 'select';
+      }),
+    
+    // Line point editing actions
+    selectLinePoint: (nodeId, pointIndex, multiSelect = false) =>
+      set((state) => {
+        // Find the node
+        const node = state.nodes.find(n => n.id === nodeId);
+        if (!node || !node.points) return;
+        
+        // Select the node first
+        state.nodes.forEach(n => {
+          n.selected = n.id === nodeId;
+        });
+        
+        state.selectedElements = node ? [node] : [];
+        
+        // Update selected point indices
+        if (multiSelect && state.selectedPointIndices) {
+          // If already selected, deselect it
+          if (state.selectedPointIndices.includes(pointIndex)) {
+            state.selectedPointIndices = state.selectedPointIndices.filter(i => i !== pointIndex);
+          } else {
+            state.selectedPointIndices = [...state.selectedPointIndices, pointIndex];
+          }
+        } else {
+          // Single select
+          state.selectedPointIndices = [pointIndex];
+        }
+      }),
+    
+    deselectLinePoints: () =>
+      set((state) => {
+        state.selectedPointIndices = null;
+      }),
+    
+    moveLinePoint: (nodeId, pointIndex, x, y) =>
+      set((state) => {
+        // Find the node
+        const node = state.nodes.find(n => n.id === nodeId);
+        if (!node || !node.points || pointIndex >= node.points.length) return;
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
+        // Calculate the position relative to the node's origin
+        const relativeX = x - node.position.x;
+        const relativeY = y - node.position.y;
+        
+        // Apply grid snapping if enabled
+        const snappedX = state.snapToGrid 
+          ? Math.round(relativeX / state.gridSize) * state.gridSize 
+          : relativeX;
+        const snappedY = state.snapToGrid 
+          ? Math.round(relativeY / state.gridSize) * state.gridSize 
+          : relativeY;
+        
+        // Update the point
+        node.points[pointIndex] = { x: snappedX, y: snappedY };
+        
+        // Recalculate dimensions based on points
+        const allX = node.points.map(p => p.x);
+        const allY = node.points.map(p => p.y);
+        const minX = Math.min(...allX);
+        const maxX = Math.max(...allX);
+        const minY = Math.min(...allY);
+        const maxY = Math.max(...allY);
+        
+        // Add padding to the bounding box
+        const paddedMinX = minX - LINE_BOUNDING_BOX_PADDING;
+        const paddedMaxX = maxX + LINE_BOUNDING_BOX_PADDING;
+        const paddedMinY = minY - LINE_BOUNDING_BOX_PADDING;
+        const paddedMaxY = maxY + LINE_BOUNDING_BOX_PADDING;
+        
+        // Update position and dimensions to properly contain all points with padding
+        if (paddedMinX < 0 || paddedMinY < 0) {
+          // Adjust position to the top-left corner of the padded bounding box
+          node.position.x += paddedMinX;
+          node.position.y += paddedMinY;
+          
+          // Adjust all points to be relative to the new position
+          for (let i = 0; i < node.points.length; i++) {
+            node.points[i].x -= paddedMinX;
+            node.points[i].y -= paddedMinY;
+          }
+          
+          // Update dimensions to the size of the padded bounding box
+          node.dimensions = {
+            width: Math.max(paddedMaxX - paddedMinX, 1),
+            height: Math.max(paddedMaxY - paddedMinY, 1)
+          };
+        } else {
+          // No need to adjust position, just update dimensions with padding
+          node.dimensions = {
+            width: Math.max(paddedMaxX, 1),
+            height: Math.max(paddedMaxY, 1)
+          };
+        }
+      }),
+    
+    addPointToExistingLine: (nodeId, segmentIndex, x, y) =>
+      set((state) => {
+        // Find the node
+        const node = state.nodes.find(n => n.id === nodeId);
+        if (!node || !node.points || segmentIndex >= node.points.length - 1) return;
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
+        // Calculate the position relative to the node's origin
+        const relativeX = x - node.position.x;
+        const relativeY = y - node.position.y;
+        
+        // Apply grid snapping if enabled
+        const snappedX = state.snapToGrid 
+          ? Math.round(relativeX / state.gridSize) * state.gridSize 
+          : relativeX;
+        const snappedY = state.snapToGrid 
+          ? Math.round(relativeY / state.gridSize) * state.gridSize 
+          : relativeY;
+        
+        // Create a new point
+        const newPoint = { x: snappedX, y: snappedY };
+        
+        // Insert the new point after the segment index
+        node.points.splice(segmentIndex + 1, 0, newPoint);
+        
+        // Select the new point
+        state.selectedPointIndices = [segmentIndex + 1];
+        
+        // Recalculate dimensions based on points
+        const allX = node.points.map(p => p.x);
+        const allY = node.points.map(p => p.y);
+        const minX = Math.min(...allX);
+        const maxX = Math.max(...allX);
+        const minY = Math.min(...allY);
+        const maxY = Math.max(...allY);
+        
+        // Add padding to the bounding box
+        const paddedMinX = minX - LINE_BOUNDING_BOX_PADDING;
+        const paddedMaxX = maxX + LINE_BOUNDING_BOX_PADDING;
+        const paddedMinY = minY - LINE_BOUNDING_BOX_PADDING;
+        const paddedMaxY = maxY + LINE_BOUNDING_BOX_PADDING;
+        
+        // Update position and dimensions to properly contain all points with padding
+        if (paddedMinX < 0 || paddedMinY < 0) {
+          // Adjust position to the top-left corner of the padded bounding box
+          node.position.x += paddedMinX;
+          node.position.y += paddedMinY;
+          
+          // Adjust all points to be relative to the new position
+          for (let i = 0; i < node.points.length; i++) {
+            node.points[i].x -= paddedMinX;
+            node.points[i].y -= paddedMinY;
+          }
+          
+          // Update dimensions to the size of the padded bounding box
+          node.dimensions = {
+            width: Math.max(paddedMaxX - paddedMinX, 1),
+            height: Math.max(paddedMaxY - paddedMinY, 1)
+          };
+        } else {
+          // No need to adjust position, just update dimensions with padding
+          node.dimensions = {
+            width: Math.max(paddedMaxX, 1),
+            height: Math.max(paddedMaxY, 1)
+          };
+        }
+      }),
+    
+    deleteSelectedPoints: () =>
+      set((state) => {
+        if (!state.selectedPointIndices || state.selectedPointIndices.length === 0) return;
+        
+        // Find the selected node
+        const selectedNode = state.nodes.find(node => node.selected);
+        if (!selectedNode || !selectedNode.points) return;
+        
+        // Ensure we don't delete all points - need at least 2 for a line
+        if (selectedNode.points.length - state.selectedPointIndices.length < 2) {
+          // If trying to delete too many points, just delete the node
+          state.nodes = state.nodes.filter(node => node.id !== selectedNode.id);
+          state.selectedPointIndices = null;
+          return;
+        }
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
+        // Sort indices in descending order to avoid index shifting during removal
+        const sortedIndices = [...state.selectedPointIndices].sort((a, b) => b - a);
+        
+        // Remove the points
+        for (const index of sortedIndices) {
+          if (index < selectedNode.points.length) {
+            selectedNode.points.splice(index, 1);
+          }
+        }
+        
+        // Clear selected point indices
+        state.selectedPointIndices = null;
+        
+        // Recalculate dimensions based on points
+        const allX = selectedNode.points.map(p => p.x);
+        const allY = selectedNode.points.map(p => p.y);
+        const minX = Math.min(...allX);
+        const maxX = Math.max(...allX);
+        const minY = Math.min(...allY);
+        const maxY = Math.max(...allY);
+        
+        // Add padding to the bounding box
+        const paddedMinX = minX - LINE_BOUNDING_BOX_PADDING;
+        const paddedMaxX = maxX + LINE_BOUNDING_BOX_PADDING;
+        const paddedMinY = minY - LINE_BOUNDING_BOX_PADDING;
+        const paddedMaxY = maxY + LINE_BOUNDING_BOX_PADDING;
+        
+        // Update position and dimensions to properly contain all points with padding
+        if (paddedMinX < 0 || paddedMinY < 0) {
+          // Adjust position to the top-left corner of the padded bounding box
+          selectedNode.position.x += paddedMinX;
+          selectedNode.position.y += paddedMinY;
+          
+          // Adjust all points to be relative to the new position
+          for (let i = 0; i < selectedNode.points.length; i++) {
+            selectedNode.points[i].x -= paddedMinX;
+            selectedNode.points[i].y -= paddedMinY;
+          }
+          
+          // Update dimensions to the size of the padded bounding box
+          selectedNode.dimensions = {
+            width: Math.max(paddedMaxX - paddedMinX, 1),
+            height: Math.max(paddedMaxY - paddedMinY, 1)
+          };
+        } else {
+          // No need to adjust position, just update dimensions with padding
+          selectedNode.dimensions = {
+            width: Math.max(paddedMaxX, 1),
+            height: Math.max(paddedMaxY, 1)
+          };
+        }
+      }),
   }))
 ); 

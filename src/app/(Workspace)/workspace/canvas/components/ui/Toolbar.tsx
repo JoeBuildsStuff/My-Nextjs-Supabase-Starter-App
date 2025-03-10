@@ -68,12 +68,12 @@ const Toolbar = () => {
       setActiveTool(toolType);
       
       // If a shape tool is selected, create the shape below the toolbar
-      if (['rectangle', 'triangle', 'diamond', 'circle', 'cylinder', 'arrow', 'line'].includes(toolType)) {
+      if (['rectangle', 'triangle', 'diamond', 'circle', 'cylinder' ].includes(toolType)) {
         // Calculate position below the toolbar
-        const toolbarHeight = 60; // Approximate height of toolbar + margin
+        const toolbarHeight = 100; // Approximate height of toolbar + margin
         
         // Calculate the center of the screen horizontally
-        const centerX = window.innerWidth / 2;
+        const centerX = window.innerWidth / 3;
         
         // Calculate the position in canvas coordinates
         const canvasX = (centerX - transform.x) / transform.zoom;
@@ -104,7 +104,7 @@ const Toolbar = () => {
                     {tool.icon}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={10}>
+                <TooltipContent side="bottom" sideOffset={15}>
                   <p>{tool.name}</p>
                 </TooltipContent>
               </Tooltip>
