@@ -120,7 +120,7 @@ export interface CanvasState {
   selectNode: (nodeId: string) => void;
   createShapeAtPosition: (type: string, x: number, y: number) => void;
   updateNodePosition: (nodeId: string, x: number, y: number) => void;
-  updateNodeDimensions: (nodeId: string, width: number, height: number) => void;
+  updateNodeDimensions: (nodeId: string, width: number, height: number, direction?: string) => void;
   
   // Line drawing actions
   startLineDraw: (x: number, y: number, type: 'line' | 'arrow') => void;
@@ -820,6 +820,176 @@ const getTailwindColorName = (hexColor: string): string => {
 
 // Define a constant for the padding
 const LINE_BOUNDING_BOX_PADDING = 10; // 5px on each side
+
+// Add this helper function before the store definition
+const resizeLineNode = (
+  node: Node, 
+  direction: string, 
+  dx: number, 
+  dy: number, 
+  snapToGrid: boolean, 
+  gridSize: number
+) => {
+  if (!node.points || node.points.length < 2) return;
+  
+  // Calculate the current bounding box of the line
+  const allX = node.points.map(p => p.x);
+  const allY = node.points.map(p => p.y);
+  const minX = Math.min(...allX);
+  const maxX = Math.max(...allX);
+  const minY = Math.min(...allY);
+  const maxY = Math.max(...allY);
+  
+  // Calculate the current width and height
+  const width = maxX - minX;
+  const height = maxY - minY;
+  
+  // Apply the resize based on the direction
+  switch (direction) {
+    case 'n': // North - resize top edge
+      // Scale all y-coordinates above the midpoint
+      for (let i = 0; i < node.points.length; i++) {
+        if (node.points[i].y < minY + height / 2) {
+          const relativeY = (node.points[i].y - minY) / height;
+          node.points[i].y = minY + relativeY * (height - dy);
+        }
+      }
+      break;
+      
+    case 's': // South - resize bottom edge
+      // Scale all y-coordinates below the midpoint
+      for (let i = 0; i < node.points.length; i++) {
+        if (node.points[i].y > minY + height / 2) {
+          const relativeY = (node.points[i].y - minY) / height;
+          node.points[i].y = minY + relativeY * (height + dy);
+        }
+      }
+      break;
+      
+    case 'w': // West - resize left edge
+      // Scale all x-coordinates to the left of the midpoint
+      for (let i = 0; i < node.points.length; i++) {
+        if (node.points[i].x < minX + width / 2) {
+          const relativeX = (node.points[i].x - minX) / width;
+          node.points[i].x = minX + relativeX * (width - dx);
+        }
+      }
+      break;
+      
+    case 'e': // East - resize right edge
+      // Scale all x-coordinates to the right of the midpoint
+      for (let i = 0; i < node.points.length; i++) {
+        if (node.points[i].x > minX + width / 2) {
+          const relativeX = (node.points[i].x - minX) / width;
+          node.points[i].x = minX + relativeX * (width + dx);
+        }
+      }
+      break;
+      
+    case 'nw': // Northwest - resize top-left corner
+      // Scale all coordinates in the top-left quadrant
+      for (let i = 0; i < node.points.length; i++) {
+        if (node.points[i].x < minX + width / 2) {
+          const relativeX = (node.points[i].x - minX) / width;
+          node.points[i].x = minX + relativeX * (width - dx);
+        }
+        if (node.points[i].y < minY + height / 2) {
+          const relativeY = (node.points[i].y - minY) / height;
+          node.points[i].y = minY + relativeY * (height - dy);
+        }
+      }
+      break;
+      
+    case 'ne': // Northeast - resize top-right corner
+      // Scale all coordinates in the top-right quadrant
+      for (let i = 0; i < node.points.length; i++) {
+        if (node.points[i].x > minX + width / 2) {
+          const relativeX = (node.points[i].x - minX) / width;
+          node.points[i].x = minX + relativeX * (width + dx);
+        }
+        if (node.points[i].y < minY + height / 2) {
+          const relativeY = (node.points[i].y - minY) / height;
+          node.points[i].y = minY + relativeY * (height - dy);
+        }
+      }
+      break;
+      
+    case 'sw': // Southwest - resize bottom-left corner
+      // Scale all coordinates in the bottom-left quadrant
+      for (let i = 0; i < node.points.length; i++) {
+        if (node.points[i].x < minX + width / 2) {
+          const relativeX = (node.points[i].x - minX) / width;
+          node.points[i].x = minX + relativeX * (width - dx);
+        }
+        if (node.points[i].y > minY + height / 2) {
+          const relativeY = (node.points[i].y - minY) / height;
+          node.points[i].y = minY + relativeY * (height + dy);
+        }
+      }
+      break;
+      
+    case 'se': // Southeast - resize bottom-right corner
+      // Scale all coordinates in the bottom-right quadrant
+      for (let i = 0; i < node.points.length; i++) {
+        if (node.points[i].x > minX + width / 2) {
+          const relativeX = (node.points[i].x - minX) / width;
+          node.points[i].x = minX + relativeX * (width + dx);
+        }
+        if (node.points[i].y > minY + height / 2) {
+          const relativeY = (node.points[i].y - minY) / height;
+          node.points[i].y = minY + relativeY * (height + dy);
+        }
+      }
+      break;
+  }
+  
+  // Apply grid snapping if enabled
+  if (snapToGrid) {
+    for (let i = 0; i < node.points.length; i++) {
+      node.points[i].x = Math.round(node.points[i].x / gridSize) * gridSize;
+      node.points[i].y = Math.round(node.points[i].y / gridSize) * gridSize;
+    }
+  }
+  
+  // Recalculate dimensions based on the updated points
+  const newAllX = node.points.map(p => p.x);
+  const newAllY = node.points.map(p => p.y);
+  const newMinX = Math.min(...newAllX);
+  const newMaxX = Math.max(...newAllX);
+  const newMinY = Math.min(...newAllY);
+  const newMaxY = Math.max(...newAllY);
+  
+  // Add padding to the bounding box
+  const paddedMinX = newMinX - LINE_BOUNDING_BOX_PADDING;
+  const paddedMaxX = newMaxX + LINE_BOUNDING_BOX_PADDING;
+  const paddedMinY = newMinY - LINE_BOUNDING_BOX_PADDING;
+  const paddedMaxY = newMaxY + LINE_BOUNDING_BOX_PADDING;
+  
+  // Update position and dimensions to properly contain all points with padding
+  if (paddedMinX < 0 || paddedMinY < 0) {
+    // Adjust position to the top-left corner of the padded bounding box
+    node.position.x += paddedMinX;
+    node.position.y += paddedMinY;
+    
+    // Adjust all points to be relative to the new position
+    for (let i = 0; i < node.points.length; i++) {
+      node.points[i].x -= paddedMinX;
+      node.points[i].y -= paddedMinY;
+    }
+    
+    // Update dimensions to the size of the padded bounding box
+    node.dimensions = {
+      width: Math.max(paddedMaxX - paddedMinX, 1),
+      height: Math.max(paddedMaxY - paddedMinY, 1)
+    };
+  } else {
+    // No need to adjust position, just update dimensions with padding
+    node.dimensions = {
+      width: Math.max(paddedMaxX, 1),
+      height: Math.max(paddedMaxY, 1)
+    };
+  }
+};
 
 // Create the store with immer middleware for immutable updates
 export const useCanvasStore = create<CanvasState>()(
@@ -1552,13 +1722,23 @@ export const useCanvasStore = create<CanvasState>()(
         }
       }),
       
-    updateNodeDimensions: (nodeId, width, height) =>
+    updateNodeDimensions: (nodeId, width, height, direction = 'se') =>
       set((state) => {
         const node = state.nodes.find(n => n.id === nodeId);
-        if (node && node.dimensions) {
-          // Push current state to history before making changes
-          get().pushToHistory();
+        if (!node || !node.dimensions) return;
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
+        // Handle line and arrow nodes differently
+        if (['line', 'arrow'].includes(node.type) && node.points && node.points.length >= 2) {
+          // Calculate the change in dimensions
+          const dx = width - node.dimensions.width;
+          const dy = height - node.dimensions.height;
           
+          // Resize the line node
+          resizeLineNode(node, direction, dx, dy, state.snapToGrid, state.gridSize);
+        } else {
           // Apply grid snapping if enabled
           if (state.snapToGrid) {
             node.dimensions.width = Math.round(width / state.gridSize) * state.gridSize;

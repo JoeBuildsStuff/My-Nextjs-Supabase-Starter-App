@@ -610,6 +610,7 @@ const Canvas: React.FC<CanvasProps> = ({
   return (
     <div 
       ref={canvasRef}
+      data-testid="canvas-container"
       className={`relative overflow-hidden bg-background ${className}`}
       style={{ width: dimensions.width, height: dimensions.height }}
       onMouseDown={handleMouseDown}

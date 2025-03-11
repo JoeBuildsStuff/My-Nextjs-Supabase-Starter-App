@@ -3,6 +3,7 @@ import { Node } from '../../lib/store/canvas-store';
 import ResizeHandles, { ResizeHandleDirection } from '../ui/ResizeHandles';
 import ConnectionPoints, { ConnectionPointPosition } from '../ui/ConnectionPoints';
 import LineShape from './LineShape';
+import LineResizeHandles from '../ui/LineResizeHandles';
 
 interface ShapeRendererProps {
   node: Node;
@@ -145,10 +146,19 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     >
       {renderShape()}
       {isSelected && dimensions && (
-        <ResizeHandles 
-          node={node} 
-          onResize={onResize} 
-        />
+        <>
+          {['line', 'arrow'].includes(type) && node.points && node.points.length >= 2 ? (
+            <LineResizeHandles 
+              node={node} 
+              onResize={onResize} 
+            />
+          ) : (
+            <ResizeHandles 
+              node={node} 
+              onResize={onResize} 
+            />
+          )}
+        </>
       )}
       {showConnectionPoints && dimensions && (
         <ConnectionPoints 

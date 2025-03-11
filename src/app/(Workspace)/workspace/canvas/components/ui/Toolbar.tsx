@@ -86,7 +86,7 @@ const Toolbar = () => {
   };
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2" data-testid="toolbar">
       <Card className="flex items-center space-x-1 p-2 bg-background/80 backdrop-blur-sm">
         <TooltipProvider>
           {tools.map((tool, index) => (
@@ -100,6 +100,9 @@ const Toolbar = () => {
                     size="icon" 
                     className={`relative ${activeTool === (tool.id !== undefined ? toolMap[tool.id] : '') ? 'bg-secondary' : ''}`}
                     onClick={() => tool.id !== undefined && handleToolSelect(tool.id)}
+                    aria-label={tool.name || ''}
+                    data-testid={tool.name ? `tool-${tool.name.toLowerCase()}` : ''}
+                    name={tool.name || ''}
                   >
                     {tool.icon}
                   </Button>

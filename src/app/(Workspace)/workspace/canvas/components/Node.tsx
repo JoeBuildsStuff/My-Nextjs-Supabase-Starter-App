@@ -10,7 +10,6 @@ interface NodeProps {
   onDrag: (nodeId: string, dx: number, dy: number) => void;
   onDragEnd: () => void;
   onResizeStart: (nodeId: string, direction: string, x: number, y: number) => void;
-  onResize: (nodeId: string, dx: number, dy: number, direction: string) => void;
   onResizeEnd: () => void;
   snapToGrid: boolean;
   gridSize: number;
@@ -177,67 +176,75 @@ const Node: React.FC<NodeProps> = ({
   }
   
   // If selected, add resize handles
-  if (isSelected && !['arrow', 'line'].includes(type)) {
-    const handleSize = 8;
-    const handleStyle: React.CSSProperties = {
-      position: 'absolute',
-      width: `${handleSize}px`,
-      height: `${handleSize}px`,
-      backgroundColor: 'white',
-      border: '1px solid blue',
-      borderRadius: '50%',
-      zIndex: zIndex + 1,
-    };
-    
-    return (
-      <div ref={nodeRef}>
-        {shapeElement}
-        
-        {/* Resize handles */}
-        <div 
-          data-handle="nw" 
-          style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'nwse-resize' }}
-          onMouseDown={handleMouseDown}
-        />
-        <div 
-          data-handle="ne" 
-          style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'nesw-resize' }}
-          onMouseDown={handleMouseDown}
-        />
-        <div 
-          data-handle="sw" 
-          style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'nesw-resize' }}
-          onMouseDown={handleMouseDown}
-        />
-        <div 
-          data-handle="se" 
-          style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'nwse-resize' }}
-          onMouseDown={handleMouseDown}
-        />
-        
-        {/* Edge handles */}
-        <div 
-          data-handle="w" 
-          style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y + dimensions.height / 2 - handleSize / 2}px`, cursor: 'ew-resize' }}
-          onMouseDown={handleMouseDown}
-        />
-        <div 
-          data-handle="e" 
-          style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y + dimensions.height / 2 - handleSize / 2}px`, cursor: 'ew-resize' }}
-          onMouseDown={handleMouseDown}
-        />
-        <div 
-          data-handle="n" 
-          style={{ ...handleStyle, left: `${position.x + dimensions.width / 2 - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'ns-resize' }}
-          onMouseDown={handleMouseDown}
-        />
-        <div 
-          data-handle="s" 
-          style={{ ...handleStyle, left: `${position.x + dimensions.width / 2 - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'ns-resize' }}
-          onMouseDown={handleMouseDown}
-        />
-      </div>
-    );
+  if (isSelected) {
+    // For other node types, use the existing resize handles
+    if (!['line', 'arrow'].includes(type)) {
+      const handleSize = 8;
+      const handleStyle: React.CSSProperties = {
+        position: 'absolute',
+        width: `${handleSize}px`,
+        height: `${handleSize}px`,
+        backgroundColor: 'white',
+        border: '1px solid blue',
+        borderRadius: '50%',
+        zIndex: zIndex + 1,
+      };
+      
+      const handleResizeStart = (e: React.MouseEvent, direction: string) => {
+        e.stopPropagation();
+        onResizeStart(id, direction, e.clientX, e.clientY);
+      };
+      
+      return (
+        <div ref={nodeRef}>
+          {shapeElement}
+          
+          {/* Resize handles */}
+          <div 
+            data-handle="nw" 
+            style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'nwse-resize' }}
+            onMouseDown={(e) => handleResizeStart(e, "nw")}
+          />
+          <div 
+            data-handle="ne" 
+            style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'nesw-resize' }}
+            onMouseDown={(e) => handleResizeStart(e, "ne")}
+          />
+          <div 
+            data-handle="sw" 
+            style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'nesw-resize' }}
+            onMouseDown={(e) => handleResizeStart(e, "sw")}
+          />
+          <div 
+            data-handle="se" 
+            style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'nwse-resize' }}
+            onMouseDown={(e) => handleResizeStart(e, "se")}
+          />
+          
+          {/* Edge handles */}
+          <div 
+            data-handle="w" 
+            style={{ ...handleStyle, left: `${position.x - handleSize / 2}px`, top: `${position.y + dimensions.height / 2 - handleSize / 2}px`, cursor: 'ew-resize' }}
+            onMouseDown={(e) => handleResizeStart(e, "w")}
+          />
+          <div 
+            data-handle="e" 
+            style={{ ...handleStyle, left: `${position.x + dimensions.width - handleSize / 2}px`, top: `${position.y + dimensions.height / 2 - handleSize / 2}px`, cursor: 'ew-resize' }}
+            onMouseDown={(e) => handleResizeStart(e, "e")}
+          />
+          <div 
+            data-handle="n" 
+            style={{ ...handleStyle, left: `${position.x + dimensions.width / 2 - handleSize / 2}px`, top: `${position.y - handleSize / 2}px`, cursor: 'ns-resize' }}
+            onMouseDown={(e) => handleResizeStart(e, "n")}
+          />
+          <div 
+            data-handle="s" 
+            style={{ ...handleStyle, left: `${position.x + dimensions.width / 2 - handleSize / 2}px`, top: `${position.y + dimensions.height - handleSize / 2}px`, cursor: 'ns-resize' }}
+            onMouseDown={(e) => handleResizeStart(e, "s")}
+          />
+        </div>
+      );
+    }
   }
   
   return <div ref={nodeRef}>{shapeElement}</div>;
