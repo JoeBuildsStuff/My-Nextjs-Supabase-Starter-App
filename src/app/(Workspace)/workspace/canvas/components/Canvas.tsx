@@ -8,17 +8,24 @@ import CanvasGrid from './grid/CanvasGrid';
 import LineInProgress from './line-drawing/LineInProgress';
 import { ConnectionPointPosition } from './ui/ConnectionPoints';
 import { ResizeHandleDirection } from './ui/ResizeHandles';
+import { calculateConnectionPointPosition, deepClone } from '../lib/utils/connection-utils';
 
 interface CanvasProps {
   width?: number;
   height?: number;
   className?: string;
+  nodes?: Node[];
+  onNodesChange?: (nodes: Node[]) => void;
+  canvasId?: string;
 }
 
 const Canvas: React.FC<CanvasProps> = ({ 
   width,
   height,
-  className = '' 
+  className = '',
+  nodes = [],
+  onNodesChange,
+  canvasId
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const { 
@@ -27,7 +34,6 @@ const Canvas: React.FC<CanvasProps> = ({
     gridSize, 
     snapToGrid,
     panCanvas,
-    nodes,
     createShapeAtPosition,
     selectNode,
     updateNodePosition,
@@ -67,6 +73,13 @@ const Canvas: React.FC<CanvasProps> = ({
     startX: number;
     startY: number;
   } | null>(null);
+  const [historyInitialized, setHistoryInitialized] = useState(false);
+  
+  // Add a state to track the nodes from the store
+  const [storeNodes, setStoreNodes] = useState<Node[]>([]);
+  
+  // Use the nodes from props or from the store
+  const displayNodes = nodes.length > 0 ? nodes : storeNodes;
   
   // Set dimensions after component mounts on client side
   useEffect(() => {
@@ -96,28 +109,61 @@ const Canvas: React.FC<CanvasProps> = ({
   
   // Initialize history when canvas first loads
   useEffect(() => {
-    if (useCanvasStore.getState().history.length === 0) {
+    if (canvasId && !historyInitialized) {
+      // Initialize history with empty state
       useCanvasStore.setState(state => {
         state.history = [{
           nodes: [],
-          edges: []
+          edges: [],
+          connections: []
         }];
         state.historyIndex = 0;
         return state;
       });
       
-      if (nodes.length > 0) {
-        useCanvasStore.setState(state => {
-          state.history.push({
-            nodes: JSON.parse(JSON.stringify(nodes)),
-            edges: JSON.parse(JSON.stringify(state.edges))
+      // If we have nodes, add them to history
+      if (displayNodes && displayNodes.length > 0) {
+        setTimeout(() => {
+          useCanvasStore.setState(state => {
+            state.history.push({
+              nodes: deepClone(displayNodes),
+              edges: deepClone(state.edges),
+              connections: deepClone(state.connections || [])
+            });
+            state.historyIndex = 1;
+            return state;
           });
-          state.historyIndex = 1;
-          return state;
-        });
+        }, 100);
+      }
+      
+      setHistoryInitialized(true);
+    }
+  }, [canvasId, displayNodes, historyInitialized]);
+  
+  // Initialize nodes in the store when component mounts
+  useEffect(() => {
+    // Only initialize if we have nodes from props and they're not already in the store
+    if (nodes && nodes.length > 0) {
+      const currentStoreNodes = useCanvasStore.getState().nodes;
+      if (!currentStoreNodes || currentStoreNodes.length === 0) {
+        // Set the nodes in the store
+        useCanvasStore.setState({ nodes });
       }
     }
   }, [nodes]);
+  
+  // Subscribe to store changes to keep local state in sync
+  useEffect(() => {
+    // Initial sync
+    setStoreNodes(useCanvasStore.getState().nodes);
+    
+    // Subscribe to store changes
+    const unsubscribe = useCanvasStore.subscribe((state) => {
+      setStoreNodes(state.nodes);
+    });
+    
+    return () => unsubscribe();
+  }, []);
   
   // Add event listeners for keyboard events
   useEffect(() => {
@@ -182,12 +228,12 @@ const Canvas: React.FC<CanvasProps> = ({
   
   // Helper function to check if a point is under the cursor
   const findPointAtPosition = (x: number, y: number): { nodeId: string; pointIndex: number } | null => {
-    const selectedNodes = nodes.filter(node => 
+    const selectedNodes = displayNodes?.filter(node => 
       node.selected && 
       node.points && 
       node.points.length > 0 &&
       (node.type === 'line' || node.type === 'arrow')
-    );
+    ) || [];
     
     if (selectedNodes.length === 0) return null;
     
@@ -218,11 +264,11 @@ const Canvas: React.FC<CanvasProps> = ({
     x: number, 
     y: number
   ): { nodeId: string; segmentIndex: number; distance: number } | null => {
-    const lineNodes = nodes.filter(node => 
+    const lineNodes = displayNodes?.filter(node => 
       node.points && 
       node.points.length > 1 &&
       (node.type === 'line' || node.type === 'arrow')
-    );
+    ) || [];
     
     if (lineNodes.length === 0) return null;
     
@@ -278,9 +324,11 @@ const Canvas: React.FC<CanvasProps> = ({
   
   // Helper function to find a node at a specific position
   const findNodeAtPosition = (x: number, y: number): Node | undefined => {
+    if (!displayNodes) return undefined;
+    
     // First check groups
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const node = nodes[i];
+    for (let i = displayNodes.length - 1; i >= 0; i--) {
+      const node = displayNodes[i];
       const { position, dimensions } = node;
       
       if (node.data?.isGroup === true && dimensions) {
@@ -296,8 +344,8 @@ const Canvas: React.FC<CanvasProps> = ({
     }
     
     // Then check regular nodes
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const node = nodes[i];
+    for (let i = displayNodes.length - 1; i >= 0; i--) {
+      const node = displayNodes[i];
       const { position, dimensions, parentId } = node;
       
       if (parentId || node.data?.isGroup === true) continue;
@@ -441,7 +489,7 @@ const Canvas: React.FC<CanvasProps> = ({
       const dx = (e.clientX - lastMousePos.x) / transform.zoom;
       const dy = (e.clientY - lastMousePos.y) / transform.zoom;
       
-      const selectedNodes = nodes.filter(node => node.selected);
+      const selectedNodes = displayNodes?.filter(node => node.selected) || [];
       
       selectedNodes.forEach(node => {
         if (!nodeStartPos[node.id]) {
@@ -465,11 +513,13 @@ const Canvas: React.FC<CanvasProps> = ({
           end: { x, y }
         });
         
-        const selectedNodeIds = nodes
-          .filter(node => isNodeInSelectionBox(node, { ...selectionBox, end: { x, y } }))
-          .map(node => node.id);
-        
-        selectMultipleNodes(selectedNodeIds);
+        if (displayNodes) {
+          const selectedNodeIds = displayNodes
+            .filter(node => isNodeInSelectionBox(node, { ...selectionBox, end: { x, y } }))
+            .map(node => node.id);
+          
+          selectMultipleNodes(selectedNodeIds);
+        }
       }
     } else if (lineInProgress) {
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -518,7 +568,7 @@ const Canvas: React.FC<CanvasProps> = ({
   
   // Handle resizing of nodes
   const handleResizeNode = (nodeId: string, direction: ResizeHandleDirection, dx: number, dy: number) => {
-    const node = nodes.find(n => n.id === nodeId);
+    const node = displayNodes?.find(n => n.id === nodeId);
     if (!node || !node.dimensions) return;
     
     const adjustedDx = dx / transform.zoom;
@@ -575,8 +625,8 @@ const Canvas: React.FC<CanvasProps> = ({
     
     const isGroup = node.data?.isGroup === true;
     
-    if (isGroup) {
-      const childNodes = nodes.filter(n => n.parentId === nodeId);
+    if (isGroup && displayNodes) {
+      const childNodes = displayNodes.filter(n => n.parentId === nodeId);
       const widthRatio = newWidth / node.dimensions.width;
       const heightRatio = newHeight / node.dimensions.height;
       
@@ -598,14 +648,71 @@ const Canvas: React.FC<CanvasProps> = ({
   };
   
   // Handle connection point click
-  const handleConnectionPointClick = (nodeId: string, position: ConnectionPointPosition, x: number, y: number) => {
-    if (lineInProgress) {
-      updateLineDraw(x, y, isShiftPressed);
-      finishLineDraw();
-    } else {
-      startLineDraw(x, y, activeTool as 'line' | 'arrow');
+  const handleConnectionPointClick = (nodeId: string, position: ConnectionPointPosition) => {
+    // Make sure we're using the line or arrow tool
+    if (!['line', 'arrow'].includes(activeTool)) {
+      return;
+    }
+    
+    try {
+      // Find the node to get its actual position
+      const node = displayNodes?.find(n => n.id === nodeId);
+      if (!node) return;
+      
+      // Calculate the exact connection point position using our utility
+      const connectionPoint = calculateConnectionPointPosition(node, position);
+      
+      if (lineInProgress) {
+        // If we already have a line in progress, finish it at this connection point
+        updateLineDraw(connectionPoint.x, connectionPoint.y, isShiftPressed);
+        
+        // Store the connection information before finishing the line
+        const lineId = lineInProgress.id;
+        const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
+        
+        // Add the connection to the store
+        useCanvasStore.setState(state => {
+          state.connections.push({
+            lineId,
+            pointIndex,
+            shapeId: nodeId,
+            position
+          });
+          return state;
+        });
+        
+        finishLineDraw();
+      } else {
+        // Start a new line from this connection point
+        startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
+        setIsDrawingLine(true);
+        
+        // Store the connection information for the start point
+        const lineId = useCanvasStore.getState().lineInProgress?.id;
+        if (lineId) {
+          useCanvasStore.setState(state => {
+            state.connections.push({
+              lineId,
+              pointIndex: 0, // First point of the line
+              shapeId: nodeId,
+              position
+            });
+            return state;
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error handling connection point click:', error);
     }
   };
+  
+  // Update nodes in parent component when they change
+  useEffect(() => {
+    const storeNodes = useCanvasStore.getState().nodes;
+    if (onNodesChange && storeNodes) {
+      onNodesChange(storeNodes);
+    }
+  }, [useCanvasStore.getState().nodes, onNodesChange]);
   
   return (
     <div 
@@ -641,7 +748,7 @@ const Canvas: React.FC<CanvasProps> = ({
           height: '100%',
         }}
       >
-        {nodes.map(node => (
+        {displayNodes && displayNodes.map(node => (
           <ShapeRenderer
             key={node.id}
             node={node}

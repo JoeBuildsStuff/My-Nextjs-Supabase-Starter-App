@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
+import { calculateConnectionPointPosition, updateConnectedLine, deepClone } from '../utils/connection-utils';
 
 // Define the types for our canvas state
 export interface Node {
@@ -41,6 +43,14 @@ export type ToolType =
   | 'eraser'
   | 'lock';
 
+// Add this interface to track connections between shapes and lines
+export interface Connection {
+  lineId: string;
+  pointIndex: number;
+  shapeId: string;
+  position: ConnectionPointPosition;
+}
+
 export interface CanvasState {
   nodes: Node[];
   edges: Edge[];
@@ -61,10 +71,14 @@ export interface CanvasState {
   lineInProgress: Node | null;
   selectedPointIndices: number[] | null;
   
+  // Connection tracking
+  connections: Connection[];
+  
   // History tracking
   history: Array<{
     nodes: Node[];
     edges: Edge[];
+    connections: Connection[];
   }>;
   historyIndex: number;
   
@@ -1014,6 +1028,9 @@ export const useCanvasStore = create<CanvasState>()(
     lineInProgress: null,
     selectedPointIndices: null,
     
+    // Connection tracking
+    connections: [],
+    
     // History tracking
     history: [],
     historyIndex: -1,
@@ -1025,8 +1042,9 @@ export const useCanvasStore = create<CanvasState>()(
         
         // Create a deep copy of the current state
         const currentState = {
-          nodes: JSON.parse(JSON.stringify(state.nodes)),
-          edges: JSON.parse(JSON.stringify(state.edges))
+          nodes: deepClone(state.nodes),
+          edges: deepClone(state.edges),
+          connections: deepClone(state.connections)
         };
         
         // If we're not at the end of the history, remove future states
@@ -1060,8 +1078,9 @@ export const useCanvasStore = create<CanvasState>()(
           const previousState = state.history[state.historyIndex];
           console.log('Previous state has', previousState.nodes.length, 'nodes');
           
-          state.nodes = JSON.parse(JSON.stringify(previousState.nodes));
-          state.edges = JSON.parse(JSON.stringify(previousState.edges));
+          state.nodes = deepClone(previousState.nodes);
+          state.edges = deepClone(previousState.edges);
+          state.connections = deepClone(previousState.connections);
           
           console.log('Undo complete, now at index:', state.historyIndex);
         } else {
@@ -1080,8 +1099,9 @@ export const useCanvasStore = create<CanvasState>()(
           const nextState = state.history[state.historyIndex];
           console.log('Next state has', nextState.nodes.length, 'nodes');
           
-          state.nodes = JSON.parse(JSON.stringify(nextState.nodes));
-          state.edges = JSON.parse(JSON.stringify(nextState.edges));
+          state.nodes = deepClone(nextState.nodes);
+          state.edges = deepClone(nextState.edges);
+          state.connections = deepClone(nextState.connections);
           
           console.log('Redo complete, now at index:', state.historyIndex);
         } else {
@@ -1135,8 +1155,9 @@ export const useCanvasStore = create<CanvasState>()(
           console.log('Pushing to history before changing stroke color');
           // Create a deep copy of the current state
           const currentState = {
-            nodes: JSON.parse(JSON.stringify(state.nodes)),
-            edges: JSON.parse(JSON.stringify(state.edges))
+            nodes: deepClone(state.nodes),
+            edges: deepClone(state.edges),
+            connections: deepClone(state.connections)
           };
           
           // Add the current state to history
@@ -1682,15 +1703,17 @@ export const useCanvasStore = create<CanvasState>()(
         // We don't call pushToHistory here to avoid double-pushing
         // Instead, we'll manually update the history
         const newState = {
-          nodes: JSON.parse(JSON.stringify(state.nodes)),
-          edges: JSON.parse(JSON.stringify(state.edges))
+          nodes: deepClone(state.nodes),
+          edges: deepClone(state.edges),
+          connections: deepClone(state.connections)
         };
         
         // If this is the first node, initialize history with empty state first
         if (state.history.length === 0) {
           state.history.push({
             nodes: [],
-            edges: []
+            edges: [],
+            connections: []
           });
           state.historyIndex = 0;
         }
@@ -1702,25 +1725,45 @@ export const useCanvasStore = create<CanvasState>()(
         console.log('After shape creation: index:', state.historyIndex, 'history length:', state.history.length);
       }),
       
-    updateNodePosition: (nodeId, x, y) =>
-      set((state) => {
+    updateNodePosition: (nodeId, x, y) => {
+      set(state => {
         const node = state.nodes.find(n => n.id === nodeId);
         if (node) {
-          // Push current state to history before making changes
-          if (!state.nodes.some(n => n.selected && n.id !== nodeId)) {
-            get().pushToHistory();
+          // Apply grid snapping if enabled
+          let newX, newY;
+          if (state.snapToGrid) {
+            newX = Math.round(x / state.gridSize) * state.gridSize;
+            newY = Math.round(y / state.gridSize) * state.gridSize;
+          } else {
+            newX = x;
+            newY = y;
           }
           
-          // Apply grid snapping if enabled
-          if (state.snapToGrid) {
-            node.position.x = Math.round(x / state.gridSize) * state.gridSize;
-            node.position.y = Math.round(y / state.gridSize) * state.gridSize;
-          } else {
-            node.position.x = x;
-            node.position.y = y;
+          // Update the node position
+          node.position.x = newX;
+          node.position.y = newY;
+          
+          // Update any connected lines
+          if (state.connections) {
+            state.connections.forEach(connection => {
+              if (connection.shapeId === nodeId) {
+                // Find the connected line
+                const lineIndex = state.nodes.findIndex(n => n.id === connection.lineId);
+                if (lineIndex !== -1) {
+                  const line = state.nodes[lineIndex];
+                  
+                  // Calculate the new connection point position
+                  const connectionPoint = calculateConnectionPointPosition(node, connection.position);
+                  
+                  // Update the line using our utility function
+                  state.nodes[lineIndex] = updateConnectedLine(line, connection, connectionPoint);
+                }
+              }
+            });
           }
         }
-      }),
+      });
+    },
       
     updateNodeDimensions: (nodeId, width, height, direction = 'se') =>
       set((state) => {

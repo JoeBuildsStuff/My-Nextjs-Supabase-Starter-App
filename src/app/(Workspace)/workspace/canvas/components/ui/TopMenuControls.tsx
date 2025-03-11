@@ -16,7 +16,6 @@ const TopMenuControls = ({ position, presentationModeOnly = false }: TopMenuCont
   const { presentationMode, togglePresentationMode } = useCanvasStore();
 
   const handleTogglePresentationMode = () => {
-    console.log('Toggling presentation mode');
     togglePresentationMode();
   };
 

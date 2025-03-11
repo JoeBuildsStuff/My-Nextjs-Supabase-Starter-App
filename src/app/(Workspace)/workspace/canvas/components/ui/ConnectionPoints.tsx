@@ -3,179 +3,26 @@
 import React from 'react';
 import { Node } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 
-export type ConnectionPointPosition = 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
+export type ConnectionPointPosition = 
+  | 'n' | 's' | 'e' | 'w'  // Cardinal directions
+  | 'nw' | 'ne' | 'sw' | 'se';  // Corners
 
 interface ConnectionPointsProps {
   node: Node;
-  onConnectionPointClick?: (nodeId: string, position: ConnectionPointPosition, x: number, y: number) => void;
+  onConnectionPointClick: (nodeId: string, position: ConnectionPointPosition) => void;
 }
 
 const ConnectionPoints: React.FC<ConnectionPointsProps> = ({ node, onConnectionPointClick }) => {
-  const handleSize = 8; // Smaller than resize handles
+  const handleSize = 10; // Increased size for better clickability
   const handleOffset = 5; // Closer to the shape than resize handles
   
-  // Handle click on a connection point
-  const handleClick = (e: React.MouseEvent, position: ConnectionPointPosition) => {
+  // Handle interaction with a connection point
+  const handleInteraction = (e: React.MouseEvent, position: ConnectionPointPosition) => {
     e.stopPropagation();
     e.preventDefault();
     
     if (onConnectionPointClick && node.dimensions) {
-      const width = node.dimensions.width;
-      const height = node.dimensions.height;
-      
-      // Base position (top-left corner of the shape)
-      let x = node.position.x;
-      let y = node.position.y;
-      
-      // Adjust based on shape type and position
-      if (node.type === 'circle') {
-        const radius = Math.min(width, height) / 2;
-        const centerX = x + width / 2;
-        const centerY = y + height / 2;
-        
-        // Position all points directly on the circle's edge
-        switch (position) {
-          case 'n':
-            x = centerX;
-            y = centerY - radius;
-            break;
-          case 's':
-            x = centerX;
-            y = centerY + radius;
-            break;
-          case 'w':
-            x = centerX - radius;
-            y = centerY;
-            break;
-          case 'e':
-            x = centerX + radius;
-            y = centerY;
-            break;
-          case 'nw':
-            // Position at 45° angle on the circle's edge
-            x = centerX - radius * 0.7071; // cos(45°) = 0.7071
-            y = centerY - radius * 0.7071;
-            break;
-          case 'ne':
-            x = centerX + radius * 0.7071;
-            y = centerY - radius * 0.7071;
-            break;
-          case 'sw':
-            x = centerX - radius * 0.7071;
-            y = centerY + radius * 0.7071;
-            break;
-          case 'se':
-            x = centerX + radius * 0.7071;
-            y = centerY + radius * 0.7071;
-            break;
-        }
-      } else if (node.type === 'diamond') {
-        const centerX = x + width / 2;
-        const centerY = y + height / 2;
-        
-        // Position points at the four vertices of the diamond
-        switch (position) {
-          case 'n':
-            x = centerX;
-            y = y - handleOffset; // Top vertex, moved further out
-            break;
-          case 's':
-            x = centerX;
-            y = y + height + handleOffset; // Bottom vertex, moved further out
-            break;
-          case 'w':
-            x = x - handleOffset;
-            y = centerY; // Left vertex, moved further out
-            break;
-          case 'e':
-            x = x + width + handleOffset;
-            y = centerY; // Right vertex, moved further out
-            break;
-          // Add corner points for diamonds at 45-degree angles
-          case 'nw':
-            // Position at 45° angle between north and west points, moved further out
-            x = x + width / 4 - handleOffset;
-            y = y + height / 4 - handleOffset;
-            break;
-          case 'ne':
-            // Position at 45° angle between north and east points, moved further out
-            x = x + width * 3/4 + handleOffset;
-            y = y + height / 4 - handleOffset;
-            break;
-          case 'sw':
-            // Position at 45° angle between south and west points, moved further out
-            x = x + width / 4 - handleOffset;
-            y = y + height * 3/4 + handleOffset;
-            break;
-          case 'se':
-            // Position at 45° angle between south and east points, moved further out
-            x = x + width * 3/4 + handleOffset;
-            y = y + height * 3/4 + handleOffset;
-            break;
-        }
-      } else if (node.type === 'triangle') {
-        const centerX = x + width / 2;
-        
-        switch (position) {
-          case 'n':
-            x = centerX;
-            y = y;
-            break;
-          case 's':
-            x = centerX;
-            y = y + height;
-            break;
-          case 'sw':
-            x = x + width * 0.25;
-            y = y + height;
-            break;
-          case 'se':
-            x = x + width * 0.75;
-            y = y + height;
-            break;
-          case 'w':
-            x = x + width * 0.25;
-            y = y + height / 2;
-            break;
-          case 'e':
-            x = x + width * 0.75;
-            y = y + height / 2;
-            break;
-          // nw and ne are hidden for triangles
-        }
-      } else {
-        // Default rectangle behavior
-        switch (position) {
-          case 'n':
-            x += width / 2;
-            break;
-          case 's':
-            x += width / 2;
-            y += height;
-            break;
-          case 'w':
-            y += height / 2;
-            break;
-          case 'e':
-            x += width;
-            y += height / 2;
-            break;
-          case 'nw':
-            break;
-          case 'ne':
-            x += width;
-            break;
-          case 'sw':
-            y += height;
-            break;
-          case 'se':
-            x += width;
-            y += height;
-            break;
-        }
-      }
-      
-      onConnectionPointClick(node.id, position, x, y);
+      onConnectionPointClick(node.id, position);
     }
   };
   
@@ -185,9 +32,9 @@ const ConnectionPoints: React.FC<ConnectionPointsProps> = ({ node, onConnectionP
     width: `${handleSize}px`,
     height: `${handleSize}px`,
     backgroundColor: 'hsl(var(--background))',
-    border: '1px solid hsl(var(--foreground)/0.25)',
+    border: '3px solid hsl(var(--primary))',
     borderRadius: '50%', // Make them circular
-    zIndex: 100,
+    zIndex: 1000, // Increased z-index to ensure they're on top
     pointerEvents: 'auto',
     touchAction: 'none',
     cursor: 'crosshair',
@@ -304,8 +151,10 @@ const ConnectionPoints: React.FC<ConnectionPointsProps> = ({ node, onConnectionP
             ...commonHandleStyle,
             ...style,
           }}
-          onClick={(e) => handleClick(e, position as ConnectionPointPosition)}
+          onClick={(e) => handleInteraction(e, position as ConnectionPointPosition)}
+          onMouseDown={(e) => handleInteraction(e, position as ConnectionPointPosition)}
           className="connection-point"
+          data-testid={`connection-point-${position}`}
         />
       ))}
     </>

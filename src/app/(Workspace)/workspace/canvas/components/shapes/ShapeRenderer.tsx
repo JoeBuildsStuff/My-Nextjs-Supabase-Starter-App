@@ -11,7 +11,7 @@ interface ShapeRendererProps {
   activeTool: string;
   onSelect: (id: string) => void;
   onResize: (nodeId: string, direction: ResizeHandleDirection, dx: number, dy: number) => void;
-  onConnectionPointClick: (nodeId: string, position: ConnectionPointPosition, x: number, y: number) => void;
+  onConnectionPointClick: (nodeId: string, position: ConnectionPointPosition) => void;
 }
 
 const ShapeRenderer: React.FC<ShapeRendererProps> = ({
@@ -26,13 +26,22 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
 
   if (!dimensions) return null;
 
+  // Determine if we should show connection points
+  const showConnectionPoints = ['arrow', 'line'].includes(activeTool) && 
+                             !data?.isGroup && 
+                             !node.points;
+
+  // Always enable pointer events for the container when line/arrow tool is active
+  const pointerEventsValue = isSelected || ['arrow', 'line'].includes(activeTool) ? 'auto' : 'none';
+
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
     left: `${position.x}px`,
     top: `${position.y}px`,
     width: `${dimensions.width}px`,
     height: `${dimensions.height}px`,
-    pointerEvents: isSelected || ['arrow', 'line'].includes(activeTool) ? 'auto' : 'none',
+    pointerEvents: pointerEventsValue,
+    zIndex: isSelected ? 10 : 1, // Ensure selected nodes are on top
   };
 
   const baseStyle: React.CSSProperties = {
@@ -128,10 +137,10 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     }
   };
 
-  // Show connection points for non-line shapes when line/arrow tool is active
-  const showConnectionPoints = ['arrow', 'line'].includes(activeTool) && 
-                             !data?.isGroup && 
-                             !node.points;
+  // Handle connection point click
+  const handleConnectionPointClick = (nodeId: string, position: ConnectionPointPosition) => {
+    onConnectionPointClick(nodeId, position);
+  };
 
   return (
     <div 
@@ -163,7 +172,7 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       {showConnectionPoints && dimensions && (
         <ConnectionPoints 
           node={node}
-          onConnectionPointClick={onConnectionPointClick}
+          onConnectionPointClick={handleConnectionPointClick}
         />
       )}
     </div>

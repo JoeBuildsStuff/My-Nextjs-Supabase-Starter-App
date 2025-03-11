@@ -37,9 +37,8 @@ const AlignmentControls = () => {
     distributeVertically 
   } = useCanvasStore();
 
-  // Helper function to handle alignment with console logging
-  const handleAlignment = (alignFn: () => void, name: string) => {
-    console.log(`Applying ${name} alignment`);
+  // Helper function to handle alignment
+  const handleAlignment = (alignFn: () => void) => {
     alignFn();
   };
 
@@ -61,7 +60,7 @@ const AlignmentControls = () => {
                 variant="ghost" 
                 size="icon" 
                 aria-label="Align Top" 
-                onClick={() => handleAlignment(alignTop, 'top')}
+                onClick={() => handleAlignment(alignTop)}
               >
                 <AlignStartHorizontal className="w-4 h-4" />
               </Button>
@@ -69,7 +68,7 @@ const AlignmentControls = () => {
                 variant="ghost" 
                 size="icon" 
                 aria-label="Align Middle" 
-                onClick={() => handleAlignment(alignMiddle, 'middle')}
+                onClick={() => handleAlignment(alignMiddle)}
               >
                 <AlignCenterHorizontal className="w-4 h-4" />
               </Button>
@@ -77,7 +76,7 @@ const AlignmentControls = () => {
                 variant="ghost" 
                 size="icon" 
                 aria-label="Align Bottom" 
-                onClick={() => handleAlignment(alignBottom, 'bottom')}
+                onClick={() => handleAlignment(alignBottom)}
               >
                 <AlignEndHorizontal className="w-4 h-4" />
               </Button>
@@ -85,7 +84,7 @@ const AlignmentControls = () => {
                 variant="ghost" 
                 size="icon" 
                 aria-label="Distribute Vertically" 
-                onClick={() => handleAlignment(distributeVertically, 'distribute vertically')}
+                onClick={() => handleAlignment(distributeVertically)}
               >
                 <AlignVerticalSpaceAround className="w-4 h-4" />
               </Button>
@@ -101,7 +100,7 @@ const AlignmentControls = () => {
                 variant="ghost" 
                 size="icon" 
                 aria-label="Align Left" 
-                onClick={() => handleAlignment(alignLeft, 'left')}
+                onClick={() => handleAlignment(alignLeft)}
               >
                 <AlignStartVertical className="w-4 h-4" />
               </Button>
@@ -109,7 +108,7 @@ const AlignmentControls = () => {
                 variant="ghost" 
                 size="icon" 
                 aria-label="Align Center" 
-                onClick={() => handleAlignment(alignCenter, 'center')}
+                onClick={() => handleAlignment(alignCenter)}
               >
                 <AlignCenterVertical className="w-4 h-4" />
               </Button>
@@ -117,7 +116,7 @@ const AlignmentControls = () => {
                 variant="ghost" 
                 size="icon" 
                 aria-label="Align Right" 
-                onClick={() => handleAlignment(alignRight, 'right')}
+                onClick={() => handleAlignment(alignRight)}
               >
                 <AlignEndVertical className="w-4 h-4" />
               </Button>
@@ -125,7 +124,7 @@ const AlignmentControls = () => {
                 variant="ghost" 
                 size="icon" 
                 aria-label="Distribute Horizontally" 
-                onClick={() => handleAlignment(distributeHorizontally, 'distribute horizontally')}
+                onClick={() => handleAlignment(distributeHorizontally)}
               >
                 <AlignHorizontalSpaceAround className="w-4 h-4" />
               </Button>

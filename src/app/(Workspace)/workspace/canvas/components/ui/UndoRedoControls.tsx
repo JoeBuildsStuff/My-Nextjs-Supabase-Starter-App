@@ -9,15 +9,13 @@ import { useCanvasStore } from '../../lib/store/canvas-store';
 const UndoRedoControls = () => {
   const { undo, redo } = useCanvasStore();
 
-  // Handle undo with console logging
+  // Handle undo
   const handleUndo = () => {
-    console.log('Undo button clicked');
     undo();
   };
 
-  // Handle redo with console logging
+  // Handle redo
   const handleRedo = () => {
-    console.log('Redo button clicked');
     redo();
   };
 
@@ -26,26 +24,22 @@ const UndoRedoControls = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check for Cmd+Z (or Ctrl+Z) for undo
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
-        console.log('Keyboard shortcut detected: Cmd+Z (Undo)');
         e.preventDefault();
         undo();
       }
       
       // Check for Cmd+Shift+Z (or Ctrl+Shift+Z) for redo
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
-        console.log('Keyboard shortcut detected: Cmd+Shift+Z (Redo)');
         e.preventDefault();
         redo();
       }
     };
 
-    console.log('Setting up keyboard event listeners for undo/redo');
     // Add event listener
     window.addEventListener('keydown', handleKeyDown);
     
     // Clean up
     return () => {
-      console.log('Cleaning up keyboard event listeners');
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [undo, redo]);
