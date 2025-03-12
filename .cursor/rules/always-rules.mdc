@@ -1,0 +1,11 @@
+---
+description: These are the rules to always follow
+globs: 
+alwaysApply: true
+---
+---
+description: Enforce the use of pnpm for package management
+globs: ["**/*"]
+---
+
+- Always use `pnpm` instead of `npm` for package management commands.

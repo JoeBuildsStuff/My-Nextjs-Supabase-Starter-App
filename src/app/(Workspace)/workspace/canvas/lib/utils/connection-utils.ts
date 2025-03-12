@@ -4,6 +4,10 @@ import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
 // Define a constant for the snapping threshold
 export const CONNECTION_SNAP_THRESHOLD = 15; // px
 
+// Define trigonometric constants at module level to avoid recalculation
+const COS_45_DEG = 0.7071; // cos(45°)
+const SIN_45_DEG = 0.7071; // sin(45°)
+
 /**
  * Calculate the absolute position of a connection point on a shape
  */
@@ -61,10 +65,94 @@ export function calculateConnectionPointPosition(
     }
   } else if (node.type === 'diamond') {
     // Diamond-specific connection point calculations
-    // Implementation would go here
+    // For a diamond, we use rectangle positions and apply rotation
+    // This matches how the connection points are visually positioned
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+    
+    // First, get the position on the rectangle
+    let rectX = 0;
+    let rectY = 0;
+    
+    switch (position) {
+      case 'n':
+        rectX = centerX;
+        rectY = y;
+        break;
+      case 's':
+        rectX = centerX;
+        rectY = y + height;
+        break;
+      case 'w':
+        rectX = x;
+        rectY = centerY;
+        break;
+      case 'e':
+        rectX = x + width;
+        rectY = centerY;
+        break;
+      case 'nw':
+        rectX = x;
+        rectY = y;
+        break;
+      case 'ne':
+        rectX = x + width;
+        rectY = y;
+        break;
+      case 'sw':
+        rectX = x;
+        rectY = y + height;
+        break;
+      case 'se':
+        rectX = x + width;
+        rectY = y + height;
+        break;
+    }
+    
+    // Then, apply the 45-degree rotation around the center
+    // Rotation formula:
+    // x' = centerX + (x - centerX) * cos(angle) - (y - centerY) * sin(angle)
+    // y' = centerY + (x - centerX) * sin(angle) + (y - centerY) * cos(angle)
+    // Using the constants defined at module level
+    
+    connectionX = centerX + (rectX - centerX) * COS_45_DEG - (rectY - centerY) * SIN_45_DEG;
+    connectionY = centerY + (rectX - centerX) * SIN_45_DEG + (rectY - centerY) * COS_45_DEG;
   } else if (node.type === 'triangle') {
     // Triangle-specific connection point calculations
-    // Implementation would go here
+    const centerX = x + width / 2;
+    
+    switch (position) {
+      case 'n':
+        connectionX = centerX;
+        connectionY = y;
+        break;
+      case 's':
+        connectionX = centerX;
+        connectionY = y + height;
+        break;
+      case 'w':
+        connectionX = x + width / 4;
+        connectionY = y + height / 2;
+        break;
+      case 'e':
+        connectionX = x + width * 3 / 4;
+        connectionY = y + height / 2;
+        break;
+      case 'sw':
+        connectionX = x;
+        connectionY = y + height;
+        break;
+      case 'se':
+        connectionX = x + width;
+        connectionY = y + height;
+        break;
+      // nw and ne are not used for triangles
+      case 'nw':
+      case 'ne':
+        connectionX = centerX;
+        connectionY = y;
+        break;
+    }
   } else {
     // Default rectangle behavior
     switch (position) {
