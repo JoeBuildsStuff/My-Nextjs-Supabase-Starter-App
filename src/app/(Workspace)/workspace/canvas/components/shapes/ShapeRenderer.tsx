@@ -12,6 +12,8 @@ interface ShapeRendererProps {
   onSelect: (id: string) => void;
   onResize: (nodeId: string, direction: ResizeHandleDirection, dx: number, dy: number) => void;
   onConnectionPointClick: (nodeId: string, position: ConnectionPointPosition) => void;
+  hoveredConnectionPoint: { nodeId: string; position: ConnectionPointPosition } | null;
+  selectedLineEndpoint: { nodeId: string; pointIndex: number } | null;
 }
 
 const ShapeRenderer: React.FC<ShapeRendererProps> = ({
@@ -20,19 +22,45 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   activeTool,
   onSelect,
   onResize,
-  onConnectionPointClick
+  onConnectionPointClick,
+  hoveredConnectionPoint,
+  selectedLineEndpoint
 }) => {
   const { id, type, position, dimensions, style, data } = node;
 
   if (!dimensions) return null;
 
   // Determine if we should show connection points
-  const showConnectionPoints = ['arrow', 'line'].includes(activeTool) && 
-                             !data?.isGroup && 
-                             !node.points;
+  // Show connection points when:
+  // 1. Line/arrow tool is active, OR
+  // 2. A line endpoint is selected (to allow connecting it to a shape)
+  // 3. OR when a connection point is being hovered
+  const showConnectionPoints = 
+    ((['arrow', 'line'].includes(activeTool) || selectedLineEndpoint !== null) && 
+     !data?.isGroup && 
+     !node.points) ||
+    // Don't show connection points on the line that has the selected endpoint
+    (selectedLineEndpoint !== null && 
+     selectedLineEndpoint.nodeId !== id && 
+     !data?.isGroup && 
+     !node.points) ||
+    // Show connection points when one is being hovered
+    (hoveredConnectionPoint && hoveredConnectionPoint.nodeId === id);
 
   // Always enable pointer events for the container when line/arrow tool is active
-  const pointerEventsValue = isSelected || ['arrow', 'line'].includes(activeTool) ? 'auto' : 'none';
+  // or when a line endpoint is selected
+  const pointerEventsValue = isSelected || ['arrow', 'line'].includes(activeTool) || selectedLineEndpoint !== null ? 'auto' : 'none';
+
+  // Determine if this node has a hovered connection point
+  const hoveredPosition = hoveredConnectionPoint && hoveredConnectionPoint.nodeId === id 
+    ? hoveredConnectionPoint.position 
+    : undefined;
+
+  // Determine if this shape is a potential connection target
+  const isPotentialTarget = selectedLineEndpoint !== null && 
+                           selectedLineEndpoint.nodeId !== id && 
+                           !data?.isGroup && 
+                           !node.points;
 
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
@@ -42,6 +70,9 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     height: `${dimensions.height}px`,
     pointerEvents: pointerEventsValue,
     zIndex: isSelected ? 10 : 1, // Ensure selected nodes are on top
+    // Add a subtle highlight for potential connection targets
+    boxShadow: isPotentialTarget ? '0 0 0 2px hsl(var(--primary) / 0.3)' : 'none',
+    transition: 'box-shadow 0.2s ease-in-out',
   };
 
   const baseStyle: React.CSSProperties = {
@@ -128,7 +159,16 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       case 'arrow':
       case 'line':
         if (node.points && node.points.length > 1) {
-          return <LineShape node={node} isSelected={isSelected} />;
+          // Determine if this line has a selected endpoint
+          const selectedEndpointIndex = selectedLineEndpoint && selectedLineEndpoint.nodeId === id
+            ? selectedLineEndpoint.pointIndex
+            : undefined;
+          
+          return <LineShape 
+            node={node} 
+            isSelected={isSelected} 
+            selectedEndpoint={selectedEndpointIndex}
+          />;
         }
         return null;
 
@@ -145,7 +185,7 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   return (
     <div 
       style={containerStyle}
-      className={`node ${isSelected ? 'selected' : ''}`}
+      className={`node ${isSelected ? 'selected' : ''} ${isPotentialTarget ? 'potential-target' : ''}`}
       onClick={(e) => {
         e.stopPropagation();
         if (activeTool === 'select') {
@@ -173,6 +213,7 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         <ConnectionPoints 
           node={node}
           onConnectionPointClick={handleConnectionPointClick}
+          hoveredPosition={hoveredPosition}
         />
       )}
     </div>

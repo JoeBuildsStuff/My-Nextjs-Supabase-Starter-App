@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
-import { calculateConnectionPointPosition, updateConnectedLine, deepClone } from '../utils/connection-utils';
+import { 
+  calculateConnectionPointPosition, 
+  updateConnectedLine, 
+  deepClone,
+  calculateLineBoundingBox,
+  LINE_BOUNDING_BOX_PADDING,
+  findNearestConnectionPoint
+} from '../utils/connection-utils';
 
 // Define the types for our canvas state
 export interface Node {
@@ -73,6 +80,12 @@ export interface CanvasState {
   
   // Connection tracking
   connections: Connection[];
+  createConnection: (connection: {
+    sourceNodeId: string;
+    sourcePointIndex: number;
+    targetNodeId: string;
+    targetPosition: ConnectionPointPosition;
+  }) => void;
   
   // History tracking
   history: Array<{
@@ -832,9 +845,6 @@ const getTailwindColorName = (hexColor: string): string => {
   return hexColor;
 };
 
-// Define a constant for the padding
-const LINE_BOUNDING_BOX_PADDING = 10; // 5px on each side
-
 // Add this helper function before the store definition
 const resizeLineNode = (
   node: Node, 
@@ -1030,6 +1040,25 @@ export const useCanvasStore = create<CanvasState>()(
     
     // Connection tracking
     connections: [],
+    createConnection: ({ sourceNodeId, sourcePointIndex, targetNodeId, targetPosition }) => {
+      set(state => {
+        // First, remove any existing connection for this line point
+        state.connections = state.connections.filter(conn => 
+          !(conn.lineId === sourceNodeId && conn.pointIndex === sourcePointIndex)
+        );
+        
+        // Then add the new connection
+        state.connections.push({
+          lineId: sourceNodeId,
+          pointIndex: sourcePointIndex,
+          shapeId: targetNodeId,
+          position: targetPosition
+        });
+        
+        // Push to history
+        get().pushToHistory();
+      });
+    },
     
     // History tracking
     history: [],
@@ -2002,12 +2031,10 @@ export const useCanvasStore = create<CanvasState>()(
         console.log('Grouping', selectedNodes.length, 'nodes');
         
         // Push current state to history before making changes
-        console.log('Pushing to history before grouping, current index:', state.historyIndex, 'history length:', state.history.length);
         get().pushToHistory();
         
         // Generate a unique ID for the group
         const groupId = `group-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        console.log('Generated group ID:', groupId);
         
         // Calculate the bounding box of all selected nodes
         let minX = Infinity;
@@ -2025,15 +2052,23 @@ export const useCanvasStore = create<CanvasState>()(
           maxY = Math.max(maxY, node.position.y + nodeHeight);
         });
         
-        // Add some padding around the group
-        const padding = 20; // Increased padding
-        minX -= padding;
-        minY -= padding;
-        maxX += padding;
-        maxY += padding;
-        
+        // Calculate group dimensions before padding
         const groupWidth = maxX - minX;
         const groupHeight = maxY - minY;
+        
+        // Calculate proportional padding (5% of the group's width/height, with a minimum of 10px and maximum of 40px)
+        const paddingX = Math.min(Math.max(groupWidth * 0.05, 10), 40);
+        const paddingY = Math.min(Math.max(groupHeight * 0.05, 10), 40);
+        
+        // Apply padding
+        minX -= paddingX;
+        minY -= paddingY;
+        maxX += paddingX;
+        maxY += paddingY;
+        
+        // Update group dimensions with padding
+        const paddedGroupWidth = maxX - minX;
+        const paddedGroupHeight = maxY - minY;
         
         // Create a group node with invisible border by default
         // The border will only be visible when selected
@@ -2041,8 +2076,19 @@ export const useCanvasStore = create<CanvasState>()(
           id: groupId,
           type: 'rectangle',
           position: { x: minX, y: minY },
-          data: { isGroup: true },
-          dimensions: { width: groupWidth, height: groupHeight },
+          data: { 
+            isGroup: true,
+            // Store original positions of child nodes relative to the group
+            // This will help with proper ungrouping if the group is moved
+            originalChildPositions: selectedNodes.map(node => ({
+              nodeId: node.id,
+              relativePosition: {
+                x: node.position.x - minX,
+                y: node.position.y - minY
+              }
+            }))
+          },
+          dimensions: { width: paddedGroupWidth, height: paddedGroupHeight },
           style: {
             backgroundColor: 'transparent', // Always transparent
             borderColor: 'transparent', // Invisible by default
@@ -2097,7 +2143,6 @@ export const useCanvasStore = create<CanvasState>()(
         console.log('Ungrouping', selectedGroups.length, 'groups');
         
         // Push current state to history before making changes
-        console.log('Pushing to history before ungrouping, current index:', state.historyIndex, 'history length:', state.history.length);
         get().pushToHistory();
         
         // Process each selected group
@@ -2108,12 +2153,32 @@ export const useCanvasStore = create<CanvasState>()(
           const childNodes = state.nodes.filter(node => node.parentId === group.id);
           console.log('Found', childNodes.length, 'child nodes in group');
           
+          // Check if we have stored original positions
+          const originalPositions = group.data?.originalChildPositions as Array<{
+            nodeId: string;
+            relativePosition: { x: number; y: number };
+          }> | undefined;
+          
           // Adjust positions back to absolute coordinates
           childNodes.forEach(node => {
-            node.position = {
-              x: node.position.x + group.position.x,
-              y: node.position.y + group.position.y
-            };
+            // If we have the original relative position for this node, use it
+            // This ensures proper positioning even if the group has been moved
+            const originalPosition = originalPositions?.find(p => p.nodeId === node.id)?.relativePosition;
+            
+            if (originalPosition) {
+              // Use the original relative position plus the current group position
+              node.position = {
+                x: originalPosition.x + group.position.x,
+                y: originalPosition.y + group.position.y
+              };
+            } else {
+              // Fallback to the current relative position
+              node.position = {
+                x: node.position.x + group.position.x,
+                y: node.position.y + group.position.y
+              };
+            }
+            
             node.parentId = undefined;
             node.selected = true;
           });
@@ -2236,43 +2301,22 @@ export const useCanvasStore = create<CanvasState>()(
         if (line.points && line.points.length > 0) {
           line.points[line.points.length - 1] = { x: snappedX, y: snappedY };
           
-          // Calculate dimensions based on points
-          const allX = line.points.map(p => p.x);
-          const allY = line.points.map(p => p.y);
-          const minX = Math.min(...allX);
-          const maxX = Math.max(...allX);
-          const minY = Math.min(...allY);
-          const maxY = Math.max(...allY);
+          // Use the utility function to calculate the bounding box
+          const boundingBox = calculateLineBoundingBox(line.points);
           
-          // Add padding to the bounding box
-          const paddedMinX = minX - LINE_BOUNDING_BOX_PADDING;
-          const paddedMaxX = maxX + LINE_BOUNDING_BOX_PADDING;
-          const paddedMinY = minY - LINE_BOUNDING_BOX_PADDING;
-          const paddedMaxY = maxY + LINE_BOUNDING_BOX_PADDING;
+          // Update dimensions
+          line.dimensions = boundingBox.dimensions;
           
-          // Update position and dimensions to properly contain all points with padding
-          if (paddedMinX < 0 || paddedMinY < 0) {
-            // Adjust position to the top-left corner of the padded bounding box
-            line.position.x += paddedMinX;
-            line.position.y += paddedMinY;
+          // Apply position adjustment if needed
+          if (boundingBox.positionAdjustment) {
+            line.position.x += boundingBox.positionAdjustment.x;
+            line.position.y += boundingBox.positionAdjustment.y;
             
-            // Adjust all points to be relative to the new position
+            // Adjust all points
             for (let i = 0; i < line.points.length; i++) {
-              line.points[i].x -= paddedMinX;
-              line.points[i].y -= paddedMinY;
+              line.points[i].x += boundingBox.pointAdjustments.x;
+              line.points[i].y += boundingBox.pointAdjustments.y;
             }
-            
-            // Update dimensions to the size of the padded bounding box
-            line.dimensions = {
-              width: Math.max(paddedMaxX - paddedMinX, 1),
-              height: Math.max(paddedMaxY - paddedMinY, 1)
-            };
-          } else {
-            // No need to adjust position, just update dimensions with padding
-            line.dimensions = {
-              width: Math.max(paddedMaxX, 1),
-              height: Math.max(paddedMaxY, 1)
-            };
           }
         }
       }),
@@ -2372,58 +2416,72 @@ export const useCanvasStore = create<CanvasState>()(
         // Push current state to history before making changes
         get().pushToHistory();
         
-        // Calculate the position relative to the node's origin
-        const relativeX = x - node.position.x;
-        const relativeY = y - node.position.y;
+        // Check if we should snap to a connection point on another node
+        const nearestConnectionPoint = findNearestConnectionPoint(
+          state.nodes,
+          x, 
+          y, 
+          nodeId // Exclude the current line node
+        );
         
-        // Apply grid snapping if enabled
-        const snappedX = state.snapToGrid 
-          ? Math.round(relativeX / state.gridSize) * state.gridSize 
-          : relativeX;
-        const snappedY = state.snapToGrid 
-          ? Math.round(relativeY / state.gridSize) * state.gridSize 
-          : relativeY;
+        let finalX = x;
+        let finalY = y;
+        
+        if (nearestConnectionPoint) {
+          // Snap to the connection point
+          finalX = nearestConnectionPoint.absolutePosition.x;
+          finalY = nearestConnectionPoint.absolutePosition.y;
+          
+          // Create or update a connection
+          state.connections = state.connections.filter(conn => 
+            !(conn.lineId === nodeId && conn.pointIndex === pointIndex)
+          );
+          
+          // Add the new connection
+          state.connections.push({
+            lineId: nodeId,
+            pointIndex: pointIndex,
+            shapeId: nearestConnectionPoint.node.id,
+            position: nearestConnectionPoint.position
+          });
+          
+          console.log(`Connected line point ${pointIndex} to node ${nearestConnectionPoint.node.id} at position ${nearestConnectionPoint.position}`);
+        } else {
+          // Remove any existing connection for this point
+          state.connections = state.connections.filter(conn => 
+            !(conn.lineId === nodeId && conn.pointIndex === pointIndex)
+          );
+          
+          // Apply grid snapping if enabled and not snapping to a connection point
+          if (state.snapToGrid) {
+            finalX = Math.round(finalX / state.gridSize) * state.gridSize;
+            finalY = Math.round(finalY / state.gridSize) * state.gridSize;
+          }
+        }
+        
+        // Calculate the position relative to the node's origin
+        const relativeX = finalX - node.position.x;
+        const relativeY = finalY - node.position.y;
         
         // Update the point
-        node.points[pointIndex] = { x: snappedX, y: snappedY };
+        node.points[pointIndex] = { x: relativeX, y: relativeY };
         
-        // Recalculate dimensions based on points
-        const allX = node.points.map(p => p.x);
-        const allY = node.points.map(p => p.y);
-        const minX = Math.min(...allX);
-        const maxX = Math.max(...allX);
-        const minY = Math.min(...allY);
-        const maxY = Math.max(...allY);
+        // Use the utility function to calculate the bounding box
+        const boundingBox = calculateLineBoundingBox(node.points);
         
-        // Add padding to the bounding box
-        const paddedMinX = minX - LINE_BOUNDING_BOX_PADDING;
-        const paddedMaxX = maxX + LINE_BOUNDING_BOX_PADDING;
-        const paddedMinY = minY - LINE_BOUNDING_BOX_PADDING;
-        const paddedMaxY = maxY + LINE_BOUNDING_BOX_PADDING;
+        // Update dimensions
+        node.dimensions = boundingBox.dimensions;
         
-        // Update position and dimensions to properly contain all points with padding
-        if (paddedMinX < 0 || paddedMinY < 0) {
-          // Adjust position to the top-left corner of the padded bounding box
-          node.position.x += paddedMinX;
-          node.position.y += paddedMinY;
+        // Apply position adjustment if needed
+        if (boundingBox.positionAdjustment) {
+          node.position.x += boundingBox.positionAdjustment.x;
+          node.position.y += boundingBox.positionAdjustment.y;
           
-          // Adjust all points to be relative to the new position
+          // Adjust all points
           for (let i = 0; i < node.points.length; i++) {
-            node.points[i].x -= paddedMinX;
-            node.points[i].y -= paddedMinY;
+            node.points[i].x += boundingBox.pointAdjustments.x;
+            node.points[i].y += boundingBox.pointAdjustments.y;
           }
-          
-          // Update dimensions to the size of the padded bounding box
-          node.dimensions = {
-            width: Math.max(paddedMaxX - paddedMinX, 1),
-            height: Math.max(paddedMaxY - paddedMinY, 1)
-          };
-        } else {
-          // No need to adjust position, just update dimensions with padding
-          node.dimensions = {
-            width: Math.max(paddedMaxX, 1),
-            height: Math.max(paddedMaxY, 1)
-          };
         }
       }),
     
@@ -2436,20 +2494,33 @@ export const useCanvasStore = create<CanvasState>()(
         // Push current state to history before making changes
         get().pushToHistory();
         
-        // Calculate the position relative to the node's origin
-        const relativeX = x - node.position.x;
-        const relativeY = y - node.position.y;
+        // Check if we should snap to a connection point on another node
+        const nearestConnectionPoint = findNearestConnectionPoint(
+          state.nodes,
+          x, 
+          y, 
+          nodeId // Exclude the current line node
+        );
         
-        // Apply grid snapping if enabled
-        const snappedX = state.snapToGrid 
-          ? Math.round(relativeX / state.gridSize) * state.gridSize 
-          : relativeX;
-        const snappedY = state.snapToGrid 
-          ? Math.round(relativeY / state.gridSize) * state.gridSize 
-          : relativeY;
+        let finalX = x;
+        let finalY = y;
+        
+        if (nearestConnectionPoint) {
+          // Snap to the connection point
+          finalX = nearestConnectionPoint.absolutePosition.x;
+          finalY = nearestConnectionPoint.absolutePosition.y;
+        } else if (state.snapToGrid) {
+          // Apply grid snapping if enabled and not snapping to a connection point
+          finalX = Math.round(finalX / state.gridSize) * state.gridSize;
+          finalY = Math.round(finalY / state.gridSize) * state.gridSize;
+        }
+        
+        // Calculate the position relative to the node's origin
+        const relativeX = finalX - node.position.x;
+        const relativeY = finalY - node.position.y;
         
         // Create a new point
-        const newPoint = { x: snappedX, y: snappedY };
+        const newPoint = { x: relativeX, y: relativeY };
         
         // Insert the new point after the segment index
         node.points.splice(segmentIndex + 1, 0, newPoint);
@@ -2457,43 +2528,33 @@ export const useCanvasStore = create<CanvasState>()(
         // Select the new point
         state.selectedPointIndices = [segmentIndex + 1];
         
-        // Recalculate dimensions based on points
-        const allX = node.points.map(p => p.x);
-        const allY = node.points.map(p => p.y);
-        const minX = Math.min(...allX);
-        const maxX = Math.max(...allX);
-        const minY = Math.min(...allY);
-        const maxY = Math.max(...allY);
+        // If we snapped to a connection point, create a connection
+        if (nearestConnectionPoint) {
+          // Add the new connection
+          state.connections.push({
+            lineId: nodeId,
+            pointIndex: segmentIndex + 1, // The index of our new point
+            shapeId: nearestConnectionPoint.node.id,
+            position: nearestConnectionPoint.position
+          });
+        }
         
-        // Add padding to the bounding box
-        const paddedMinX = minX - LINE_BOUNDING_BOX_PADDING;
-        const paddedMaxX = maxX + LINE_BOUNDING_BOX_PADDING;
-        const paddedMinY = minY - LINE_BOUNDING_BOX_PADDING;
-        const paddedMaxY = maxY + LINE_BOUNDING_BOX_PADDING;
+        // Use the utility function to calculate the bounding box
+        const boundingBox = calculateLineBoundingBox(node.points);
         
-        // Update position and dimensions to properly contain all points with padding
-        if (paddedMinX < 0 || paddedMinY < 0) {
-          // Adjust position to the top-left corner of the padded bounding box
-          node.position.x += paddedMinX;
-          node.position.y += paddedMinY;
+        // Update dimensions
+        node.dimensions = boundingBox.dimensions;
+        
+        // Apply position adjustment if needed
+        if (boundingBox.positionAdjustment) {
+          node.position.x += boundingBox.positionAdjustment.x;
+          node.position.y += boundingBox.positionAdjustment.y;
           
-          // Adjust all points to be relative to the new position
+          // Adjust all points
           for (let i = 0; i < node.points.length; i++) {
-            node.points[i].x -= paddedMinX;
-            node.points[i].y -= paddedMinY;
+            node.points[i].x += boundingBox.pointAdjustments.x;
+            node.points[i].y += boundingBox.pointAdjustments.y;
           }
-          
-          // Update dimensions to the size of the padded bounding box
-          node.dimensions = {
-            width: Math.max(paddedMaxX - paddedMinX, 1),
-            height: Math.max(paddedMaxY - paddedMinY, 1)
-          };
-        } else {
-          // No need to adjust position, just update dimensions with padding
-          node.dimensions = {
-            width: Math.max(paddedMaxX, 1),
-            height: Math.max(paddedMaxY, 1)
-          };
         }
       }),
     

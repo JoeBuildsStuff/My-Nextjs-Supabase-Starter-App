@@ -4,6 +4,7 @@ import { Node } from '../../lib/store/canvas-store';
 interface LineShapeProps {
   node: Node;
   isSelected: boolean;
+  selectedEndpoint?: number;
 }
 
 const LineShape: React.FC<LineShapeProps> = ({ node, isSelected }) => {
@@ -52,15 +53,29 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected }) => {
       )}
       
       {/* Control points for selected lines */}
-      {isSelected && points.map((point, index) => (
-        <circle
-          key={`point-${index}`}
-          cx={point.x}
-          cy={point.y}
-          r={6}
-          className="stroke-border stroke-[1.5] cursor-move fill-background"
-        />
-      ))}
+      {isSelected && points.map((point, index) => {
+        // Determine if this point is an endpoint (first or last point)
+        const isEndpoint = index === 0 || index === points.length - 1;
+        
+        // Use different styling for endpoints vs. middle points
+        const radius = 6;
+        const fillColor = 'hsl(var(--background))';
+        const strokeColor = 'hsl(var(--border))';
+        const strokeWidth = 1.5;
+        
+        return (
+          <circle
+            key={`point-${index}`}
+            cx={point.x}
+            cy={point.y}
+            r={radius}
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            className={`cursor-move ${isEndpoint ? 'endpoint' : ''}`}
+          />
+        );
+      })}
     </svg>
   );
 };
