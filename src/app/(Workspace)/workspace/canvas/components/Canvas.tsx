@@ -490,7 +490,8 @@ const Canvas: React.FC<CanvasProps> = ({
                   lineId,
                   pointIndex,
                   shapeId: hoveredConnectionPoint.nodeId,
-                  position: hoveredConnectionPoint.position
+                  position: hoveredConnectionPoint.position,
+                  dynamic: true
                 });
                 return state;
               });
@@ -509,7 +510,8 @@ const Canvas: React.FC<CanvasProps> = ({
                     lineId,
                     pointIndex: 0, // First point of the line
                     shapeId: hoveredConnectionPoint.nodeId,
-                    position: hoveredConnectionPoint.position
+                    position: hoveredConnectionPoint.position,
+                    dynamic: true
                   });
                   return state;
                 });
@@ -867,7 +869,8 @@ const Canvas: React.FC<CanvasProps> = ({
                 lineId,
                 pointIndex,
                 shapeId: nodeId,
-                position
+                position,
+                dynamic: true
               });
               return state;
             });
@@ -1020,7 +1023,8 @@ const Canvas: React.FC<CanvasProps> = ({
             lineId,
             pointIndex,
             shapeId: nodeId,
-            position
+            position,
+            dynamic: true
           });
           return state;
         });
@@ -1039,7 +1043,8 @@ const Canvas: React.FC<CanvasProps> = ({
               lineId,
               pointIndex: 0, // First point of the line
               shapeId: nodeId,
-              position
+              position,
+              dynamic: true
             });
             return state;
           });

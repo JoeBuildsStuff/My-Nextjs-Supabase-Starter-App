@@ -2,12 +2,11 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
 import { 
-  calculateConnectionPointPosition, 
-  updateConnectedLine, 
   deepClone,
   calculateLineBoundingBox,
   LINE_BOUNDING_BOX_PADDING,
-  findNearestConnectionPoint
+  findNearestConnectionPoint,
+  updateAllLineConnections
 } from '../utils/connection-utils';
 
 // Define the types for our canvas state
@@ -56,6 +55,7 @@ export interface Connection {
   pointIndex: number;
   shapeId: string;
   position: ConnectionPointPosition;
+  dynamic?: boolean; // Whether to dynamically recalculate the optimal connection point
 }
 
 export interface CanvasState {
@@ -1052,7 +1052,8 @@ export const useCanvasStore = create<CanvasState>()(
           lineId: sourceNodeId,
           pointIndex: sourcePointIndex,
           shapeId: targetNodeId,
-          position: targetPosition
+          position: targetPosition,
+          dynamic: true // Enable dynamic connection points
         });
         
         // Push to history
@@ -1772,24 +1773,49 @@ export const useCanvasStore = create<CanvasState>()(
           node.position.x = newX;
           node.position.y = newY;
           
-          // Update any connected lines
-          if (state.connections) {
-            state.connections.forEach(connection => {
-              if (connection.shapeId === nodeId) {
-                // Find the connected line
-                const lineIndex = state.nodes.findIndex(n => n.id === connection.lineId);
-                if (lineIndex !== -1) {
-                  const line = state.nodes[lineIndex];
-                  
-                  // Calculate the new connection point position
-                  const connectionPoint = calculateConnectionPointPosition(node, connection.position);
-                  
-                  // Update the line using our utility function
-                  state.nodes[lineIndex] = updateConnectedLine(line, connection, connectionPoint);
-                }
-              }
-            });
+          // If this is a line node with connections, update all its connections
+          if ((node.type === 'line' || node.type === 'arrow') && node.points && node.points.length > 0) {
+            // Use the utility function to update all connections for this line
+            const updatedNode = updateAllLineConnections(node, state.connections, state.nodes);
+            
+            // Update the node with the updated values
+            node.points = updatedNode.points;
+            node.position = updatedNode.position;
+            node.dimensions = updatedNode.dimensions;
           }
+          
+          // Find all lines connected to this shape and update them
+          // This handles both cases:
+          // 1. Lines where this shape is directly connected to
+          // 2. Lines where this shape is one of the endpoints
+          const connectedLineIds = new Set<string>();
+          
+          // First, find all connections where this shape is involved
+          state.connections.forEach(connection => {
+            // Case 1: This shape is connected to a line
+            if (connection.shapeId === nodeId) {
+              connectedLineIds.add(connection.lineId);
+            }
+            
+            // Case 2: This shape is the line itself
+            if (connection.lineId === nodeId) {
+              // We've already handled this case above
+            }
+          });
+          
+          // Now update all the connected lines
+          connectedLineIds.forEach(lineId => {
+            const lineIndex = state.nodes.findIndex(n => n.id === lineId);
+            if (lineIndex !== -1) {
+              const line = state.nodes[lineIndex];
+              
+              // Use the utility function to update all connections for this line
+              const updatedLine = updateAllLineConnections(line, state.connections, state.nodes);
+              
+              // Update the line with the updated values
+              state.nodes[lineIndex] = updatedLine;
+            }
+          });
         }
       });
     },
@@ -1810,6 +1836,14 @@ export const useCanvasStore = create<CanvasState>()(
           
           // Resize the line node
           resizeLineNode(node, direction, dx, dy, state.snapToGrid, state.gridSize);
+          
+          // Update all connections for this line
+          const updatedNode = updateAllLineConnections(node, state.connections, state.nodes);
+          
+          // Update the node with the updated values
+          node.points = updatedNode.points;
+          node.position = updatedNode.position;
+          node.dimensions = updatedNode.dimensions;
         } else {
           // Apply grid snapping if enabled
           if (state.snapToGrid) {
@@ -1819,6 +1853,31 @@ export const useCanvasStore = create<CanvasState>()(
             node.dimensions.width = width;
             node.dimensions.height = height;
           }
+          
+          // Find all lines connected to this shape and update them
+          const connectedLineIds = new Set<string>();
+          
+          // Find all connections where this shape is involved
+          state.connections.forEach(connection => {
+            // This shape is connected to a line
+            if (connection.shapeId === nodeId) {
+              connectedLineIds.add(connection.lineId);
+            }
+          });
+          
+          // Now update all the connected lines
+          connectedLineIds.forEach(lineId => {
+            const lineIndex = state.nodes.findIndex(n => n.id === lineId);
+            if (lineIndex !== -1) {
+              const line = state.nodes[lineIndex];
+              
+              // Use the utility function to update all connections for this line
+              const updatedLine = updateAllLineConnections(line, state.connections, state.nodes);
+              
+              // Update the line with the updated values
+              state.nodes[lineIndex] = updatedLine;
+            }
+          });
         }
       }),
     
@@ -2442,7 +2501,8 @@ export const useCanvasStore = create<CanvasState>()(
             lineId: nodeId,
             pointIndex: pointIndex,
             shapeId: nearestConnectionPoint.node.id,
-            position: nearestConnectionPoint.position
+            position: nearestConnectionPoint.position,
+            dynamic: true // Enable dynamic connection points
           });
           
           console.log(`Connected line point ${pointIndex} to node ${nearestConnectionPoint.node.id} at position ${nearestConnectionPoint.position}`);
@@ -2535,7 +2595,8 @@ export const useCanvasStore = create<CanvasState>()(
             lineId: nodeId,
             pointIndex: segmentIndex + 1, // The index of our new point
             shapeId: nearestConnectionPoint.node.id,
-            position: nearestConnectionPoint.position
+            position: nearestConnectionPoint.position,
+            dynamic: true // Enable dynamic connection points
           });
         }
         
