@@ -9,6 +9,7 @@ import LineInProgress from './line-drawing/LineInProgress';
 import { ConnectionPointPosition } from './ui/ConnectionPoints';
 import { ResizeHandleDirection } from './ui/ResizeHandles';
 import { calculateConnectionPointPosition, deepClone } from '../lib/utils/connection-utils';
+import AlignmentGuide from './alignment/AlignmentGuide';
 
 interface CanvasProps {
   width?: number;
@@ -75,6 +76,19 @@ const Canvas: React.FC<CanvasProps> = ({
     startY: number;
   } | null>(null);
   const [historyInitialized, setHistoryInitialized] = useState(false);
+  
+  // Add a state for alignment guides
+  const [alignmentGuides, setAlignmentGuides] = useState<{
+    horizontal: { y: number, start: number, end: number, type?: 'top' | 'bottom' | 'center' }[];
+    vertical: { x: number, start: number, end: number, type?: 'left' | 'right' | 'center' }[];
+  }>({
+    horizontal: [],
+    vertical: []
+  });
+  
+  // Add a threshold for alignment snapping (in canvas units)
+  const ALIGNMENT_THRESHOLD = 5;
+  const EXTENSION_AMOUNT = 50; // Extension amount for guide lines
   
   // Add a state to track the nodes from the store
   const [storeNodes, setStoreNodes] = useState<Node[]>([]);
@@ -801,17 +815,42 @@ const Canvas: React.FC<CanvasProps> = ({
       
       const selectedNodes = displayNodes?.filter(node => node.selected) || [];
       
-      selectedNodes.forEach(node => {
-        if (!nodeStartPos[node.id]) {
-          nodeStartPos[node.id] = { x: node.position.x, y: node.position.y };
+      // Find alignment guides (now works with grid on too)
+      if (displayNodes) {
+        // Only calculate guides if we have nodes to move
+        if (selectedNodes.length > 0) {
+          const guides = findAlignmentGuides(selectedNodes, displayNodes, dx, dy);
+          setAlignmentGuides(guides);
         }
         
-        updateNodePosition(
-          node.id,
-          nodeStartPos[node.id].x + dx,
-          nodeStartPos[node.id].y + dy
-        );
-      });
+        // Apply snapping for each selected node
+        selectedNodes.forEach(node => {
+          if (!nodeStartPos[node.id]) {
+            nodeStartPos[node.id] = { x: node.position.x, y: node.position.y };
+          }
+          
+          if (snapToGrid) {
+            // With grid on, we still show guides but snap to grid
+            const gridX = Math.round((nodeStartPos[node.id].x + dx) / gridSize) * gridSize;
+            const gridY = Math.round((nodeStartPos[node.id].y + dy) / gridSize) * gridSize;
+            
+            updateNodePosition(
+              node.id,
+              gridX,
+              gridY
+            );
+          } else {
+            // Without grid, use alignment guide snapping
+            const { x: adjustedDx, y: adjustedDy } = getSnappedPosition(node, dx, dy, alignmentGuides);
+            
+            updateNodePosition(
+              node.id,
+              nodeStartPos[node.id].x + adjustedDx,
+              nodeStartPos[node.id].y + adjustedDy
+            );
+          }
+        });
+      }
     } else if (isSelecting && selectionBox) {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect) {
@@ -980,6 +1019,12 @@ const Canvas: React.FC<CanvasProps> = ({
     setNodeStartPos({});
     setIsDraggingPoint(false);
     setActivePointData(null);
+    
+    // Clear alignment guides
+    setAlignmentGuides({ 
+      horizontal: [], 
+      vertical: [] 
+    });
   };
   
   // Handle double click to finish line drawing
@@ -1285,6 +1330,339 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   };
   
+  // Function to find alignment guides with other shapes - optimized with useMemo
+  const findAlignmentGuides = (
+    movingNodes: Node[],
+    allNodes: Node[],
+    dx: number,
+    dy: number
+  ) => {
+    const horizontalGuides: { y: number, start: number, end: number, type: 'top' | 'bottom' | 'center' }[] = [];
+    const verticalGuides: { x: number, start: number, end: number, type: 'left' | 'right' | 'center' }[] = [];
+    
+    // Get the bounding boxes of the moving nodes with the proposed movement applied
+    const movingBoxes = movingNodes.map(node => {
+      if (!node.dimensions) return null;
+      
+      const startPos = nodeStartPos[node.id] || { x: node.position.x, y: node.position.y };
+      const newX = startPos.x + dx;
+      const newY = startPos.y + dy;
+      const width = node.dimensions.width;
+      const height = node.dimensions.height;
+      
+      return {
+        id: node.id,
+        left: newX,
+        top: newY,
+        right: newX + width,
+        bottom: newY + height,
+        centerX: newX + width / 2,
+        centerY: newY + height / 2
+      };
+    }).filter(Boolean) as {
+      id: string;
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+      centerX: number;
+      centerY: number;
+    }[];
+    
+    // Skip if no moving boxes with dimensions
+    if (movingBoxes.length === 0) return { horizontal: [], vertical: [] };
+    
+    // Get the bounding boxes of the static nodes (not being moved)
+    const staticBoxes = allNodes
+      .filter(node => !node.selected && node.dimensions && !['line', 'arrow'].includes(node.type))
+      .map(node => {
+        const x = node.position.x;
+        const y = node.position.y;
+        const width = node.dimensions!.width;
+        const height = node.dimensions!.height;
+        
+        return {
+          id: node.id,
+          left: x,
+          top: y,
+          right: x + width,
+          bottom: y + height,
+          centerX: x + width / 2,
+          centerY: y + height / 2
+        };
+      });
+    
+    // Skip if no static boxes to align with
+    if (staticBoxes.length === 0) return { horizontal: [], vertical: [] };
+    
+    // Helper function to add a horizontal guide if it doesn't exist yet
+    const addHorizontalGuide = (y: number, movingBox: {
+      id: string;
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+      centerX: number;
+      centerY: number;
+    }, staticBox: {
+      id: string;
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+      centerX: number;
+      centerY: number;
+    }, type: 'top' | 'bottom' | 'center') => {
+      // Check if a similar guide already exists (within 1 pixel)
+      const existingGuide = horizontalGuides.find(g => Math.abs(g.y - y) < 1);
+      if (existingGuide) {
+        // Update existing guide's start/end if needed
+        existingGuide.start = Math.min(existingGuide.start, Math.min(movingBox.left, staticBox.left) - EXTENSION_AMOUNT);
+        existingGuide.end = Math.max(existingGuide.end, Math.max(movingBox.right, staticBox.right) + EXTENSION_AMOUNT);
+        // If this is a center guide, mark it as such
+        if (type === 'center') {
+          existingGuide.type = 'center';
+        }
+      } else {
+        // Add new guide
+        horizontalGuides.push({
+          y,
+          start: Math.min(movingBox.left, staticBox.left) - EXTENSION_AMOUNT,
+          end: Math.max(movingBox.right, staticBox.right) + EXTENSION_AMOUNT,
+          type
+        });
+      }
+    };
+    
+    // Helper function to add a vertical guide if it doesn't exist yet
+    const addVerticalGuide = (x: number, movingBox: {
+      id: string;
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+      centerX: number;
+      centerY: number;
+    }, staticBox: {
+      id: string;
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+      centerX: number;
+      centerY: number;
+    }, type: 'left' | 'right' | 'center') => {
+      // Check if a similar guide already exists (within 1 pixel)
+      const existingGuide = verticalGuides.find(g => Math.abs(g.x - x) < 1);
+      if (existingGuide) {
+        // Update existing guide's start/end if needed
+        existingGuide.start = Math.min(existingGuide.start, Math.min(movingBox.top, staticBox.top) - EXTENSION_AMOUNT);
+        existingGuide.end = Math.max(existingGuide.end, Math.max(movingBox.bottom, staticBox.bottom) + EXTENSION_AMOUNT);
+        // If this is a center guide, mark it as such
+        if (type === 'center') {
+          existingGuide.type = 'center';
+        }
+      } else {
+        // Add new guide
+        verticalGuides.push({
+          x,
+          start: Math.min(movingBox.top, staticBox.top) - EXTENSION_AMOUNT,
+          end: Math.max(movingBox.bottom, staticBox.bottom) + EXTENSION_AMOUNT,
+          type
+        });
+      }
+    };
+    
+    // Track which nodes have center alignment
+    const nodesWithCenterYAlignment = new Set<string>();
+    const nodesWithCenterXAlignment = new Set<string>();
+    
+    // First pass: check for center alignments
+    for (const movingBox of movingBoxes) {
+      for (const staticBox of staticBoxes) {
+        // Check for center alignment (horizontal)
+        if (Math.abs(movingBox.centerY - staticBox.centerY) < ALIGNMENT_THRESHOLD) {
+          addHorizontalGuide(staticBox.centerY, movingBox, staticBox, 'center');
+          nodesWithCenterYAlignment.add(movingBox.id);
+        }
+        
+        // Check for center alignment (vertical)
+        if (Math.abs(movingBox.centerX - staticBox.centerX) < ALIGNMENT_THRESHOLD) {
+          addVerticalGuide(staticBox.centerX, movingBox, staticBox, 'center');
+          nodesWithCenterXAlignment.add(movingBox.id);
+        }
+      }
+    }
+    
+    // Second pass: check for edge alignments, but only for nodes that don't have center alignment
+    for (const movingBox of movingBoxes) {
+      // Skip edge alignment checks if this node has center alignment
+      const hasCenterYAlignment = nodesWithCenterYAlignment.has(movingBox.id);
+      const hasCenterXAlignment = nodesWithCenterXAlignment.has(movingBox.id);
+      
+      for (const staticBox of staticBoxes) {
+        // Check for horizontal alignments (top, bottom) only if no center alignment
+        if (!hasCenterYAlignment) {
+          // Top edge alignment
+          if (Math.abs(movingBox.top - staticBox.top) < ALIGNMENT_THRESHOLD) {
+            addHorizontalGuide(staticBox.top, movingBox, staticBox, 'top');
+          }
+          
+          // Bottom edge alignment
+          if (Math.abs(movingBox.bottom - staticBox.bottom) < ALIGNMENT_THRESHOLD) {
+            addHorizontalGuide(staticBox.bottom, movingBox, staticBox, 'bottom');
+          }
+          
+          // Top to bottom alignment
+          if (Math.abs(movingBox.top - staticBox.bottom) < ALIGNMENT_THRESHOLD) {
+            addHorizontalGuide(staticBox.bottom, movingBox, staticBox, 'bottom');
+          }
+          
+          // Bottom to top alignment
+          if (Math.abs(movingBox.bottom - staticBox.top) < ALIGNMENT_THRESHOLD) {
+            addHorizontalGuide(staticBox.top, movingBox, staticBox, 'top');
+          }
+        }
+        
+        // Check for vertical alignments (left, right) only if no center alignment
+        if (!hasCenterXAlignment) {
+          // Left edge alignment
+          if (Math.abs(movingBox.left - staticBox.left) < ALIGNMENT_THRESHOLD) {
+            addVerticalGuide(staticBox.left, movingBox, staticBox, 'left');
+          }
+          
+          // Right edge alignment
+          if (Math.abs(movingBox.right - staticBox.right) < ALIGNMENT_THRESHOLD) {
+            addVerticalGuide(staticBox.right, movingBox, staticBox, 'right');
+          }
+          
+          // Left to right alignment
+          if (Math.abs(movingBox.left - staticBox.right) < ALIGNMENT_THRESHOLD) {
+            addVerticalGuide(staticBox.right, movingBox, staticBox, 'right');
+          }
+          
+          // Right to left alignment
+          if (Math.abs(movingBox.right - staticBox.left) < ALIGNMENT_THRESHOLD) {
+            addVerticalGuide(staticBox.left, movingBox, staticBox, 'left');
+          }
+        }
+      }
+    }
+    
+    // Return only the type property from guides for backward compatibility
+    return { 
+      horizontal: horizontalGuides.map(({y, start, end}) => ({y, start, end})), 
+      vertical: verticalGuides.map(({x, start, end}) => ({x, start, end}))
+    };
+  };
+  
+  // Function to calculate adjusted position based on alignment guides - optimized
+  const getSnappedPosition = (
+    node: Node,
+    dx: number,
+    dy: number,
+    guides: {
+      horizontal: { y: number, start: number, end: number }[];
+      vertical: { x: number, start: number, end: number }[];
+    }
+  ) => {
+    if (!node.dimensions) return { x: dx, y: dy };
+    
+    const startPos = nodeStartPos[node.id] || { x: node.position.x, y: node.position.y };
+    let adjustedDx = dx;
+    let adjustedDy = dy;
+    
+    // Calculate the box with the proposed movement
+    const width = node.dimensions.width;
+    const height = node.dimensions.height;
+    const box = {
+      left: startPos.x + dx,
+      top: startPos.y + dy,
+      right: startPos.x + dx + width,
+      bottom: startPos.y + dy + height,
+      centerX: startPos.x + dx + width / 2,
+      centerY: startPos.y + dy + height / 2
+    };
+    
+    // Find the closest horizontal guide to snap to
+    let closestHorizontalDist = ALIGNMENT_THRESHOLD;
+    let closestHorizontalSnap = null;
+    
+    for (const guide of guides.horizontal) {
+      // Top edge alignment
+      const topDist = Math.abs(box.top - guide.y);
+      if (topDist < closestHorizontalDist) {
+        closestHorizontalDist = topDist;
+        closestHorizontalSnap = { edge: 'top', y: guide.y };
+      }
+      
+      // Bottom edge alignment
+      const bottomDist = Math.abs(box.bottom - guide.y);
+      if (bottomDist < closestHorizontalDist) {
+        closestHorizontalDist = bottomDist;
+        closestHorizontalSnap = { edge: 'bottom', y: guide.y };
+      }
+      
+      // Center alignment (horizontal)
+      const centerYDist = Math.abs(box.centerY - guide.y);
+      if (centerYDist < closestHorizontalDist) {
+        closestHorizontalDist = centerYDist;
+        closestHorizontalSnap = { edge: 'centerY', y: guide.y };
+      }
+    }
+    
+    // Apply the closest horizontal snap if found
+    if (closestHorizontalSnap) {
+      if (closestHorizontalSnap.edge === 'top') {
+        adjustedDy = closestHorizontalSnap.y - startPos.y;
+      } else if (closestHorizontalSnap.edge === 'bottom') {
+        adjustedDy = closestHorizontalSnap.y - height - startPos.y;
+      } else if (closestHorizontalSnap.edge === 'centerY') {
+        adjustedDy = closestHorizontalSnap.y - height / 2 - startPos.y;
+      }
+    }
+    
+    // Find the closest vertical guide to snap to
+    let closestVerticalDist = ALIGNMENT_THRESHOLD;
+    let closestVerticalSnap = null;
+    
+    for (const guide of guides.vertical) {
+      // Left edge alignment
+      const leftDist = Math.abs(box.left - guide.x);
+      if (leftDist < closestVerticalDist) {
+        closestVerticalDist = leftDist;
+        closestVerticalSnap = { edge: 'left', x: guide.x };
+      }
+      
+      // Right edge alignment
+      const rightDist = Math.abs(box.right - guide.x);
+      if (rightDist < closestVerticalDist) {
+        closestVerticalDist = rightDist;
+        closestVerticalSnap = { edge: 'right', x: guide.x };
+      }
+      
+      // Center alignment (vertical)
+      const centerXDist = Math.abs(box.centerX - guide.x);
+      if (centerXDist < closestVerticalDist) {
+        closestVerticalDist = centerXDist;
+        closestVerticalSnap = { edge: 'centerX', x: guide.x };
+      }
+    }
+    
+    // Apply the closest vertical snap if found
+    if (closestVerticalSnap) {
+      if (closestVerticalSnap.edge === 'left') {
+        adjustedDx = closestVerticalSnap.x - startPos.x;
+      } else if (closestVerticalSnap.edge === 'right') {
+        adjustedDx = closestVerticalSnap.x - width - startPos.x;
+      } else if (closestVerticalSnap.edge === 'centerX') {
+        adjustedDx = closestVerticalSnap.x - width / 2 - startPos.x;
+      }
+    }
+    
+    return { x: adjustedDx, y: adjustedDy };
+  };
+  
   return (
     <div 
       ref={canvasRef}
@@ -1309,6 +1687,29 @@ const Canvas: React.FC<CanvasProps> = ({
           transform={transform} 
         />
       )}
+      
+      {/* Render alignment guides */}
+      {alignmentGuides.horizontal.map((guide, index) => (
+        <AlignmentGuide
+          key={`h-${index}`}
+          orientation="horizontal"
+          position={guide.y}
+          start={guide.start}
+          end={guide.end}
+          transform={transform}
+        />
+      ))}
+      
+      {alignmentGuides.vertical.map((guide, index) => (
+        <AlignmentGuide
+          key={`v-${index}`}
+          orientation="vertical"
+          position={guide.x}
+          start={guide.start}
+          end={guide.end}
+          transform={transform}
+        />
+      ))}
       
       <div 
         className="absolute"
