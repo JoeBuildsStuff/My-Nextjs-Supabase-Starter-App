@@ -2,7 +2,7 @@ import { Node, Connection } from '../store/canvas-store';
 import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
 
 // Define a constant for the snapping threshold
-export const CONNECTION_SNAP_THRESHOLD = 15; // px
+export const CONNECTION_SNAP_THRESHOLD = 25; // Increased from 15 to 25 for better snapping
 
 // Define trigonometric constants at module level to avoid recalculation
 const COS_45_DEG = 0.7071; // cos(45°)

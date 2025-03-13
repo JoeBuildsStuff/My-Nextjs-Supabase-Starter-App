@@ -478,23 +478,13 @@ const Canvas: React.FC<CanvasProps> = ({
             
             if (lineInProgress) {
               // If we already have a line in progress, finish it at this connection point
-              updateLineDraw(connectionPoint.x, connectionPoint.y, isShiftPressed);
-              
-              // Store the connection information before finishing the line
-              const lineId = lineInProgress.id;
+              // Use the unified helper function to connect the line endpoint to the connection point
               const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
-              
-              // Add the connection to the store
-              useCanvasStore.setState(state => {
-                state.connections.push({
-                  lineId,
-                  pointIndex,
-                  shapeId: hoveredConnectionPoint.nodeId,
-                  position: hoveredConnectionPoint.position,
-                  dynamic: true
-                });
-                return state;
-              });
+              connectLineToPoint(
+                lineInProgress.id,
+                pointIndex,
+                hoveredConnectionPoint
+              );
               
               finishLineDraw();
             } else {
@@ -505,15 +495,11 @@ const Canvas: React.FC<CanvasProps> = ({
               // Store the connection information for the start point
               const lineId = useCanvasStore.getState().lineInProgress?.id;
               if (lineId) {
-                useCanvasStore.setState(state => {
-                  state.connections.push({
-                    lineId,
-                    pointIndex: 0, // First point of the line
-                    shapeId: hoveredConnectionPoint.nodeId,
-                    position: hoveredConnectionPoint.position,
-                    dynamic: true
-                  });
-                  return state;
+                createConnection({
+                  sourceNodeId: lineId,
+                  sourcePointIndex: 0, // First point of the line
+                  targetNodeId: hoveredConnectionPoint.nodeId,
+                  targetPosition: hoveredConnectionPoint.position
                 });
               }
             }
@@ -641,19 +627,13 @@ const Canvas: React.FC<CanvasProps> = ({
           
           // If we're hovering over a connection point, snap the line to it
           if (connectionPointData) {
-            const { nodeId, position } = connectionPointData;
-            const node = displayNodes?.find(n => n.id === nodeId);
-            
-            if (node) {
-              const connectionPoint = calculateConnectionPointPosition(node, position);
-              moveLinePoint(
-                activePointData.nodeId,
-                activePointData.pointIndex,
-                connectionPoint.x,
-                connectionPoint.y
-              );
-              return;
-            }
+            // Use the unified helper function to connect the line endpoint to the connection point
+            connectLineToPoint(
+              activePointData.nodeId,
+              activePointData.pointIndex,
+              connectionPointData
+            );
+            return;
           } else {
             // If not hovering over a connection point, move the point normally
             // but keep checking for nearby connection points
@@ -668,6 +648,17 @@ const Canvas: React.FC<CanvasProps> = ({
             const nearbyConnectionPoint = findNearbyConnectionPoint(x, y);
             if (nearbyConnectionPoint && !hoveredConnectionPoint) {
               setHoveredConnectionPoint(nearbyConnectionPoint);
+              
+              // If we found a nearby connection point, snap to it immediately
+              if (nearbyConnectionPoint) {
+                // Use the unified helper function to connect the line endpoint to the connection point
+                connectLineToPoint(
+                  activePointData.nodeId,
+                  activePointData.pointIndex,
+                  nearbyConnectionPoint
+                );
+                return;
+              }
             }
           }
         } else {
@@ -726,20 +717,25 @@ const Canvas: React.FC<CanvasProps> = ({
         const connectionPointData = findConnectionPointAtPosition(x, y);
         
         // Update the hovered connection point state
-        if (connectionPointData !== hoveredConnectionPoint) {
+        if (JSON.stringify(connectionPointData) !== JSON.stringify(hoveredConnectionPoint)) {
           setHoveredConnectionPoint(connectionPointData);
         }
         
         // If we're hovering over a connection point, snap the line to it
         if (connectionPointData) {
+          // Use the unified helper function to temporarily connect the line to the connection point
+          // We don't create a permanent connection yet since the user hasn't released the mouse
+          
+          // Get the connection point position without creating a connection
           const { nodeId, position } = connectionPointData;
           const node = displayNodes?.find(n => n.id === nodeId);
           
           if (node) {
             const connectionPoint = calculateConnectionPointPosition(node, position);
-            updateLineDraw(connectionPoint.x, connectionPoint.y, isShiftPressed);
-            return;
+            // Pass false for isShiftPressed to ensure we don't apply angle constraints
+            updateLineDraw(connectionPoint.x, connectionPoint.y, false);
           }
+          return;
         }
         
         // Otherwise, just update the line normally
@@ -780,30 +776,17 @@ const Canvas: React.FC<CanvasProps> = ({
         const y = (e.clientY - rect.top - transform.y) / transform.zoom;
         
         // Check if we're dropping on a connection point
+        // First check if we already have a hovered connection point, then try to find one at the current position,
+        // and finally check for nearby connection points with a larger radius
         const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y) || findNearbyConnectionPoint(x, y);
         
         if (connectionPointData) {
-          // Create a connection between the line endpoint and the connection point
-          createConnection({
-            sourceNodeId: selectedLineEndpoint.nodeId,
-            sourcePointIndex: selectedLineEndpoint.pointIndex,
-            targetNodeId: connectionPointData.nodeId,
-            targetPosition: connectionPointData.position
-          });
-          
-          // Get the connection point position
-          const targetNode = displayNodes?.find(n => n.id === connectionPointData.nodeId);
-          if (targetNode) {
-            const connectionPoint = calculateConnectionPointPosition(targetNode, connectionPointData.position);
-            
-            // Snap the line endpoint to the connection point
-            moveLinePoint(
-              selectedLineEndpoint.nodeId,
-              selectedLineEndpoint.pointIndex,
-              connectionPoint.x,
-              connectionPoint.y
-            );
-          }
+          // Use the unified helper function to connect the line endpoint to the connection point
+          connectLineToPoint(
+            selectedLineEndpoint.nodeId,
+            selectedLineEndpoint.pointIndex,
+            connectionPointData
+          );
         }
       }
     }
@@ -814,6 +797,8 @@ const Canvas: React.FC<CanvasProps> = ({
     setIsMovingNode(false);
     setActiveNodeId(null);
     setActivePointData(null);
+    // Clear the hovered connection point when mouse up
+    setHoveredConnectionPoint(null);
     
     // If we were selecting, finalize the selection
     if (isSelecting && selectionBox) {
@@ -844,46 +829,24 @@ const Canvas: React.FC<CanvasProps> = ({
         const x = (e.clientX - rect.left - transform.x) / transform.zoom;
         const y = (e.clientY - rect.top - transform.y) / transform.zoom;
         
-        // Try to find a connection point at the current mouse position
-        const connectionPointData = findConnectionPointAtPosition(x, y);
+        // First check if we already have a hovered connection point, then try to find one at the current position,
+        // and finally check for nearby connection points with a larger radius
+        const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y) || findNearbyConnectionPoint(x, y);
         
         if (connectionPointData) {
-          // We found a connection point, connect the line to it
-          const { nodeId, position } = connectionPointData;
-          const node = displayNodes?.find(n => n.id === nodeId);
-          
-          if (node) {
-            // Calculate the exact connection point position
-            const connectionPoint = calculateConnectionPointPosition(node, position);
-            
-            // Update the line to end at this connection point
-            updateLineDraw(connectionPoint.x, connectionPoint.y, isShiftPressed);
-            
-            // Store the connection information
-            const lineId = lineInProgress.id;
-            const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
-            
-            // Add the connection to the store
-            useCanvasStore.setState(state => {
-              state.connections.push({
-                lineId,
-                pointIndex,
-                shapeId: nodeId,
-                position,
-                dynamic: true
-              });
-              return state;
-            });
-          }
+          // Use the unified helper function to connect the line endpoint to the connection point
+          const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
+          connectLineToPoint(
+            lineInProgress.id,
+            pointIndex,
+            connectionPointData
+          );
         }
       }
       
       setIsDrawingLine(false);
       finishLineDraw();
     }
-    
-    // Reset hovered connection point
-    setHoveredConnectionPoint(null);
     
     setSelectedLineEndpoint(null);
     setIsDragging(false);
@@ -1011,23 +974,13 @@ const Canvas: React.FC<CanvasProps> = ({
       
       if (lineInProgress) {
         // If we already have a line in progress, finish it at this connection point
-        updateLineDraw(connectionPoint.x, connectionPoint.y, isShiftPressed);
-        
-        // Store the connection information before finishing the line
-        const lineId = lineInProgress.id;
+        // Use the unified helper function to connect the line endpoint to the connection point
         const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
-        
-        // Add the connection to the store
-        useCanvasStore.setState(state => {
-          state.connections.push({
-            lineId,
-            pointIndex,
-            shapeId: nodeId,
-            position,
-            dynamic: true
-          });
-          return state;
-        });
+        connectLineToPoint(
+          lineInProgress.id,
+          pointIndex,
+          { nodeId, position }
+        );
         
         finishLineDraw();
       } else {
@@ -1038,15 +991,11 @@ const Canvas: React.FC<CanvasProps> = ({
         // Store the connection information for the start point
         const lineId = useCanvasStore.getState().lineInProgress?.id;
         if (lineId) {
-          useCanvasStore.setState(state => {
-            state.connections.push({
-              lineId,
-              pointIndex: 0, // First point of the line
-              shapeId: nodeId,
-              position,
-              dynamic: true
-            });
-            return state;
+          createConnection({
+            sourceNodeId: lineId,
+            sourcePointIndex: 0, // First point of the line
+            targetNodeId: nodeId,
+            targetPosition: position
           });
         }
       }
@@ -1119,9 +1068,29 @@ const Canvas: React.FC<CanvasProps> = ({
     }) || [];
     
     // Use a larger radius for nearby detection
-    const nearbyRadius = 40; // Increased from 30 to 40 for better detection
+    const nearbyRadius = 50; // Increased from 40 to 50 for better detection
+    
+    // First check if there's a currently hovered connection point
+    if (hoveredConnectionPoint) {
+      const node = displayNodes?.find(n => n.id === hoveredConnectionPoint.nodeId);
+      if (node) {
+        const connectionPoint = calculateConnectionPointPosition(node, hoveredConnectionPoint.position);
+        const distance = Math.sqrt(
+          Math.pow(x - connectionPoint.x, 2) + 
+          Math.pow(y - connectionPoint.y, 2)
+        );
+        
+        // If we're still reasonably close to the hovered point, prioritize it
+        if (distance <= nearbyRadius * 1.5) {
+          return hoveredConnectionPoint;
+        }
+      }
+    }
     
     // Check each node for connection points
+    let closestPoint: { nodeId: string; position: ConnectionPointPosition; distance: number } | null = null;
+    let minDistance = nearbyRadius;
+    
     for (const node of nodesWithConnectionPoints) {
       if (!node.dimensions) continue;
       
@@ -1138,17 +1107,58 @@ const Canvas: React.FC<CanvasProps> = ({
           Math.pow(y - connectionPoint.y, 2)
         );
         
-        // If mouse is close enough to the connection point, return it
-        if (distance <= nearbyRadius) {
-          return {
+        // If mouse is close enough to the connection point and it's closer than any previous point
+        if (distance <= nearbyRadius && distance < minDistance) {
+          minDistance = distance;
+          closestPoint = {
             nodeId: node.id,
-            position
+            position,
+            distance
           };
         }
       }
     }
     
-    return null;
+    return closestPoint;
+  };
+  
+  // Helper function to connect a line endpoint to a connection point
+  // This unifies the logic for both new lines and existing lines
+  const connectLineToPoint = (
+    lineId: string,
+    pointIndex: number,
+    connectionPointData: { nodeId: string; position: ConnectionPointPosition }
+  ) => {
+    const { nodeId, position } = connectionPointData;
+    const node = displayNodes?.find(n => n.id === nodeId);
+    
+    if (!node) return;
+    
+    // Calculate the exact connection point position
+    const connectionPoint = calculateConnectionPointPosition(node, position);
+    
+    // Create the connection in the store
+    createConnection({
+      sourceNodeId: lineId,
+      sourcePointIndex: pointIndex,
+      targetNodeId: nodeId,
+      targetPosition: position
+    });
+    
+    // If this is a line in progress (new line being drawn)
+    if (lineInProgress && lineId === lineInProgress.id) {
+      // Update the line to end at this connection point
+      // Pass false for isShiftPressed to ensure we don't apply angle constraints
+      updateLineDraw(connectionPoint.x, connectionPoint.y, false);
+    } else {
+      // This is an existing line, move the point directly
+      moveLinePoint(
+        lineId,
+        pointIndex,
+        connectionPoint.x,
+        connectionPoint.y
+      );
+    }
   };
   
   return (

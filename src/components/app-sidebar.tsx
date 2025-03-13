@@ -7,7 +7,6 @@ import {
   GalleryVerticalEnd,
   FormInput,
   Table,
-  LayoutDashboard,
   Badge,
   Presentation,
 } from "lucide-react"
@@ -51,56 +50,49 @@ const data = {
   ],
   navMain: [
     {
-      title: "Workspace",
-      url: "/workspace",
-      icon: LayoutDashboard,
+      title: "Canvas",
+      url: "/canvas",
+      icon: Presentation,
       isActive: true,
+    },
+    {
+      title: "Forms",
+      url: "/forms",
+      icon: FormInput,
       items: [
         {
-          title: "Canvas",
-          url: "/workspace/canvas",
-          icon: Presentation,
+          title: "Basic",
+          url: "/forms/basic",
         },
         {
-          title: "Forms",
-          url: "/workspace/forms",
-          icon: FormInput,
-          items: [
-            {
-              title: "Basic",
-              url: "/workspace/forms/basic",
-            },
-            {
-              title: "Advanced",
-              url: "/workspace/forms/advanced",
-            },
-          ],
-        },
-        {
-          title: "Tables",
-          url: "/workspace/tables",
-          icon: Table,
-          items: [
-            {
-              title: "Table 1",
-              url: "/workspace/tables/1",
-            },
-            {
-              title: "Table 2",
-              url: "/workspace/tables/2",
-            },
-            {
-              title: "Table 3",
-              url: "/workspace/tables/3",
-            },
-          ],
-        },
-        {
-          title: "UI Stuff",
-          url: "/workspace/ui-stuff",
-          icon: Badge,
+          title: "Advanced",
+          url: "/forms/advanced",
         },
       ],
+    },
+    {
+      title: "Tables",
+      url: "/tables",
+      icon: Table,
+      items: [
+        {
+          title: "Table 1",
+          url: "/tables/1",
+        },
+        {
+          title: "Table 2",
+          url: "/tables/2",
+        },
+        {
+          title: "Table 3",
+          url: "/tables/3",
+        },
+      ],
+    },
+    {
+      title: "UI Stuff",
+      url: "/ui-stuff",
+      icon: Badge,
     },
   ],      
 }

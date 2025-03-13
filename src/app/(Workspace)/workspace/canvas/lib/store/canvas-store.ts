@@ -2310,54 +2310,46 @@ export const useCanvasStore = create<CanvasState>()(
         const relativeX = x - line.position.x;
         const relativeY = y - line.position.y;
         
-        // Apply grid snapping if enabled
-        let snappedX = state.snapToGrid 
-          ? Math.round(relativeX / state.gridSize) * state.gridSize 
-          : relativeX;
-        let snappedY = state.snapToGrid 
-          ? Math.round(relativeY / state.gridSize) * state.gridSize 
-          : relativeY;
+        // Check if this is a direct connection point coordinate
+        // If isShiftPressed is explicitly false (not just falsy), we're connecting to a connection point
+        // and should use exact coordinates without any snapping or constraints
+        const isExactConnectionPoint = isShiftPressed === false;
+        
+        // Apply grid snapping if enabled and not connecting to a connection point
+        let snappedX = isExactConnectionPoint ? relativeX : 
+          (state.snapToGrid ? Math.round(relativeX / state.gridSize) * state.gridSize : relativeX);
+        let snappedY = isExactConnectionPoint ? relativeY :
+          (state.snapToGrid ? Math.round(relativeY / state.gridSize) * state.gridSize : relativeY);
         
         // If shift is pressed, constrain to perfect angles
         if (isShiftPressed && line.points && line.points.length > 0) {
-          const startPoint = line.points[0];
-          const dx = snappedX - startPoint.x;
-          const dy = snappedY - startPoint.y;
+          const lastPoint = line.points[line.points.length - 2]; // Get the previous point
+          const dx = snappedX - lastPoint.x;
+          const dy = snappedY - lastPoint.y;
+          
+          // Calculate the angle
           const angle = Math.atan2(dy, dx);
           
-          // Snap to 45-degree increments (π/4 radians)
-          const SHIFT_LOCKING_ANGLE = Math.PI / 4;
-          const snappedAngle = Math.round(angle / SHIFT_LOCKING_ANGLE) * SHIFT_LOCKING_ANGLE;
+          // Snap to 45-degree increments
+          const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
           
-          // Calculate distance from start point
+          // Calculate the distance
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          // If angle is horizontal (0 or π)
-          if (snappedAngle === 0 || Math.abs(snappedAngle) === Math.PI) {
-            snappedY = startPoint.y;
-            snappedX = startPoint.x + (snappedAngle === 0 ? distance : -distance);
-          } 
-          // If angle is vertical (π/2 or -π/2)
-          else if (Math.abs(snappedAngle) === Math.PI / 2) {
-            snappedX = startPoint.x;
-            snappedY = startPoint.y + (snappedAngle === Math.PI / 2 ? distance : -distance);
-          } 
-          // If angle is diagonal
-          else {
-            const diagDistance = distance / Math.sqrt(2); // Adjust for 45-degree angle
-            snappedX = startPoint.x + diagDistance * Math.cos(snappedAngle);
-            snappedY = startPoint.y + diagDistance * Math.sin(snappedAngle);
-            
-            // Re-apply grid snapping if enabled
-            if (state.snapToGrid) {
-              snappedX = Math.round(snappedX / state.gridSize) * state.gridSize;
-              snappedY = Math.round(snappedY / state.gridSize) * state.gridSize;
-            }
+          // Calculate the new point position
+          snappedX = lastPoint.x + Math.cos(snappedAngle) * distance;
+          snappedY = lastPoint.y + Math.sin(snappedAngle) * distance;
+          
+          // Re-apply grid snapping if enabled
+          if (state.snapToGrid) {
+            snappedX = Math.round(snappedX / state.gridSize) * state.gridSize;
+            snappedY = Math.round(snappedY / state.gridSize) * state.gridSize;
           }
         }
         
         // Update the last point
         if (line.points && line.points.length > 0) {
+          // If this is an exact connection point, use the exact relative coordinates
           line.points[line.points.length - 1] = { x: snappedX, y: snappedY };
           
           // Use the utility function to calculate the bounding box
