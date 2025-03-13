@@ -223,6 +223,50 @@ const Canvas: React.FC<CanvasProps> = ({
     const boxTop = Math.min(selectionBox.start.y, selectionBox.end.y);
     const boxBottom = Math.max(selectionBox.start.y, selectionBox.end.y);
     
+    // Special handling for line and arrow nodes
+    if ((node.type === 'line' || node.type === 'arrow') && node.points && node.points.length > 1) {
+      // Check if any segment of the line intersects with the selection box
+      for (let i = 0; i < node.points.length - 1; i++) {
+        const p1 = {
+          x: node.position.x + node.points[i].x,
+          y: node.position.y + node.points[i].y
+        };
+        const p2 = {
+          x: node.position.x + node.points[i + 1].x,
+          y: node.position.y + node.points[i + 1].y
+        };
+        
+        // Check if either endpoint is inside the box
+        const p1Inside = 
+          p1.x >= boxLeft && p1.x <= boxRight && 
+          p1.y >= boxTop && p1.y <= boxBottom;
+        
+        const p2Inside = 
+          p2.x >= boxLeft && p2.x <= boxRight && 
+          p2.y >= boxTop && p2.y <= boxBottom;
+        
+        // If either endpoint is inside, the segment intersects
+        if (p1Inside || p2Inside) {
+          return true;
+        }
+        
+        // Check if the line segment intersects any of the four edges of the selection box
+        // Line-line intersection check for all four edges of the selection box
+        if (
+          lineSegmentsIntersect(p1.x, p1.y, p2.x, p2.y, boxLeft, boxTop, boxRight, boxTop) || // Top edge
+          lineSegmentsIntersect(p1.x, p1.y, p2.x, p2.y, boxLeft, boxBottom, boxRight, boxBottom) || // Bottom edge
+          lineSegmentsIntersect(p1.x, p1.y, p2.x, p2.y, boxLeft, boxTop, boxLeft, boxBottom) || // Left edge
+          lineSegmentsIntersect(p1.x, p1.y, p2.x, p2.y, boxRight, boxTop, boxRight, boxBottom)   // Right edge
+        ) {
+          return true;
+        }
+      }
+      
+      // No segments intersect
+      return false;
+    }
+    
+    // Regular bounding box check for other shapes
     const nodeLeft = node.position.x;
     const nodeRight = node.position.x + node.dimensions.width;
     const nodeTop = node.position.y;
@@ -234,6 +278,31 @@ const Canvas: React.FC<CanvasProps> = ({
       nodeTop < boxBottom &&
       nodeBottom > boxTop
     );
+  };
+  
+  // Helper function to check if two line segments intersect
+  const lineSegmentsIntersect = (
+    x1: number, y1: number, x2: number, y2: number, // First line segment
+    x3: number, y3: number, x4: number, y4: number  // Second line segment
+  ): boolean => {
+    // Calculate the direction of the lines
+    const d1x = x2 - x1;
+    const d1y = y2 - y1;
+    const d2x = x4 - x3;
+    const d2y = y4 - y3;
+    
+    // Calculate the determinant
+    const det = d1x * d2y - d1y * d2x;
+    
+    // If determinant is zero, lines are parallel
+    if (det === 0) return false;
+    
+    // Calculate the parameters for the intersection point
+    const s = ((x1 - x3) * d2y - (y1 - y3) * d2x) / det;
+    const t = ((x1 - x3) * d1y - (y1 - y3) * d1x) / det;
+    
+    // Check if the intersection point is within both line segments
+    return s >= 0 && s <= 1 && t >= 0 && t <= 1;
   };
   
   // Helper function to check if a point is under the cursor
@@ -364,12 +433,41 @@ const Canvas: React.FC<CanvasProps> = ({
       }
     }
     
-    // Then check regular nodes
+    // Check for line segments first - use proximity detection instead of bounding box
+    for (let i = displayNodes.length - 1; i >= 0; i--) {
+      const node = displayNodes[i];
+      
+      // For lines and arrows, check if the click is close to any segment
+      if ((node.type === 'line' || node.type === 'arrow') && node.points && node.points.length > 1) {
+        // Check each segment of the line
+        for (let j = 0; j < node.points.length - 1; j++) {
+          const p1 = {
+            x: node.position.x + node.points[j].x,
+            y: node.position.y + node.points[j].y
+          };
+          const p2 = {
+            x: node.position.x + node.points[j + 1].x,
+            y: node.position.y + node.points[j + 1].y
+          };
+          
+          // Calculate distance from click to this line segment
+          const distance = distanceToLineSegment(x, y, p1.x, p1.y, p2.x, p2.y);
+          
+          // If click is close enough to the line segment (within 10px / zoom), return this node
+          if (distance * transform.zoom <= 10) {
+            return node;
+          }
+        }
+      }
+    }
+    
+    // Then check regular nodes using bounding box
     for (let i = displayNodes.length - 1; i >= 0; i--) {
       const node = displayNodes[i];
       const { position, dimensions, parentId } = node;
       
-      if (parentId || node.data?.isGroup === true) continue;
+      // Skip lines (already checked above), groups, and nodes with parents
+      if (parentId || node.data?.isGroup === true || node.type === 'line' || node.type === 'arrow') continue;
       
       if (!dimensions) continue;
       
@@ -585,13 +683,39 @@ const Canvas: React.FC<CanvasProps> = ({
           
           setNodeStartPos(startPositions);
         } else {
-          setIsSelecting(true);
-          setSelectionBox({
-            start: { x, y },
-            end: { x, y }
-          });
-          deselectAllNodes();
-          deselectLinePoints();
+          // Check if we're clicking within the bounding box of an already selected line
+          // This allows dragging a selected line by its bounding box
+          const selectedLineNode = displayNodes?.find(node => 
+            node.selected && 
+            (node.type === 'line' || node.type === 'arrow') && 
+            node.dimensions &&
+            x >= node.position.x && 
+            x <= node.position.x + node.dimensions.width && 
+            y >= node.position.y && 
+            y <= node.position.y + node.dimensions.height
+          );
+          
+          if (selectedLineNode) {
+            setIsMovingNode(true);
+            setActiveNodeId(selectedLineNode.id);
+            setLastMousePos({ x: e.clientX, y: e.clientY });
+            
+            const startPositions: Record<string, { x: number, y: number }> = {};
+            startPositions[selectedLineNode.id] = {
+              x: selectedLineNode.position.x,
+              y: selectedLineNode.position.y
+            };
+            
+            setNodeStartPos(startPositions);
+          } else {
+            setIsSelecting(true);
+            setSelectionBox({
+              start: { x, y },
+              end: { x, y }
+            });
+            deselectAllNodes();
+            deselectLinePoints();
+          }
         }
       }
     }

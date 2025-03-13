@@ -62,14 +62,24 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
                            !data?.isGroup && 
                            !node.points;
 
+  // For line and arrow shapes, we want to make the container non-interactive
+  // so that clicks only register on the actual line segments (handled in Canvas.tsx)
+  const isLineShape = ['line', 'arrow'].includes(type) && node.points && node.points.length >= 2;
+  
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
     left: `${position.x}px`,
     top: `${position.y}px`,
-    width: `${dimensions.width}px`,
-    height: `${dimensions.height}px`,
-    pointerEvents: pointerEventsValue,
-    zIndex: isSelected ? 10 : 1, // Ensure selected nodes are on top
+    width: dimensions ? `${dimensions.width}px` : 'auto',
+    height: dimensions ? `${dimensions.height}px` : 'auto',
+    zIndex: isSelected ? 10 : 1,
+    pointerEvents: isLineShape && !isSelected ? 'none' : pointerEventsValue,
+    cursor: isSelected ? 'move' : 'default',
+    userSelect: 'none',
+    touchAction: 'none',
+    boxSizing: 'border-box',
+    // Only show outline for selected shapes that aren't lines
+    outline: isSelected && !isLineShape ? '1px solid hsl(var(--border))' : 'none',
   };
 
   const baseStyle: React.CSSProperties = {

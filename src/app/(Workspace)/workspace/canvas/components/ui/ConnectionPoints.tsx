@@ -119,8 +119,6 @@ const getCommonHandleStyle = (isHovered: boolean): React.CSSProperties => {
     height: size,
     backgroundColor: 'hsl(var(--background))',
     border: '1px solid hsl(var(--border))',
-    // backgroundColor: isHovered ? 'hsl(var(--primary))' : 'hsl(var(--background))',
-    // border: isHovered ? '3px solid hsl(var(--background))' : '3px solid hsl(var(--primary))',
     borderRadius: '50%', // Make them circular
     zIndex: isHovered ? 1001 : 1000,
     pointerEvents: 'auto',

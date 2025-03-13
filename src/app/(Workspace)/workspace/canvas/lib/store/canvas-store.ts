@@ -1025,7 +1025,7 @@ export const useCanvasStore = create<CanvasState>()(
     transform: { x: 0, y: 0, zoom: 1 },
     activeTool: 'select',
     gridSize: 20,
-    snapToGrid: true,
+    snapToGrid: false,
     strokeColor: 'white',
     fillColor: 'none',
     defaultShade: '500',
