@@ -70,9 +70,6 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     height: `${dimensions.height}px`,
     pointerEvents: pointerEventsValue,
     zIndex: isSelected ? 10 : 1, // Ensure selected nodes are on top
-    // Add a subtle highlight for potential connection targets
-    boxShadow: isPotentialTarget ? '0 0 0 2px hsl(var(--primary) / 0.3)' : 'none',
-    transition: 'box-shadow 0.2s ease-in-out',
   };
 
   const baseStyle: React.CSSProperties = {
