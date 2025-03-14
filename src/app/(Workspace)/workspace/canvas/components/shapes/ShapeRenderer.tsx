@@ -4,6 +4,7 @@ import ResizeHandles, { ResizeHandleDirection } from '../ui/ResizeHandles';
 import ConnectionPoints, { ConnectionPointPosition } from '../ui/ConnectionPoints';
 import LineShape from './LineShape';
 import LineResizeHandles from '../ui/LineResizeHandles';
+import TextShape from './TextShape';
 
 interface ShapeRendererProps {
   node: Node;
@@ -14,6 +15,7 @@ interface ShapeRendererProps {
   onConnectionPointClick: (nodeId: string, position: ConnectionPointPosition) => void;
   hoveredConnectionPoint: { nodeId: string; position: ConnectionPointPosition } | null;
   selectedLineEndpoint: { nodeId: string; pointIndex: number } | null;
+  onTextChange?: (nodeId: string, text: string) => void;
 }
 
 const ShapeRenderer: React.FC<ShapeRendererProps> = ({
@@ -24,7 +26,8 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   onResize,
   onConnectionPointClick,
   hoveredConnectionPoint,
-  selectedLineEndpoint
+  selectedLineEndpoint,
+  onTextChange
 }) => {
   const { id, type, position, dimensions, style, data } = node;
 
@@ -161,6 +164,15 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
               strokeDasharray={style?.borderStyle === 'dashed' ? '5,5' : style?.borderStyle === 'dotted' ? '2,2' : 'none'}
             />
           </svg>
+        );
+
+      case 'text':
+        return (
+          <TextShape 
+            node={node} 
+            isSelected={isSelected}
+            onTextChange={onTextChange}
+          />
         );
 
       case 'arrow':

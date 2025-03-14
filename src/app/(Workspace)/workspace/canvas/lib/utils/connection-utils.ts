@@ -47,20 +47,20 @@ export function calculateConnectionPointPosition(
         connectionY = centerY;
         break;
       case 'nw':
-        connectionX = centerX - radius * 0.7071;
-        connectionY = centerY - radius * 0.7071;
+        connectionX = centerX - radius * COS_45_DEG;
+        connectionY = centerY - radius * COS_45_DEG;
         break;
       case 'ne':
-        connectionX = centerX + radius * 0.7071;
-        connectionY = centerY - radius * 0.7071;
+        connectionX = centerX + radius * COS_45_DEG;
+        connectionY = centerY - radius * COS_45_DEG;
         break;
       case 'sw':
-        connectionX = centerX - radius * 0.7071;
-        connectionY = centerY + radius * 0.7071;
+        connectionX = centerX - radius * COS_45_DEG;
+        connectionY = centerY + radius * COS_45_DEG;
         break;
       case 'se':
-        connectionX = centerX + radius * 0.7071;
-        connectionY = centerY + radius * 0.7071;
+        connectionX = centerX + radius * COS_45_DEG;
+        connectionY = centerY + radius * COS_45_DEG;
         break;
     }
   } else if (node.type === 'diamond') {
@@ -154,33 +154,39 @@ export function calculateConnectionPointPosition(
         break;
     }
   } else {
-    // Default rectangle behavior
+    // Default rectangle/text/other shapes
     switch (position) {
       case 'n':
-        connectionX += width / 2;
+        connectionX = x + width / 2;
+        connectionY = y;
         break;
       case 's':
-        connectionX += width / 2;
-        connectionY += height;
+        connectionX = x + width / 2;
+        connectionY = y + height;
         break;
       case 'w':
-        connectionY += height / 2;
+        connectionX = x;
+        connectionY = y + height / 2;
         break;
       case 'e':
-        connectionX += width;
-        connectionY += height / 2;
+        connectionX = x + width;
+        connectionY = y + height / 2;
         break;
       case 'nw':
+        connectionX = x;
+        connectionY = y;
         break;
       case 'ne':
-        connectionX += width;
+        connectionX = x + width;
+        connectionY = y;
         break;
       case 'sw':
-        connectionY += height;
+        connectionX = x;
+        connectionY = y + height;
         break;
       case 'se':
-        connectionX += width;
-        connectionY += height;
+        connectionX = x + width;
+        connectionY = y + height;
         break;
     }
   }

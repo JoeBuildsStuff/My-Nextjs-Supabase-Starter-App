@@ -8,6 +8,7 @@ import LayerControls from '@/app/(Workspace)/workspace/canvas/components/ui/Laye
 import ActionControls from '@/app/(Workspace)/workspace/canvas/components/ui/ActionControls';
 import AlignmentControls from '@/app/(Workspace)/workspace/canvas/components/ui/AlignmentControls';
 import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
+import TextControls from '@/app/(Workspace)/workspace/canvas/components/ui/TextControls';
 
 const SideControls = () => {
   // Get nodes from the canvas store
@@ -24,6 +25,10 @@ const SideControls = () => {
   return (
     <div className="absolute top-1/2 left-4 -translate-y-1/2 space-y-4">
       <Card className="flex flex-col items-left bg-background/80 backdrop-blur-sm p-2 space-y-4">
+
+        {/* Text Controls */}
+        <TextControls />
+
         {/* Color Controls */}
         <ColorControls />
 

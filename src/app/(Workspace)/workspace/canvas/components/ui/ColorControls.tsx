@@ -562,18 +562,28 @@ const ColorControls = () => {
 
     const hsl = getCurrentColorHsl(colorName);
     
+    if (isStroke) {
+      // For stroke trigger, use the same style as the line style toggle group items
+      return (
+        <div 
+          className="w-4 h-4" 
+          style={{ 
+            border: `${strokeWidth}px ${strokeStyle} hsl(${hsl})`,
+            borderRadius: '2px',
+            backgroundColor: 'transparent'
+          }}
+        />
+      );
+    }
+    
+    // For fill trigger, use Square with fill color and border
     return (
       <Square 
         className="h-4 w-4" 
         style={{ 
-          stroke: isStroke ? `hsl(${hsl})` : "hsl(var(--border))",
-          fill: isStroke ? "transparent" : `hsl(${hsl})`,
-          strokeWidth: isStroke ? `${strokeWidth}px` : "1px",
-          strokeDasharray: isStroke && strokeStyle === 'dashed' ? "4,2" : "none",
-          strokeDashoffset: isStroke && strokeStyle === 'dashed' ? "0" : "none",
-          strokeLinecap: isStroke && strokeStyle === 'dotted' ? "round" : "butt",
-          strokeLinejoin: isStroke && strokeStyle === 'dotted' ? "round" : "miter",
-          ...(isStroke && strokeStyle === 'dotted' ? { strokeDasharray: "0,3" } : {})
+          stroke: "hsl(var(--border))",
+          fill: `hsl(${hsl})`,
+          strokeWidth: "1px"
         }} 
       />
     );
@@ -700,7 +710,7 @@ const ColorControls = () => {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {/* Stroke color picker */}
       <div className="flex flex-row items-center justify-between w-full">
         <Label htmlFor="stroke-color" className="text-sm font-medium text-muted-foreground mr-2">Stroke</Label>
@@ -723,7 +733,7 @@ const ColorControls = () => {
                   {renderShadeButtons(selectedStrokeBase, selectedStrokeShade, handleStrokeShadeChange)}
                 </Card>
               
-                {/* Stroke width slider */}
+                {/* Stroke width */}
                 <Card className="p-2 border-none">
                     {/* width buttons */}
                     <div>

@@ -505,7 +505,7 @@ const Canvas: React.FC<CanvasProps> = ({
           (isDraggingPoint && selectedLineEndpoint !== null))) {
       return null;
     }
-    
+
     // Get all nodes that can have connection points (exclude the line in progress and groups)
     const nodesWithConnectionPoints = displayNodes?.filter(node => {
       // Skip the node if:
@@ -570,6 +570,21 @@ const Canvas: React.FC<CanvasProps> = ({
         const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
         
         createShapeAtPosition(activeTool, snappedX, snappedY);
+      }
+    } else if (activeTool === 'text') {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = (e.clientX - rect.left - transform.x) / transform.zoom;
+        const y = (e.clientY - rect.top - transform.y) / transform.zoom;
+        
+        const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
+        const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
+        
+        // Create a new text shape with empty text and isNew flag
+        createShapeAtPosition('text', snappedX, snappedY, { 
+          isNew: true, 
+          text: '' 
+        });
       }
     } else if (['arrow', 'line'].includes(activeTool)) {
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -1663,12 +1678,32 @@ const Canvas: React.FC<CanvasProps> = ({
     return { x: adjustedDx, y: adjustedDy };
   };
   
+  // Handle text change
+  const handleTextChange = (nodeId: string, text: string) => {
+    useCanvasStore.setState(state => {
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (node) {
+        if (!node.data) node.data = {};
+        node.data.text = text;
+        node.data.isNew = false;
+      }
+      return state;
+    });
+    
+    // Push to history after text change
+    useCanvasStore.getState().pushToHistory();
+  };
+  
   return (
     <div 
       ref={canvasRef}
       data-testid="canvas-container"
       className={`relative overflow-hidden bg-background ${className}`}
-      style={{ width: dimensions.width, height: dimensions.height }}
+      style={{ 
+        width: dimensions.width, 
+        height: dimensions.height,
+        cursor: activeTool === 'text' ? 'text' : 'default'  // Add cursor style for text tool
+      }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -1731,6 +1766,7 @@ const Canvas: React.FC<CanvasProps> = ({
             onConnectionPointClick={handleConnectionPointClick}
             hoveredConnectionPoint={hoveredConnectionPoint}
             selectedLineEndpoint={selectedLineEndpoint}
+            onTextChange={handleTextChange}
           />
         ))}
         

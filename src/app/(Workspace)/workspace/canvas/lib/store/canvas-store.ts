@@ -72,6 +72,7 @@ export interface CanvasState {
   borderRadius: number;
   strokeWidth: number;
   strokeStyle: 'solid' | 'dashed' | 'dotted';
+  textColor: string;
   presentationMode: boolean;
   
   // Line drawing state
@@ -145,7 +146,7 @@ export interface CanvasState {
   // Node actions
   addNode: (node: Node) => void;
   selectNode: (nodeId: string) => void;
-  createShapeAtPosition: (type: string, x: number, y: number) => void;
+  createShapeAtPosition: (type: string, x: number, y: number, data?: Record<string, unknown>) => Node;
   updateNodePosition: (nodeId: string, x: number, y: number) => void;
   updateNodeDimensions: (nodeId: string, width: number, height: number, direction?: string) => void;
   
@@ -162,6 +163,17 @@ export interface CanvasState {
   moveLinePoint: (nodeId: string, pointIndex: number, x: number, y: number) => void;
   addPointToExistingLine: (nodeId: string, segmentIndex: number, x: number, y: number) => void;
   deleteSelectedPoints: () => void;
+  
+  // Text properties
+  fontSize: number;
+  textAlign: 'left' | 'center' | 'right';
+  verticalAlign: 'top' | 'middle' | 'bottom';  // Add this line
+  
+  // Text actions
+  setTextColor: (color: string) => void;
+  setFontSize: (size: number) => void;
+  setTextAlign: (align: 'left' | 'center' | 'right') => void;
+  setVerticalAlign: (align: 'top' | 'middle' | 'bottom') => void;  // Add this line
 }
 
 // Helper function to convert Tailwind color names to CSS color values
@@ -1032,8 +1044,8 @@ export const useCanvasStore = create<CanvasState>()(
     borderRadius: 8,
     strokeWidth: 2,
     strokeStyle: 'solid',
+    textColor: 'hsl(var(--foreground))',
     presentationMode: false,
-    
     // Line drawing state
     lineInProgress: null,
     selectedPointIndices: null,
@@ -1678,21 +1690,19 @@ export const useCanvasStore = create<CanvasState>()(
         }
       }),
       
-    createShapeAtPosition: (type, x, y) =>
+    createShapeAtPosition: (type, x, y, data = {}) => {
+      let createdNode: Node | null = null;
+      
       set((state) => {
-        console.log('createShapeAtPosition called with type:', type, 'at position:', x, y);
-        
-        // We'll handle history at the end of this function
-        // Don't push to history here to avoid double-pushing
-        
         // Generate a unique ID for the new node
         const id = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        console.log('Generated node ID:', id);
         
         // Default dimensions for different shape types
         let dimensions = { width: 100, height: 100 };
         if (type === 'line' || type === 'arrow') {
           dimensions = { width: 150, height: 2 };
+        } else if (type === 'text') {
+          dimensions = { width: 200, height: 38 };
         }
         
         // Create the new node
@@ -1700,23 +1710,28 @@ export const useCanvasStore = create<CanvasState>()(
           id,
           type,
           position: { x, y },
-          data: {},
+          data: {
+            ...data,
+            // Mark text shapes as new when they're first created
+            ...(type === 'text' ? { isNew: true } : {})
+          },
           dimensions,
           selected: true,
           style: {
             backgroundColor: getTailwindColor(state.fillColor),
             borderColor: getTailwindColor(state.strokeColor),
-            borderWidth: state.strokeWidth,
+            borderWidth: type === 'text' ? 0 : state.strokeWidth,
             borderRadius: `${state.borderRadius}px`,
             borderStyle: state.strokeStyle,
+            textColor: 'hsl(var(--foreground))',
+            fontSize: '14px',
+            fontFamily: 'sans-serif',
+            textAlign: 'left',
           }
         };
         
-        console.log('Created new node:', newNode);
-        
         // Add the node to the canvas
         state.nodes.push(newNode);
-        console.log('Total nodes after adding:', state.nodes.length);
         
         // Select the new node
         state.nodes.forEach(node => {
@@ -1725,13 +1740,13 @@ export const useCanvasStore = create<CanvasState>()(
         
         state.selectedElements = [newNode];
         
-        // Switch to select tool after creating a shape
+        // Switch to select tool for all shapes
         state.activeTool = 'select';
-        console.log('Switched to select tool');
         
-        // Push the new state to history
-        // We don't call pushToHistory here to avoid double-pushing
-        // Instead, we'll manually update the history
+        // Store the created node
+        createdNode = newNode;
+        
+        // Handle history
         const newState = {
           nodes: deepClone(state.nodes),
           edges: deepClone(state.edges),
@@ -1751,10 +1766,11 @@ export const useCanvasStore = create<CanvasState>()(
         // Add the new state to history
         state.history.push(newState);
         state.historyIndex = state.history.length - 1;
-        
-        console.log('After shape creation: index:', state.historyIndex, 'history length:', state.history.length);
-      }),
+      });
       
+      return createdNode!;
+    },
+    
     updateNodePosition: (nodeId, x, y) => {
       set(state => {
         const node = state.nodes.find(n => n.id === nodeId);
@@ -2682,5 +2698,59 @@ export const useCanvasStore = create<CanvasState>()(
           };
         }
       }),
+    
+    // Text state
+    fontSize: 14,
+    textAlign: 'left' as const,
+    verticalAlign: 'top' as const,  // Add this line
+    
+    // Text actions
+    setTextColor: (color: string) => {
+      set(state => {
+        state.textColor = color;
+        state.nodes.forEach(node => {
+          if (node.selected && node.type === 'text') {
+            if (!node.style) node.style = {};
+            node.style.textColor = color;
+          }
+        });
+      });
+    },
+    
+    setFontSize: (size: number) => {
+      set(state => {
+        state.fontSize = size;
+        state.nodes.forEach(node => {
+          if (node.selected && node.type === 'text') {
+            if (!node.style) node.style = {};
+            node.style.fontSize = `${size}px`;
+          }
+        });
+      });
+    },
+    
+    setTextAlign: (align: 'left' | 'center' | 'right') => {
+      set(state => {
+        state.textAlign = align;
+        state.nodes.forEach(node => {
+          if (node.selected && node.type === 'text') {
+            if (!node.style) node.style = {};
+            node.style.textAlign = align;
+          }
+        });
+      });
+    },
+    
+    setVerticalAlign: (align: 'top' | 'middle' | 'bottom') => {
+      set(state => {
+        state.verticalAlign = align;
+        state.nodes.forEach(node => {
+          if (node.selected && node.type === 'text') {
+            if (!node.style) node.style = {};
+            node.style.verticalAlign = align;
+          }
+        });
+      });
+    },
   }))
 ); 
