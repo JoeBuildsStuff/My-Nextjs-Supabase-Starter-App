@@ -1,6 +1,4 @@
-
-import { v4 as uuidv4 } from 'uuid';
-import { getTailwindColor } from './color-utils';
+import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
 import { 
@@ -208,15 +206,356 @@ const initialStrokeDefaultShade = isDarkMode ? '300' : '800';
 const initialFillDefaultShade = isDarkMode ? '800' : '300';
 
 // Helper function to convert Tailwind color names to CSS color values
-// This function is now imported from color-utils.ts, so we can remove this duplicate definition
-// const getTailwindColor = (colorName: string): string => {
-//   // Special case for "none" color
-//   if (colorName === 'none') {
-//     return 'transparent';
-//   }
-//   
-//   // ... rest of the function ...
-// };
+const getTailwindColor = (colorName: string): string => {
+  // Special case for "none" color
+  if (colorName === "none") {
+    return "transparent";
+  }
+
+  // Handle basic colors
+  if (colorName === "black") return "#000000"; // Pure black (equivalent to black-950)
+  if (colorName === "white") return "#FFFFFF"; // Pure white (equivalent to white-100)
+
+  // Handle color with shade (e.g., "red-500")
+  const parts = colorName.split('-');
+  if (parts.length === 2) {
+    const [colorBase, shade] = parts;
+    
+    // Handle black shades (black-100 is lightest, black-950 is darkest)
+    if (colorBase === 'black') {
+      const blackShades: Record<string, string> = {
+        '100': '#e6e6e6', // Very light gray (90% white)
+        '200': '#cccccc', // Light gray (80% white)
+        '300': '#b3b3b3', // (70% white)
+        '400': '#999999', // (60% white)
+        '500': '#808080', // Medium gray (50% white)
+        '600': '#666666', // (40% white)
+        '700': '#4d4d4d', // (30% white)
+        '800': '#333333', // (20% white)
+        '900': '#1a1a1a', // Very dark gray (10% white)
+        '950': '#000000', // Pure black
+      };
+      return blackShades[shade] || '#000000';
+    }
+    
+    // Handle white shades (white-100 is lightest, white-950 is darkest)
+    if (colorBase === 'white') {
+      const whiteShades: Record<string, string> = {
+        '100': '#ffffff', // Pure white
+        '200': '#fafafa', // (98% white)
+        '300': '#f5f5f5', // (96% white)
+        '400': '#f0f0f0', // (94% white)
+        '500': '#ebebeb', // (92% white)
+        '600': '#e0e0e0', // (88% white)
+        '700': '#d6d6d6', // (84% white)
+        '800': '#cccccc', // (80% white)
+        '900': '#bfbfbf', // (75% white)
+        '950': '#b3b3b3', // Light gray (70% white)
+      };
+      return whiteShades[shade] || '#ffffff';
+    }
+    
+    // Tailwind color hex values for all shades
+    const colorShades: Record<string, Record<string, string>> = {
+      slate: {
+        '100': '#f1f5f9',
+        '200': '#e2e8f0',
+        '300': '#cbd5e1',
+        '400': '#94a3b8',
+        '500': '#64748b',
+        '600': '#475569',
+        '700': '#334155',
+        '800': '#1e293b',
+        '900': '#0f172a',
+        '950': '#020617',
+      },
+      gray: {
+        '100': '#f3f4f6',
+        '200': '#e5e7eb',
+        '300': '#d1d5db',
+        '400': '#9ca3af',
+        '500': '#6b7280',
+        '600': '#4b5563',
+        '700': '#374151',
+        '800': '#1f2937',
+        '900': '#111827',
+        '950': '#030712',
+      },
+      zinc: {
+        '100': '#f4f4f5',
+        '200': '#e4e4e7',
+        '300': '#d4d4d8',
+        '400': '#a1a1aa',
+        '500': '#71717a',
+        '600': '#52525b',
+        '700': '#3f3f46',
+        '800': '#27272a',
+        '900': '#18181b',
+        '950': '#09090b',
+      },
+      neutral: {
+        '100': '#f5f5f5',
+        '200': '#e5e5e5',
+        '300': '#d4d4d4',
+        '400': '#a3a3a3',
+        '500': '#737373',
+        '600': '#525252',
+        '700': '#404040',
+        '800': '#262626',
+        '900': '#171717',
+        '950': '#0a0a0a',
+      },
+      stone: {
+        '100': '#f5f5f4',
+        '200': '#e7e5e4',
+        '300': '#d6d3d1',
+        '400': '#a8a29e',
+        '500': '#78716c',
+        '600': '#57534e',
+        '700': '#44403c',
+        '800': '#292524',
+        '900': '#1c1917',
+        '950': '#0c0a09',
+      },
+      red: {
+        '100': '#fee2e2',
+        '200': '#fecaca',
+        '300': '#fca5a5',
+        '400': '#f87171',
+        '500': '#ef4444',
+        '600': '#dc2626',
+        '700': '#b91c1c',
+        '800': '#991b1b',
+        '900': '#7f1d1d',
+        '950': '#450a0a',
+      },
+      orange: {
+        '100': '#ffedd5',
+        '200': '#fed7aa',
+        '300': '#fdba74',
+        '400': '#fb923c',
+        '500': '#f97316',
+        '600': '#ea580c',
+        '700': '#c2410c',
+        '800': '#9a3412',
+        '900': '#7c2d12',
+        '950': '#431407',
+      },
+      amber: {
+        '100': '#fef3c7',
+        '200': '#fde68a',
+        '300': '#fcd34d',
+        '400': '#fbbf24',
+        '500': '#f59e0b',
+        '600': '#d97706',
+        '700': '#b45309',
+        '800': '#92400e',
+        '900': '#78350f',
+        '950': '#451a03',
+      },
+      yellow: {
+        '100': '#fef9c3',
+        '200': '#fef08a',
+        '300': '#fde047',
+        '400': '#facc15',
+        '500': '#eab308',
+        '600': '#ca8a04',
+        '700': '#a16207',
+        '800': '#854d0e',
+        '900': '#713f12',
+        '950': '#422006',
+      },
+      lime: {
+        '100': '#ecfccb',
+        '200': '#d9f99d',
+        '300': '#bef264',
+        '400': '#a3e635',
+        '500': '#84cc16',
+        '600': '#65a30d',
+        '700': '#4d7c0f',
+        '800': '#3f6212',
+        '900': '#365314',
+        '950': '#1a2e05',
+      },
+      green: {
+        '100': '#dcfce7',
+        '200': '#bbf7d0',
+        '300': '#86efac',
+        '400': '#4ade80',
+        '500': '#22c55e',
+        '600': '#16a34a',
+        '700': '#15803d',
+        '800': '#166534',
+        '900': '#14532d',
+        '950': '#052e16',
+      },
+      emerald: {
+        '100': '#d1fae5',
+        '200': '#a7f3d0',
+        '300': '#6ee7b7',
+        '400': '#34d399',
+        '500': '#10b981',
+        '600': '#059669',
+        '700': '#047857',
+        '800': '#065f46',
+        '900': '#064e3b',
+        '950': '#022c22',
+      },
+      teal: {
+        '100': '#ccfbf1',
+        '200': '#99f6e4',
+        '300': '#5eead4',
+        '400': '#2dd4bf',
+        '500': '#14b8a6',
+        '600': '#0d9488',
+        '700': '#0f766e',
+        '800': '#115e59',
+        '900': '#134e4a',
+        '950': '#042f2e',
+      },
+      cyan: {
+        '100': '#cffafe',
+        '200': '#a5f3fc',
+        '300': '#67e8f9',
+        '400': '#22d3ee',
+        '500': '#06b6d4',
+        '600': '#0891b2',
+        '700': '#0e7490',
+        '800': '#155e75',
+        '900': '#164e63',
+        '950': '#083344',
+      },
+      sky: {
+        '100': '#e0f2fe',
+        '200': '#bae6fd',
+        '300': '#7dd3fc',
+        '400': '#38bdf8',
+        '500': '#0ea5e9',
+        '600': '#0284c7',
+        '700': '#0369a1',
+        '800': '#075985',
+        '900': '#0c4a6e',
+        '950': '#082f49',
+      },
+      blue: {
+        '100': '#dbeafe',
+        '200': '#bfdbfe',
+        '300': '#93c5fd',
+        '400': '#60a5fa',
+        '500': '#3b82f6',
+        '600': '#2563eb',
+        '700': '#1d4ed8',
+        '800': '#1e40af',
+        '900': '#1e3a8a',
+        '950': '#172554',
+      },
+      indigo: {
+        '100': '#e0e7ff',
+        '200': '#c7d2fe',
+        '300': '#a5b4fc',
+        '400': '#818cf8',
+        '500': '#6366f1',
+        '600': '#4f46e5',
+        '700': '#4338ca',
+        '800': '#3730a3',
+        '900': '#312e81',
+        '950': '#1e1b4b',
+      },
+      violet: {
+        '100': '#ede9fe',
+        '200': '#ddd6fe',
+        '300': '#c4b5fd',
+        '400': '#a78bfa',
+        '500': '#8b5cf6',
+        '600': '#7c3aed',
+        '700': '#6d28d9',
+        '800': '#5b21b6',
+        '900': '#4c1d95',
+        '950': '#2e1065',
+      },
+      purple: {
+        '100': '#f3e8ff',
+        '200': '#e9d5ff',
+        '300': '#d8b4fe',
+        '400': '#c084fc',
+        '500': '#a855f7',
+        '600': '#9333ea',
+        '700': '#7e22ce',
+        '800': '#6b21a8',
+        '900': '#581c87',
+        '950': '#3b0764',
+      },
+      fuchsia: {
+        '100': '#fae8ff',
+        '200': '#f5d0fe',
+        '300': '#f0abfc',
+        '400': '#e879f9',
+        '500': '#d946ef',
+        '600': '#c026d3',
+        '700': '#a21caf',
+        '800': '#86198f',
+        '900': '#701a75',
+        '950': '#4a044e',
+      },
+      pink: {
+        '100': '#fce7f3',
+        '200': '#fbcfe8',
+        '300': '#f9a8d4',
+        '400': '#f472b6',
+        '500': '#ec4899',
+        '600': '#db2777',
+        '700': '#be185d',
+        '800': '#9d174d',
+        '900': '#831843',
+        '950': '#500724',
+      },
+      rose: {
+        '100': '#ffe4e6',
+        '200': '#fecdd3',
+        '300': '#fda4af',
+        '400': '#fb7185',
+        '500': '#f43f5e',
+        '600': '#e11d48',
+        '700': '#be123c',
+        '800': '#9f1239',
+        '900': '#881337',
+        '950': '#4c0519',
+      },
+    };
+
+    return colorShades[colorBase]?.[shade] || colorName;
+  }
+
+  // For backward compatibility with old format (e.g., "red-500" stored as a single string)
+  const legacyColorMap: Record<string, string> = {
+    'black': '#000000',
+    'white': '#FFFFFF',
+    'slate-500': '#64748b',
+    'gray-500': '#6b7280',
+    'zinc-500': '#71717a',
+    'neutral-500': '#737373',
+    'stone-500': '#78716c',
+    'red-500': '#ef4444',
+    'orange-500': '#f97316',
+    'amber-500': '#f59e0b',
+    'yellow-500': '#eab308',
+    'lime-500': '#84cc16',
+    'green-500': '#22c55e',
+    'emerald-500': '#10b981',
+    'teal-500': '#14b8a6',
+    'cyan-500': '#06b6d4',
+    'sky-500': '#0ea5e9',
+    'blue-500': '#3b82f6',
+    'indigo-500': '#6366f1',
+    'violet-500': '#8b5cf6',
+    'purple-500': '#a855f7',
+    'fuchsia-500': '#d946ef',
+    'pink-500': '#ec4899',
+    'rose-500': '#f43f5e',
+  };
+
+  return legacyColorMap[colorName] || colorName;
+};
 
 // Helper function to convert CSS color values back to Tailwind color names
 const getTailwindColorName = (hexColor: string): string => {
@@ -2473,42 +2812,43 @@ export const useCanvasStore = create<CanvasState>()(
 
     // Add this new function after the duplicateSelectedNodes function
     duplicateNodeToRight: (nodeId: string, spacing: number) => {
-      // Find the node first without modifying state
-      const nodeToDuplicate = get().nodes.find(node => node.id === nodeId);
-      if (!nodeToDuplicate) return undefined;
+      let duplicatedNode: Node | undefined;
       
-      // Generate a more reliable ID using uuid
-      const newId = `node-${uuidv4()}`;
-      
-      // Create the duplicate with the new ID and position
-      const duplicate = {
-        ...nodeToDuplicate,
-        id: newId,
-        position: {
-          x: nodeToDuplicate.position.x + (nodeToDuplicate.dimensions?.width || 0) + spacing,
-          y: nodeToDuplicate.position.y
-        },
-        selected: true
-      };
-      
-      // Make all changes in one state update for better performance
-      set(state => {
-        // Push to history first
+      set((state) => {
+        // Find the node to duplicate
+        const nodeToDuplicate = state.nodes.find(node => node.id === nodeId);
+        if (!nodeToDuplicate) return;
+        
+        // Push current state to history before making changes
         get().pushToHistory();
         
-        // Deselect all nodes
+        // Deselect all nodes first
         state.nodes.forEach(node => {
           node.selected = false;
         });
         
-        // Add the duplicate node
+        // Create duplicate with new ID and position to the right
+        const duplicate = {
+          ...nodeToDuplicate,
+          id: `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          position: {
+            x: nodeToDuplicate.position.x + (nodeToDuplicate.dimensions?.width || 0) + spacing,
+            y: nodeToDuplicate.position.y
+          },
+          selected: true
+        };
+        
+        // Add duplicate to the nodes array
         state.nodes.push(duplicate);
         
         // Update selected elements
         state.selectedElements = [duplicate];
+        
+        // Store the duplicated node to return it
+        duplicatedNode = duplicate;
       });
       
-      return duplicate;
+      return duplicatedNode;
     },
   }))
 ); 

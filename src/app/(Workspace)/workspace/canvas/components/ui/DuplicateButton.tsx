@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, ChevronUp, ChevronLeft } from 'lucide-react';
 import { LazyMotion, domAnimation, m } from "framer-motion";
 import { Node, useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
@@ -33,15 +33,11 @@ interface DirectionConfig {
 
 const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
   const [hoveredDirection, setHoveredDirection] = useState<Direction | null>(null);
-  const addNode = useCanvasStore((state) => state.addNode);
-  const createConnection = useCanvasStore((state) => state.createConnection);
-  
-  // Use refs to track hover state without causing re-renders
-  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isHoveringRef = useRef<boolean>(false);
+  const addNode = useCanvasStore(state => state.addNode);
+  const createConnection = useCanvasStore(state => state.createConnection);
 
-  // Memoize the direction configs to avoid recreating on every render
-  const directionConfigs = useMemo<Record<Direction, DirectionConfig>>(() => ({
+  // Configuration for each direction button
+  const directionConfigs: Record<Direction, DirectionConfig> = {
     n: {
       icon: <ChevronUp className="h-4 w-4" />,
       position: (dim) => ({ 
@@ -118,39 +114,6 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
       sourcePosition: 'w',
       targetPosition: 'e'
     }
-  }), []);
-
-  // Optimized hover handlers using refs
-  const handleHoverStart = (direction: Direction) => {
-    isHoveringRef.current = true;
-    
-    // Clear any existing timer
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-    }
-    
-    // Set a small delay to prevent flickering on quick mouse movements
-    hoverTimerRef.current = setTimeout(() => {
-      if (isHoveringRef.current) {
-        setHoveredDirection(direction);
-      }
-    }, 50);
-  };
-  
-  const handleHoverEnd = () => {
-    isHoveringRef.current = false;
-    
-    // Clear any existing timer
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-    }
-    
-    // Set a small delay before hiding to prevent flickering
-    hoverTimerRef.current = setTimeout(() => {
-      if (!isHoveringRef.current) {
-        setHoveredDirection(null);
-      }
-    }, 100);
   };
 
   // Handle duplication in the specified direction
@@ -287,7 +250,6 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
       width: area.width,
       height: area.height,
       zIndex: 999,
-      cursor: 'pointer',
     };
   };
 
@@ -296,30 +258,43 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
 
   return (
     <LazyMotion features={domAnimation}>
-      {/* Render hover areas and buttons for each direction */}
-      {Object.entries(directionConfigs).map(([dir, config]) => {
-        const direction = dir as Direction;
-        return (
-          <React.Fragment key={direction}>
-            {/* Hover detection area */}
-            <div
-              style={getHoverAreaStyle(direction)}
-              onMouseEnter={() => handleHoverStart(direction)}
-              onMouseLeave={handleHoverEnd}
-            />
-            
-            {/* Button that appears on hover */}
-            <m.div
-              style={getButtonStyle(direction)}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={(e) => handleDuplicate(e, direction)}
-            >
-              {config.icon}
-            </m.div>
-          </React.Fragment>
-        );
-      })}
+      {/* Render buttons for all four directions */}
+      {(Object.keys(directionConfigs) as Direction[]).map(direction => (
+        <React.Fragment key={direction}>
+          {/* Invisible hover area */}
+          <div 
+            style={getHoverAreaStyle(direction)}
+            onMouseEnter={() => setHoveredDirection(direction)}
+            onMouseLeave={() => setHoveredDirection(null)}
+            data-testid={`duplicate-hover-area-${direction}`}
+          />
+          
+          {/* Actual button */}
+          <m.div
+            style={getButtonStyle(direction)}
+            onMouseEnter={() => setHoveredDirection(direction)}
+            onMouseLeave={() => setHoveredDirection(null)}
+            onClick={(e) => handleDuplicate(e, direction)}
+            initial={{ scale: 0.9 }}
+            animate={hoveredDirection === direction ? { 
+              scale: 1,
+              boxShadow: [
+                '0 0 0 0 hsl(var(--primary) / 0.3)',
+                '0 0 0 4px hsl(var(--primary) / 0)',
+                '0 0 0 0 hsl(var(--primary) / 0)'
+              ]
+            } : { scale: 0.9 }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            title={`Duplicate shape to the ${direction === 'n' ? 'north' : direction === 'e' ? 'east' : direction === 's' ? 'south' : 'west'}`}
+          >
+            {directionConfigs[direction].icon}
+          </m.div>
+        </React.Fragment>
+      ))}
     </LazyMotion>
   );
 };

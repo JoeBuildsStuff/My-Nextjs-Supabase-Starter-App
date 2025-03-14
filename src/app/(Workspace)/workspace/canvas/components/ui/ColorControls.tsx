@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Square, Slash, Minus, MoreHorizontal, Grip } from 'lucide-react';
@@ -39,14 +39,6 @@ const ColorControls = () => {
   // Track previous theme to detect changes
   const [prevTheme, setPrevTheme] = useState<string | undefined>(resolvedTheme);
   
-  // Memoize theme-related calculations
-  const strokeShades = useMemo(() => getAvailableShades(true), [isDarkMode]);
-  const fillShades = useMemo(() => getAvailableShades(false), [isDarkMode]);
-  
-  // Memoize default shades based on theme
-  const defaultStrokeShade = useMemo(() => getDefaultShade(true), [isDarkMode]);
-  const defaultFillShade = useMemo(() => getDefaultShade(false), [isDarkMode]);
-  
   // Available shades based on theme and control type
   const getAvailableShades = (isStroke: boolean) => {
     const allShades = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
@@ -75,28 +67,11 @@ const ColorControls = () => {
   
   // Helper function to get the equivalent shade in the new theme
   const getEquivalentShade = (currentShade: string, isStroke: boolean) => {
-    // Define all available shades from lightest to darkest
     const allShades = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
     
     // Get the index of the current shade in the full list
     const currentIndex = allShades.indexOf(currentShade);
     if (currentIndex === -1) return getDefaultShade(isStroke); // Use default if not found
-    
-    /**
-     * The shade mapping logic works as follows:
-     * 
-     * 1. We have 10 shades (100-950) with 100 being lightest and 950 being darkest
-     * 2. For dark mode, we want:
-     *    - Stroke colors to be lighter (100-500) for better visibility on dark backgrounds
-     *    - Fill colors to be darker (600-950) to maintain contrast with light stroke colors
-     * 3. For light mode, we want:
-     *    - Stroke colors to be darker (600-950) for better visibility on light backgrounds
-     *    - Fill colors to be lighter (100-500) to maintain contrast with dark stroke colors
-     * 
-     * When switching themes, we map shades from one range to the equivalent position in the other range:
-     * - 100 maps to 600, 200 to 700, etc. (and vice versa)
-     * - This preserves the relative lightness/darkness within each range
-     */
     
     // For stroke: map 100-500 to 600-950 and vice versa
     if (isStroke) {
@@ -133,9 +108,6 @@ const ColorControls = () => {
   
   // Function to update all shapes on the canvas when theme changes
   const updateShapesForTheme = () => {
-    // Skip if no nodes or if theme hasn't changed
-    if (nodes.length === 0 || prevTheme === resolvedTheme) return;
-    
     let hasChanges = false;
     
     // Clone the nodes array to avoid direct mutation
@@ -145,18 +117,6 @@ const ColorControls = () => {
       
       const nodeStyle = { ...node.style };
       let updated = false;
-      
-      /**
-       * For each node, we check and update three types of colors:
-       * 1. Stroke color - The outline of shapes
-       * 2. Fill color - The background of shapes
-       * 3. Text color - The color of text in text nodes
-       * 
-       * For each color, we:
-       * - Parse the color format (base-shade)
-       * - Get the equivalent shade in the new theme
-       * - Update the color if the shade has changed
-       */
       
       // Update stroke color if present
       if (nodeStyle.stroke && typeof nodeStyle.stroke === 'string' && nodeStyle.stroke !== 'none') {
@@ -214,6 +174,12 @@ const ColorControls = () => {
       pushToHistory();
     }
   };
+  
+  // Stroke shades
+  const strokeShades = getAvailableShades(true);
+  
+  // Fill shades
+  const fillShades = getAvailableShades(false);
   
   // Available stroke widths
   const strokeWidths = [1, 2, 3, 4, 6];
@@ -699,25 +665,30 @@ const ColorControls = () => {
   useEffect(() => {
     // Check if theme has actually changed
     if (prevTheme !== resolvedTheme) {
-      // Use memoized values instead of calling functions
+      const strokeDefaultShade = getDefaultShade(true);
+      const fillDefaultShade = getDefaultShade(false);
       
       // Only update if the current shade is not in the available range for the current theme
       if (selectedStrokeBase && selectedStrokeBase !== 'none') {
-        if (!strokeShades.includes(selectedStrokeShade)) {
-          setSelectedStrokeShade(defaultStrokeShade);
-          setStrokeColor(`${selectedStrokeBase}-${defaultStrokeShade}`);
+        const availableStrokeShades = getAvailableShades(true);
+        if (!availableStrokeShades.includes(selectedStrokeShade)) {
+          const newShade = strokeDefaultShade;
+          setSelectedStrokeShade(newShade);
+          setStrokeColor(`${selectedStrokeBase}-${newShade}`);
         }
       }
       
       if (selectedFillBase && selectedFillBase !== 'none') {
-        if (!fillShades.includes(selectedFillShade)) {
-          setSelectedFillShade(defaultFillShade);
-          setFillColor(`${selectedFillBase}-${defaultFillShade}`);
+        const availableFillShades = getAvailableShades(false);
+        if (!availableFillShades.includes(selectedFillShade)) {
+          const newShade = fillDefaultShade;
+          setSelectedFillShade(newShade);
+          setFillColor(`${selectedFillBase}-${newShade}`);
         }
       }
       
       // Update the default shade in the store
-      setDefaultShade(defaultStrokeShade);
+      setDefaultShade(strokeDefaultShade);
       
       // Update all shapes on the canvas
       updateShapesForTheme();
@@ -725,13 +696,13 @@ const ColorControls = () => {
       // Update previous theme
       setPrevTheme(resolvedTheme);
     }
-  }, [theme, resolvedTheme, strokeShades, fillShades, defaultStrokeShade, defaultFillShade]);
+  }, [theme, resolvedTheme]);
 
   // Update local shade state when defaultShade changes in the store
   useEffect(() => {
     // Only update if the current shade is not in the available range for the current theme
-    const strokeAvailableShades = strokeShades;
-    const fillAvailableShades = fillShades;
+    const strokeAvailableShades = getAvailableShades(true);
+    const fillAvailableShades = getAvailableShades(false);
     
     if (!strokeAvailableShades.includes(selectedStrokeShade)) {
       setSelectedStrokeShade(getDefaultShade(true));
@@ -823,7 +794,7 @@ const ColorControls = () => {
   const renderShadeButtons = (baseColor: string, selectedShade: string, handleShadeChange: (shade: string) => void, isStroke: boolean) => {
     const isDisabled = baseColor === 'none';
     
-    // Use memoized shades
+    // Get the appropriate shades based on whether this is for stroke or fill
     const availableShades = isStroke ? strokeShades : fillShades;
     
     return (
