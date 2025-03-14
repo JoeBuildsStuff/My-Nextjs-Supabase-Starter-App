@@ -92,7 +92,7 @@ const TopMenuControls = ({ position, presentationModeOnly = false }: TopMenuCont
            transition={{ duration: 0.2 }}
          >
            <div className="flex items-center justify-between">
-             <p className="font-medium">Grid Size</p>
+           <p className="text-sm">Grid Size</p>
              <span className="text-sm font-medium">{gridSize}px</span>
            </div>
            <Slider
@@ -103,10 +103,7 @@ const TopMenuControls = ({ position, presentationModeOnly = false }: TopMenuCont
              onValueChange={handleGridSizeChange}
              aria-label="Grid size"
            />
-           <div className="flex justify-between text-xs text-muted-foreground">
-             <span>5px</span>
-             <span>50px</span>
-           </div>
+
          </motion.div>
        )}
      </AnimatePresence>

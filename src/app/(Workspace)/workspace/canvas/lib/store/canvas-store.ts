@@ -8,6 +8,8 @@ import {
   findNearestConnectionPoint,
   updateAllLineConnections
 } from '../utils/connection-utils';
+// Always import the node registry to start with default node types and styles
+import { nodeRegistry } from '../../components/NodeRegistry';
 
 // Define the types for our canvas state
 export interface Node {
@@ -1027,6 +1029,57 @@ const resizeLineNode = (
   }
 };
 
+/**
+ * Utility function to merge node styles based on node type and current state
+ * This consolidates style logic that was previously duplicated across different node creation methods
+ */
+const mergeNodeStyles = (
+  baseStyle: Record<string, unknown> | undefined,
+  state: CanvasState,
+  nodeType: string
+): Record<string, unknown> => {
+  // Start with the base style from the node template
+  const mergedStyle = { ...(baseStyle || {}) };
+  
+  // Apply different style rules based on node type
+  if (nodeType === 'text') {
+    // Text nodes have special styling - preserve default settings from template
+    return {
+      ...mergedStyle,
+      // Only override these if they're not already set in the base style
+      backgroundColor: mergedStyle.backgroundColor || 'transparent',
+      borderColor: mergedStyle.borderColor || 'transparent',
+      borderWidth: mergedStyle.borderWidth || 2,
+      borderStyle: mergedStyle.borderStyle || 'solid',
+      borderRadius: mergedStyle.borderRadius || '12px',
+      // Apply text-specific styles from the current state
+      textColor: state.textColor,
+      fontSize: `${state.fontSize}px`,
+      textAlign: state.textAlign,
+      verticalAlign: state.verticalAlign
+    };
+  } else if (nodeType === 'line' || nodeType === 'arrow') {
+    // Line nodes are transparent with only border styling
+    return {
+      ...mergedStyle,
+      backgroundColor: 'transparent',
+      borderColor: getTailwindColor(state.strokeColor),
+      borderWidth: state.strokeWidth,
+      borderStyle: state.strokeStyle,
+    };
+  } else {
+    // Standard shape nodes (rectangle, circle, etc.)
+    return {
+      ...mergedStyle,
+      backgroundColor: getTailwindColor(state.fillColor),
+      borderColor: getTailwindColor(state.strokeColor),
+      borderWidth: state.strokeWidth,
+      borderRadius: `${state.borderRadius}px`,
+      borderStyle: state.strokeStyle,
+    };
+  }
+};
+
 // Create the store with immer middleware for immutable updates
 export const useCanvasStore = create<CanvasState>()(
   immer((set, get) => ({
@@ -1697,37 +1750,19 @@ export const useCanvasStore = create<CanvasState>()(
         // Generate a unique ID for the new node
         const id = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         
-        // Default dimensions for different shape types
-        let dimensions = { width: 100, height: 100 };
-        if (type === 'line' || type === 'arrow') {
-          dimensions = { width: 150, height: 2 };
-        } else if (type === 'text') {
-          dimensions = { width: 200, height: 38 };
-        }
+        // Create the node using NodeRegistry
+        const baseNode = nodeRegistry.createNode(type, { x, y }, id);
         
-        // Create the new node
+        // Apply current state settings and merge with any provided data
         const newNode: Node = {
-          id,
-          type,
-          position: { x, y },
+          ...baseNode,
           data: {
+            ...baseNode.data,
             ...data,
-            // Mark text shapes as new when they're first created
-            ...(type === 'text' ? { isNew: true } : {})
           },
-          dimensions,
           selected: true,
-          style: {
-            backgroundColor: getTailwindColor(state.fillColor),
-            borderColor: getTailwindColor(state.strokeColor),
-            borderWidth: type === 'text' ? 0 : state.strokeWidth,
-            borderRadius: `${state.borderRadius}px`,
-            borderStyle: state.strokeStyle,
-            textColor: 'hsl(var(--foreground))',
-            fontSize: '14px',
-            fontFamily: 'sans-serif',
-            textAlign: 'left',
-          }
+          // Use the utility function to merge styles consistently
+          style: mergeNodeStyles(baseNode.style, state, type)
         };
         
         // Add the node to the canvas
@@ -2278,7 +2313,6 @@ export const useCanvasStore = create<CanvasState>()(
     // Line drawing actions
     startLineDraw: (x, y, type) =>
       set((state) => {
-        // If there's already a line in progress, finish it first
         if (state.lineInProgress) {
           // Add the current line to the canvas
           state.nodes.push(state.lineInProgress);
@@ -2290,19 +2324,15 @@ export const useCanvasStore = create<CanvasState>()(
         // Generate a unique ID for the new line
         const id = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         
+        // Create a new line node using NodeRegistry
+        const baseNode = nodeRegistry.createNode(type, { x, y }, id);
+        
         // Create a new line node with initial points
         const newLine: Node = {
-          id,
-          type,
-          position: { x, y },
-          data: {},
+          ...baseNode,
           dimensions: { width: 1, height: 1 }, // Will be calculated based on points
-          style: {
-            backgroundColor: 'transparent',
-            borderColor: getTailwindColor(state.strokeColor),
-            borderWidth: state.strokeWidth,
-            borderStyle: state.strokeStyle,
-          },
+          // Use the utility function to merge styles consistently
+          style: mergeNodeStyles(baseNode.style, state, type),
           points: [
             { x: 0, y: 0 }, // First point is at the origin (relative to position)
             { x: 0, y: 0 }  // Second point starts at the same place, will be updated

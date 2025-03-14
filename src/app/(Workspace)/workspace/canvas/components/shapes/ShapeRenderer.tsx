@@ -81,8 +81,6 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     userSelect: 'none',
     touchAction: 'none',
     boxSizing: 'border-box',
-    // Only show outline for selected shapes that aren't lines
-    outline: isSelected && !isLineShape ? '1px solid hsl(var(--border))' : 'none',
   };
 
   const baseStyle: React.CSSProperties = {

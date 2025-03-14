@@ -37,6 +37,36 @@ const baseColorOptions = [
   { name: "rose", hsl: "355 90% 67%" },
 ];
 
+// Map color names to Tailwind text color classes
+// This ensures all classes are included in the build
+const colorClassMap: Record<string, string> = {
+  none: "text-foreground",
+  white: "text-white",
+  black: "text-black",
+  slate: "text-slate-500",
+  gray: "text-gray-500",
+  zinc: "text-zinc-500",
+  neutral: "text-neutral-500",
+  stone: "text-stone-500",
+  red: "text-red-500",
+  orange: "text-orange-500",
+  amber: "text-amber-500",
+  yellow: "text-yellow-500",
+  lime: "text-lime-500",
+  green: "text-green-500",
+  emerald: "text-emerald-500",
+  teal: "text-teal-500",
+  cyan: "text-cyan-500",
+  sky: "text-sky-500",
+  blue: "text-blue-500",
+  indigo: "text-indigo-500",
+  violet: "text-violet-500",
+  purple: "text-purple-500",
+  fuchsia: "text-fuchsia-500",
+  pink: "text-pink-500",
+  rose: "text-rose-500",
+};
+
 export default function TextControls() {
   const { nodes, textColor, setTextColor, setFontSize, setTextAlign, setVerticalAlign } = useCanvasStore()
 
@@ -44,11 +74,37 @@ export default function TextControls() {
   const selectedTextNode = nodes.find(node => node.selected && node.type === 'text')
   const textStyle = selectedTextNode?.style || {}
 
+  // Helper function to convert HSL value to color name
+  const getColorNameFromHsl = (hslValue: string): string => {
+    if (!hslValue) return "none";
+    
+    // Handle the foreground variable case
+    if (hslValue === 'hsl(var(--foreground))') return "none";
+    
+    // For other HSL values, try to match with baseColorOptions
+    for (const color of baseColorOptions) {
+      if (hslValue === `hsl(${color.hsl})`) {
+        return color.name;
+      }
+    }
+    
+    return "none"; // Default to none if no match found
+  };
+
   // Initialize state from the selected node or defaults
-  const [fontSize, setLocalFontSize] = useState(textStyle.fontSize?.toString() || "14")
+  const [fontSize, setLocalFontSize] = useState(
+    textStyle.fontSize ? textStyle.fontSize.toString().replace('px', '') : "14"
+  )
   const [horizontalAlignment, setLocalHorizontalAlignment] = useState(textStyle.textAlign?.toString() || "left")
   const [verticalAlignment, setLocalVerticalAlignment] = useState(textStyle.verticalAlign?.toString() || "top")
-  const [selectedColorBase, setSelectedColorBase] = useState<string>(textColor || 'hsl(var(--foreground))')
+  const [selectedColorBase, setSelectedColorBase] = useState<string>(
+    getColorNameFromHsl(textStyle.textColor as string || textColor)
+  )
+
+  // Get the appropriate Tailwind class for the selected color
+  const getColorClass = (colorName: string): string => {
+    return colorClassMap[colorName] || "text-foreground";
+  };
 
   // Handle font size change
   const handleFontSizeChange = (value: string) => {
@@ -124,7 +180,7 @@ export default function TextControls() {
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon">
-            <Type className="w-4 h-4" />
+            <Type className={`w-4 h-4 ${getColorClass(selectedColorBase)}`} />
           </Button>
         </PopoverTrigger>
         <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
