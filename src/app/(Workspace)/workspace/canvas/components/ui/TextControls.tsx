@@ -116,7 +116,7 @@ export default function TextControls() {
       const defaultShade = getDefaultShade();
       setTextColor(`${selectedColorBase}-${defaultShade}`);
     }
-  }, [resolvedTheme]);
+  }, [resolvedTheme, selectedColorBase, getDefaultShade, setTextColor]);
 
   // Get the appropriate Tailwind class for the selected color
   const getColorClass = (colorName: string): string => {

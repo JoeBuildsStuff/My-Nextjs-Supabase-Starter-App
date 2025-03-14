@@ -8,12 +8,9 @@ import { Slider } from '@/components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
-import { useTheme } from 'next-themes';
 
 const ShapeControls = () => {
   const { borderRadius, setBorderRadius, strokeColor, fillColor } = useCanvasStore();
-  const { resolvedTheme } = useTheme();
-  const isDarkMode = resolvedTheme === 'dark';
 
   // Function to get HSL value from color name (similar to getCurrentColorHsl in ColorControls)
   const getColorHsl = (colorName: string): string => {

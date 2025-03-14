@@ -1194,7 +1194,7 @@ const Canvas: React.FC<CanvasProps> = ({
     if (onNodesChange && storeNodes) {
       onNodesChange(storeNodes);
     }
-  }, [useCanvasStore.getState().nodes, onNodesChange]);
+  }, [onNodesChange]);
   
   // Add a useEffect to update the selectedLineEndpoint when selectedPointIndices changes
   useEffect(() => {

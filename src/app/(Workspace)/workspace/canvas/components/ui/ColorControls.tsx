@@ -696,7 +696,21 @@ const ColorControls = () => {
       // Update previous theme
       setPrevTheme(resolvedTheme);
     }
-  }, [theme, resolvedTheme]);
+  }, [
+    theme, 
+    resolvedTheme, 
+    prevTheme, 
+    selectedStrokeBase, 
+    selectedStrokeShade, 
+    selectedFillBase, 
+    selectedFillShade, 
+    getAvailableShades, 
+    getDefaultShade, 
+    setDefaultShade, 
+    setStrokeColor, 
+    setFillColor, 
+    updateShapesForTheme
+  ]);
 
   // Update local shade state when defaultShade changes in the store
   useEffect(() => {
@@ -711,7 +725,13 @@ const ColorControls = () => {
     if (!fillAvailableShades.includes(selectedFillShade)) {
       setSelectedFillShade(getDefaultShade(false));
     }
-  }, [defaultShade]);
+  }, [
+    defaultShade, 
+    selectedStrokeShade, 
+    selectedFillShade, 
+    getAvailableShades, 
+    getDefaultShade
+  ]);
 
   // Get the current color objects
   const getCurrentColorHsl = (colorName: string): string => {
