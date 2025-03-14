@@ -5,6 +5,7 @@ import ConnectionPoints, { ConnectionPointPosition } from '../ui/ConnectionPoint
 import LineShape from './LineShape';
 import LineResizeHandles from '../ui/LineResizeHandles';
 import TextShape from './TextShape';
+import DuplicateButton from '../ui/DuplicateButton';
 
 interface ShapeRendererProps {
   node: Node;
@@ -232,6 +233,11 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           onConnectionPointClick={handleConnectionPointClick}
           hoveredPosition={hoveredPosition}
         />
+      )}
+      
+      {/* Add DuplicateButton for non-line shapes */}
+      {!['line', 'arrow'].includes(type) && !data?.isGroup && dimensions && (
+        <DuplicateButton node={node} />
       )}
     </div>
   );

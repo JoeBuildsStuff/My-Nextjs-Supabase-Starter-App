@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Square, Slash, Minus, MoreHorizontal, Grip } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import { Card } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useTheme } from 'next-themes';
 
 const ColorControls = () => {
   const { 
@@ -20,8 +21,14 @@ const ColorControls = () => {
     setFillColor,
     setDefaultShade,
     setStrokeWidth,
-    setStrokeStyle
+    setStrokeStyle,
+    nodes,
+    pushToHistory
   } = useCanvasStore();
+  
+  // Get the current theme
+  const { theme, resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === 'dark';
   
   // State for tracking selected color base and shade
   const [selectedStrokeBase, setSelectedStrokeBase] = useState<string>('');
@@ -29,8 +36,184 @@ const ColorControls = () => {
   const [selectedFillBase, setSelectedFillBase] = useState<string>('');
   const [selectedFillShade, setSelectedFillShade] = useState<string>(defaultShade);
   
-  // Available shades
-  const shades = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+  // Track previous theme to detect changes
+  const [prevTheme, setPrevTheme] = useState<string | undefined>(resolvedTheme);
+  
+  // Memoize theme-related calculations
+  const strokeShades = useMemo(() => getAvailableShades(true), [isDarkMode]);
+  const fillShades = useMemo(() => getAvailableShades(false), [isDarkMode]);
+  
+  // Memoize default shades based on theme
+  const defaultStrokeShade = useMemo(() => getDefaultShade(true), [isDarkMode]);
+  const defaultFillShade = useMemo(() => getDefaultShade(false), [isDarkMode]);
+  
+  // Available shades based on theme and control type
+  const getAvailableShades = (isStroke: boolean) => {
+    const allShades = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+    
+    if (isStroke) {
+      // For stroke: dark mode = 100-500, light mode = 600-950
+      return isDarkMode 
+        ? allShades.slice(0, 5) // 100-500 for dark mode
+        : allShades.slice(5);   // 600-950 for light mode
+    } else {
+      // For fill: dark mode = 600-950, light mode = 100-500
+      return isDarkMode 
+        ? allShades.slice(5)    // 600-950 for dark mode
+        : allShades.slice(0, 5); // 100-500 for light mode
+    }
+  };
+  
+  // Get default shade based on theme and control type
+  const getDefaultShade = (isStroke: boolean) => {
+    if (isStroke) {
+      return isDarkMode ? '300' : '800';
+    } else {
+      return isDarkMode ? '800' : '300';
+    }
+  };
+  
+  // Helper function to get the equivalent shade in the new theme
+  const getEquivalentShade = (currentShade: string, isStroke: boolean) => {
+    // Define all available shades from lightest to darkest
+    const allShades = ['100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+    
+    // Get the index of the current shade in the full list
+    const currentIndex = allShades.indexOf(currentShade);
+    if (currentIndex === -1) return getDefaultShade(isStroke); // Use default if not found
+    
+    /**
+     * The shade mapping logic works as follows:
+     * 
+     * 1. We have 10 shades (100-950) with 100 being lightest and 950 being darkest
+     * 2. For dark mode, we want:
+     *    - Stroke colors to be lighter (100-500) for better visibility on dark backgrounds
+     *    - Fill colors to be darker (600-950) to maintain contrast with light stroke colors
+     * 3. For light mode, we want:
+     *    - Stroke colors to be darker (600-950) for better visibility on light backgrounds
+     *    - Fill colors to be lighter (100-500) to maintain contrast with dark stroke colors
+     * 
+     * When switching themes, we map shades from one range to the equivalent position in the other range:
+     * - 100 maps to 600, 200 to 700, etc. (and vice versa)
+     * - This preserves the relative lightness/darkness within each range
+     */
+    
+    // For stroke: map 100-500 to 600-950 and vice versa
+    if (isStroke) {
+      if (isDarkMode) {
+        // Light to dark: map 600-950 (index 5-9) to 100-500 (index 0-4)
+        if (currentIndex >= 5) {
+          return allShades[currentIndex - 5];
+        }
+      } else {
+        // Dark to light: map 100-500 (index 0-4) to 600-950 (index 5-9)
+        if (currentIndex < 5) {
+          return allShades[currentIndex + 5];
+        }
+      }
+    } 
+    // For fill: map 600-950 to 100-500 and vice versa
+    else {
+      if (isDarkMode) {
+        // Light to dark: map 100-500 (index 0-4) to 600-950 (index 5-9)
+        if (currentIndex < 5) {
+          return allShades[currentIndex + 5];
+        }
+      } else {
+        // Dark to light: map 600-950 (index 5-9) to 100-500 (index 0-4)
+        if (currentIndex >= 5) {
+          return allShades[currentIndex - 5];
+        }
+      }
+    }
+    
+    // If the shade is already in the correct range, keep it
+    return currentShade;
+  };
+  
+  // Function to update all shapes on the canvas when theme changes
+  const updateShapesForTheme = () => {
+    // Skip if no nodes or if theme hasn't changed
+    if (nodes.length === 0 || prevTheme === resolvedTheme) return;
+    
+    let hasChanges = false;
+    
+    // Clone the nodes array to avoid direct mutation
+    const updatedNodes = nodes.map(node => {
+      // Skip nodes without style
+      if (!node.style) return node;
+      
+      const nodeStyle = { ...node.style };
+      let updated = false;
+      
+      /**
+       * For each node, we check and update three types of colors:
+       * 1. Stroke color - The outline of shapes
+       * 2. Fill color - The background of shapes
+       * 3. Text color - The color of text in text nodes
+       * 
+       * For each color, we:
+       * - Parse the color format (base-shade)
+       * - Get the equivalent shade in the new theme
+       * - Update the color if the shade has changed
+       */
+      
+      // Update stroke color if present
+      if (nodeStyle.stroke && typeof nodeStyle.stroke === 'string' && nodeStyle.stroke !== 'none') {
+        const parts = nodeStyle.stroke.split('-');
+        if (parts.length === 2) {
+          const [base, shade] = parts;
+          const newShade = getEquivalentShade(shade, true);
+          if (newShade !== shade) {
+            nodeStyle.stroke = `${base}-${newShade}`;
+            updated = true;
+          }
+        }
+      }
+      
+      // Update fill color if present
+      if (nodeStyle.fill && typeof nodeStyle.fill === 'string' && nodeStyle.fill !== 'none') {
+        const parts = nodeStyle.fill.split('-');
+        if (parts.length === 2) {
+          const [base, shade] = parts;
+          const newShade = getEquivalentShade(shade, false);
+          if (newShade !== shade) {
+            nodeStyle.fill = `${base}-${newShade}`;
+            updated = true;
+          }
+        }
+      }
+      
+      // Update text color if present (for text nodes)
+      if (nodeStyle.textColor && typeof nodeStyle.textColor === 'string' && nodeStyle.textColor !== 'none') {
+        const parts = nodeStyle.textColor.split('-');
+        if (parts.length === 2) {
+          const [base, shade] = parts;
+          const newShade = getEquivalentShade(shade, true); // Use stroke logic for text
+          if (newShade !== shade) {
+            nodeStyle.textColor = `${base}-${newShade}`;
+            updated = true;
+          }
+        }
+      }
+      
+      if (updated) {
+        hasChanges = true;
+        return { ...node, style: nodeStyle };
+      }
+      
+      return node;
+    });
+    
+    // Only update if there were changes
+    if (hasChanges) {
+      // Update the store with the new nodes
+      useCanvasStore.setState({ nodes: updatedNodes });
+      
+      // Push to history
+      pushToHistory();
+    }
+  };
   
   // Available stroke widths
   const strokeWidths = [1, 2, 3, 4, 6];
@@ -375,8 +558,8 @@ const ColorControls = () => {
     }
     
     if (colorBase === 'black') {
-      // Use 950 (darkest) as default for black
-      const shade = '950';
+      // Use appropriate shade based on theme
+      const shade = isDarkMode ? '300' : '800';
       const newColor = `black-${shade}`;
       setStrokeColor(newColor);
       setSelectedStrokeBase(colorBase);
@@ -385,8 +568,8 @@ const ColorControls = () => {
     }
     
     if (colorBase === 'white') {
-      // Use 100 (lightest) as default for white
-      const shade = '100';
+      // Use appropriate shade based on theme
+      const shade = isDarkMode ? '300' : '800';
       const newColor = `white-${shade}`;
       setStrokeColor(newColor);
       setSelectedStrokeBase(colorBase);
@@ -394,9 +577,12 @@ const ColorControls = () => {
       return;
     }
     
-    const newColor = `${colorBase}-${selectedStrokeShade}`;
+    // Use the default shade for the current theme
+    const defaultShade = getDefaultShade(true);
+    const newColor = `${colorBase}-${defaultShade}`;
     setStrokeColor(newColor);
     setSelectedStrokeBase(colorBase);
+    setSelectedStrokeShade(defaultShade);
   };
 
   const handleFillColorChange = (colorBase: string) => {
@@ -407,8 +593,8 @@ const ColorControls = () => {
     }
     
     if (colorBase === 'black') {
-      // Use 950 (darkest) as default for black
-      const shade = '950';
+      // Use appropriate shade based on theme
+      const shade = isDarkMode ? '800' : '300';
       const newColor = `black-${shade}`;
       setFillColor(newColor);
       setSelectedFillBase(colorBase);
@@ -417,8 +603,8 @@ const ColorControls = () => {
     }
     
     if (colorBase === 'white') {
-      // Use 100 (lightest) as default for white
-      const shade = '100';
+      // Use appropriate shade based on theme
+      const shade = isDarkMode ? '800' : '300';
       const newColor = `white-${shade}`;
       setFillColor(newColor);
       setSelectedFillBase(colorBase);
@@ -426,9 +612,12 @@ const ColorControls = () => {
       return;
     }
     
-    const newColor = `${colorBase}-${selectedFillShade}`;
+    // Use the default shade for the current theme
+    const defaultShade = getDefaultShade(false);
+    const newColor = `${colorBase}-${defaultShade}`;
     setFillColor(newColor);
     setSelectedFillBase(colorBase);
+    setSelectedFillShade(defaultShade);
   };
 
   const handleStrokeShadeChange = (shade: string) => {
@@ -483,7 +672,7 @@ const ColorControls = () => {
     setStrokeStyle(style);
   };
 
-  // Initialize selected base colors from current colors
+  // Initialize selected base colors from current colors and set default shades based on theme
   useEffect(() => {
     if (strokeColor) {
       const parts = strokeColor.split('-');
@@ -506,10 +695,51 @@ const ColorControls = () => {
     }
   }, []);
 
+  // Update default shades when theme changes
+  useEffect(() => {
+    // Check if theme has actually changed
+    if (prevTheme !== resolvedTheme) {
+      // Use memoized values instead of calling functions
+      
+      // Only update if the current shade is not in the available range for the current theme
+      if (selectedStrokeBase && selectedStrokeBase !== 'none') {
+        if (!strokeShades.includes(selectedStrokeShade)) {
+          setSelectedStrokeShade(defaultStrokeShade);
+          setStrokeColor(`${selectedStrokeBase}-${defaultStrokeShade}`);
+        }
+      }
+      
+      if (selectedFillBase && selectedFillBase !== 'none') {
+        if (!fillShades.includes(selectedFillShade)) {
+          setSelectedFillShade(defaultFillShade);
+          setFillColor(`${selectedFillBase}-${defaultFillShade}`);
+        }
+      }
+      
+      // Update the default shade in the store
+      setDefaultShade(defaultStrokeShade);
+      
+      // Update all shapes on the canvas
+      updateShapesForTheme();
+      
+      // Update previous theme
+      setPrevTheme(resolvedTheme);
+    }
+  }, [theme, resolvedTheme, strokeShades, fillShades, defaultStrokeShade, defaultFillShade]);
+
   // Update local shade state when defaultShade changes in the store
   useEffect(() => {
-    setSelectedStrokeShade(defaultShade);
-    setSelectedFillShade(defaultShade);
+    // Only update if the current shade is not in the available range for the current theme
+    const strokeAvailableShades = strokeShades;
+    const fillAvailableShades = fillShades;
+    
+    if (!strokeAvailableShades.includes(selectedStrokeShade)) {
+      setSelectedStrokeShade(getDefaultShade(true));
+    }
+    
+    if (!fillAvailableShades.includes(selectedFillShade)) {
+      setSelectedFillShade(getDefaultShade(false));
+    }
   }, [defaultShade]);
 
   // Get the current color objects
@@ -590,75 +820,43 @@ const ColorControls = () => {
   };
 
   // Render shade buttons
-  const renderShadeButtons = (baseColor: string, selectedShade: string, handleShadeChange: (shade: string) => void) => {
+  const renderShadeButtons = (baseColor: string, selectedShade: string, handleShadeChange: (shade: string) => void, isStroke: boolean) => {
     const isDisabled = baseColor === 'none';
     
-    // Split shades into rows of 5
-    const firstRow = shades.slice(0, 5);
-    const secondRow = shades.slice(5);
+    // Use memoized shades
+    const availableShades = isStroke ? strokeShades : fillShades;
     
     return (
       <div>
         <ToggleGroup type="single" className="justify-start" value={selectedShade} onValueChange={(value) => handleShadeChange(value)} disabled={isDisabled}>
-          <div className="flex flex-col gap-1">
-            <div className="flex gap-1">
-              {firstRow.map((shade) => {
-                let hsl;
-                if (baseColor === 'black') {
-                  hsl = blackShades[shade];
-                } else if (baseColor === 'white') {
-                  hsl = whiteShades[shade];
-                } else {
-                  hsl = colorShades[baseColor]?.[shade] || '0 0% 0%';
-                }
-                
-                return (
-                  <ToggleGroupItem 
-                    key={`shade-${shade}`} 
-                    value={shade}
-                    className="h-8 w-8 p-0 flex items-center justify-center rounded-sm"
-                  >
-                    <div 
-                      className="w-4 h-4 rounded-sm" 
-                      style={{
-                        background: `hsl(${hsl})`,
-                        opacity: isDisabled ? 0.5 : 1,
-                        border: '1px solid hsl(var(--border))'
-                      }}
-                    />
-                  </ToggleGroupItem>
-                );
-              })}
-            </div>
-            <div className="flex gap-1">
-              {secondRow.map((shade) => {
-                let hsl;
-                if (baseColor === 'black') {
-                  hsl = blackShades[shade];
-                } else if (baseColor === 'white') {
-                  hsl = whiteShades[shade];
-                } else {
-                  hsl = colorShades[baseColor]?.[shade] || '0 0% 0%';
-                }
-                
-                return (
-                  <ToggleGroupItem 
-                    key={`shade-${shade}`} 
-                    value={shade}
-                    className="h-8 w-8 p-0 flex items-center justify-center rounded-sm"
-                  >
-                    <div 
-                      className="w-4 h-4 rounded-sm" 
-                      style={{
-                        background: `hsl(${hsl})`,
-                        opacity: isDisabled ? 0.5 : 1,
-                        border: '1px solid hsl(var(--border))'
-                      }}
-                    />
-                  </ToggleGroupItem>
-                );
-              })}
-            </div>
+          <div className="flex gap-1">
+            {availableShades.map((shade) => {
+              let hsl;
+              if (baseColor === 'black') {
+                hsl = blackShades[shade];
+              } else if (baseColor === 'white') {
+                hsl = whiteShades[shade];
+              } else {
+                hsl = colorShades[baseColor]?.[shade] || '0 0% 0%';
+              }
+              
+              return (
+                <ToggleGroupItem 
+                  key={`shade-${shade}`} 
+                  value={shade}
+                  className="h-8 w-8 p-0 flex items-center justify-center rounded-sm"
+                >
+                  <div 
+                    className="w-4 h-4 rounded-sm" 
+                    style={{
+                      background: `hsl(${hsl})`,
+                      opacity: isDisabled ? 0.5 : 1,
+                      border: '1px solid hsl(var(--border))'
+                    }}
+                  />
+                </ToggleGroupItem>
+              );
+            })}
           </div>
         </ToggleGroup>
       </div>
@@ -730,7 +928,7 @@ const ColorControls = () => {
                 {/* Shade selector */}
                 <Card className="p-2 border-none">
                   <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
-                  {renderShadeButtons(selectedStrokeBase, selectedStrokeShade, handleStrokeShadeChange)}
+                  {renderShadeButtons(selectedStrokeBase, selectedStrokeShade, handleStrokeShadeChange, true)}
                 </Card>
               
                 {/* Stroke width */}
@@ -810,7 +1008,7 @@ const ColorControls = () => {
               {/* Shade selector */}
               <Card className="p-2 border-none">
                 <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
-                {renderShadeButtons(selectedFillBase, selectedFillShade, handleFillShadeChange)}
+                {renderShadeButtons(selectedFillBase, selectedFillShade, handleFillShadeChange, false)}
               </Card>
             </div>
           </PopoverContent>

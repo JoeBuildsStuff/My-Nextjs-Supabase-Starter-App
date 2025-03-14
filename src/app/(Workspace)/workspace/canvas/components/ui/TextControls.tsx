@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -7,6 +7,7 @@ import { AArrowDown, AArrowUp, ALargeSmall, AlignCenter, AlignLeft, AlignRight, 
 import { Card } from "@/components/ui/card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useCanvasStore } from "@/app/(Workspace)/workspace/canvas/lib/store/canvas-store"
+import { useTheme } from "next-themes"
 
 // Color options from ColorControls
 const baseColorOptions = [
@@ -69,6 +70,8 @@ const colorClassMap: Record<string, string> = {
 
 export default function TextControls() {
   const { nodes, textColor, setTextColor, setFontSize, setTextAlign, setVerticalAlign } = useCanvasStore()
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === 'dark';
 
   // Get the selected text node
   const selectedTextNode = nodes.find(node => node.selected && node.type === 'text')
@@ -91,6 +94,11 @@ export default function TextControls() {
     return "none"; // Default to none if no match found
   };
 
+  // Get default shade based on theme
+  const getDefaultShade = () => {
+    return isDarkMode ? '300' : '800';
+  };
+
   // Initialize state from the selected node or defaults
   const [fontSize, setLocalFontSize] = useState(
     textStyle.fontSize ? textStyle.fontSize.toString().replace('px', '') : "14"
@@ -101,8 +109,22 @@ export default function TextControls() {
     getColorNameFromHsl(textStyle.textColor as string || textColor)
   )
 
+  // Update color when theme changes
+  useEffect(() => {
+    if (selectedColorBase && selectedColorBase !== 'none') {
+      // When theme changes, update the text color with the appropriate shade
+      const defaultShade = getDefaultShade();
+      setTextColor(`${selectedColorBase}-${defaultShade}`);
+    }
+  }, [resolvedTheme]);
+
   // Get the appropriate Tailwind class for the selected color
   const getColorClass = (colorName: string): string => {
+    if (colorName.includes('-')) {
+      // If it's a color with a shade, extract the base color
+      const baseName = colorName.split('-')[0];
+      return colorClassMap[baseName] || "text-foreground";
+    }
     return colorClassMap[colorName] || "text-foreground";
   };
 
@@ -127,7 +149,15 @@ export default function TextControls() {
   // Handle color change
   const handleColorChange = (colorBase: string) => {
     setSelectedColorBase(colorBase)
-    setTextColor(colorBase)
+    
+    if (colorBase === 'none') {
+      setTextColor(colorBase);
+      return;
+    }
+    
+    // Use the appropriate shade based on the theme
+    const defaultShade = getDefaultShade();
+    setTextColor(`${colorBase}-${defaultShade}`);
   }
 
   // Render color buttons
@@ -180,7 +210,7 @@ export default function TextControls() {
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon">
-            <Type className={`w-4 h-4 ${getColorClass(selectedColorBase)}`} />
+            <Type className={`w-4 h-4 ${getColorClass(textColor)}`} />
           </Button>
         </PopoverTrigger>
         <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
