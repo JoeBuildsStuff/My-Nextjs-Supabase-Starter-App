@@ -14,6 +14,14 @@ interface DuplicateButtonProps {
 // Define the directions and their properties
 type Direction = 'n' | 'e' | 's' | 'w';
 
+// Define the duplicate offset distance
+const DUPLICATE_OFFSET_DISTANCE = 120;
+
+// Define button position constants
+const BUTTON_OFFSET = 35; // Distance from the edge of the shape
+const BUTTON_SIZE = 24; // Size of the button
+const BUTTON_HALF_SIZE = BUTTON_SIZE / 2; // Half the size of the button
+
 interface DirectionConfig {
   icon: React.ReactNode;
   position: (dimensions: { width: number; height: number }) => { x: number; y: number };
@@ -41,8 +49,8 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
     n: {
       icon: <ChevronUp className="h-4 w-4" />,
       position: (dim) => ({ 
-        x: dim.width / 2 - 12, 
-        y: -30 
+        x: dim.width / 2 - BUTTON_HALF_SIZE, 
+        y: -BUTTON_OFFSET - BUTTON_HALF_SIZE 
       }),
       hoverArea: (dim) => ({ 
         left: dim.width / 4, 
@@ -52,7 +60,7 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
       }),
       duplicateOffset: (dim) => ({ 
         x: 0, 
-        y: -dim.height - 120 
+        y: -dim.height - DUPLICATE_OFFSET_DISTANCE 
       }),
       sourcePosition: 'n',
       targetPosition: 's'
@@ -60,8 +68,8 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
     e: {
       icon: <ChevronRight className="h-4 w-4" />,
       position: (dim) => ({ 
-        x: dim.width + 15, 
-        y: dim.height / 2 - 12 
+        x: dim.width + BUTTON_OFFSET, 
+        y: dim.height / 2 - BUTTON_HALF_SIZE 
       }),
       hoverArea: (dim) => ({ 
         left: dim.width - 10, 
@@ -70,7 +78,7 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
         height: dim.height 
       }),
       duplicateOffset: (dim) => ({ 
-        x: dim.width + 120, 
+        x: dim.width + DUPLICATE_OFFSET_DISTANCE, 
         y: 0 
       }),
       sourcePosition: 'e',
@@ -79,8 +87,8 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
     s: {
       icon: <ChevronDown className="h-4 w-4" />,
       position: (dim) => ({ 
-        x: dim.width / 2 - 12, 
-        y: dim.height + 15 
+        x: dim.width / 2 - BUTTON_HALF_SIZE, 
+        y: dim.height + BUTTON_OFFSET 
       }),
       hoverArea: (dim) => ({ 
         left: dim.width / 4, 
@@ -90,7 +98,7 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
       }),
       duplicateOffset: (dim) => ({ 
         x: 0, 
-        y: dim.height + 120 
+        y: dim.height + DUPLICATE_OFFSET_DISTANCE 
       }),
       sourcePosition: 's',
       targetPosition: 'n'
@@ -98,8 +106,8 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
     w: {
       icon: <ChevronLeft className="h-4 w-4" />,
       position: (dim) => ({ 
-        x: -30, 
-        y: dim.height / 2 - 12 
+        x: -BUTTON_OFFSET - BUTTON_HALF_SIZE, 
+        y: dim.height / 2 - BUTTON_HALF_SIZE 
       }),
       hoverArea: (dim) => ({ 
         left: -40, 
@@ -108,7 +116,7 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
         height: dim.height 
       }),
       duplicateOffset: (dim) => ({ 
-        x: -dim.width - 120, 
+        x: -dim.width - DUPLICATE_OFFSET_DISTANCE, 
         y: 0 
       }),
       sourcePosition: 'w',
