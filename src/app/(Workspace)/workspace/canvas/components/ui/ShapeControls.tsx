@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Square } from 'lucide-react';
+import { SquareRoundCorner } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -380,7 +380,14 @@ const ShapeControls = () => {
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon">
-            <Square className="w-4 h-4" />
+            <SquareRoundCorner 
+              className="w-4 h-4" 
+              style={{
+                fill: hasFill ? `hsl(${fillHsl})` : 'none',
+                stroke: hasStroke ? `hsl(${strokeHsl})` : 'transparent',
+                strokeWidth: hasStroke ? '2px' : '0'
+              }}
+            />
           </Button>
         </PopoverTrigger>
         <PopoverContent side="right" className="w-fit" sideOffset={15} align="start">
