@@ -4,16 +4,26 @@ import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
 // Define a constant for the snapping threshold
 export const CONNECTION_SNAP_THRESHOLD = 25; // Increased from 15 to 25 for better snapping
 
+// Define a constant for connection point offset
+// Positive values move the line endpoint away from the shape
+// Negative values move the line endpoint into the shape
+// Zero means the line endpoint will be exactly at the connection point
+export const CONNECTION_POINT_OFFSET: number = 12; // Default: 12 pixels offset
+
 // Define trigonometric constants at module level to avoid recalculation
 const COS_45_DEG = 0.7071; // cos(45°)
 const SIN_45_DEG = 0.7071; // sin(45°)
 
 /**
  * Calculate the absolute position of a connection point on a shape
+ * @param node The shape node to calculate connection point for
+ * @param position The position of the connection point
+ * @param isConnected Optional flag to indicate if this is for a connected line endpoint
  */
 export function calculateConnectionPointPosition(
   node: Node,
-  position: ConnectionPointPosition
+  position: ConnectionPointPosition,
+  isConnected: boolean = false
 ): { x: number, y: number } {
   if (!node.dimensions) {
     return { x: node.position.x, y: node.position.y };
@@ -23,6 +33,10 @@ export function calculateConnectionPointPosition(
   const { width, height } = node.dimensions;
   let connectionX = x;
   let connectionY = y;
+  
+  // Direction vectors for applying offset
+  let directionX = 0;
+  let directionY = 0;
 
   if (node.type === 'circle') {
     const radius = Math.min(width, height) / 2;
@@ -33,34 +47,50 @@ export function calculateConnectionPointPosition(
       case 'n':
         connectionX = centerX;
         connectionY = centerY - radius;
+        directionX = 0;
+        directionY = -1;
         break;
       case 's':
         connectionX = centerX;
         connectionY = centerY + radius;
+        directionX = 0;
+        directionY = 1;
         break;
       case 'w':
         connectionX = centerX - radius;
         connectionY = centerY;
+        directionX = -1;
+        directionY = 0;
         break;
       case 'e':
         connectionX = centerX + radius;
         connectionY = centerY;
+        directionX = 1;
+        directionY = 0;
         break;
       case 'nw':
         connectionX = centerX - radius * COS_45_DEG;
         connectionY = centerY - radius * COS_45_DEG;
+        directionX = -COS_45_DEG;
+        directionY = -COS_45_DEG;
         break;
       case 'ne':
         connectionX = centerX + radius * COS_45_DEG;
         connectionY = centerY - radius * COS_45_DEG;
+        directionX = COS_45_DEG;
+        directionY = -COS_45_DEG;
         break;
       case 'sw':
         connectionX = centerX - radius * COS_45_DEG;
         connectionY = centerY + radius * COS_45_DEG;
+        directionX = -COS_45_DEG;
+        directionY = COS_45_DEG;
         break;
       case 'se':
         connectionX = centerX + radius * COS_45_DEG;
         connectionY = centerY + radius * COS_45_DEG;
+        directionX = COS_45_DEG;
+        directionY = COS_45_DEG;
         break;
     }
   } else if (node.type === 'diamond') {
@@ -78,34 +108,50 @@ export function calculateConnectionPointPosition(
       case 'n':
         rectX = centerX;
         rectY = y;
+        directionX = 0;
+        directionY = -1;
         break;
       case 's':
         rectX = centerX;
         rectY = y + height;
+        directionX = 0;
+        directionY = 1;
         break;
       case 'w':
         rectX = x;
         rectY = centerY;
+        directionX = -1;
+        directionY = 0;
         break;
       case 'e':
         rectX = x + width;
         rectY = centerY;
+        directionX = 1;
+        directionY = 0;
         break;
       case 'nw':
         rectX = x;
         rectY = y;
+        directionX = -1;
+        directionY = -1;
         break;
       case 'ne':
         rectX = x + width;
         rectY = y;
+        directionX = 1;
+        directionY = -1;
         break;
       case 'sw':
         rectX = x;
         rectY = y + height;
+        directionX = -1;
+        directionY = 1;
         break;
       case 'se':
         rectX = x + width;
         rectY = y + height;
+        directionX = 1;
+        directionY = 1;
         break;
     }
     
@@ -117,6 +163,12 @@ export function calculateConnectionPointPosition(
     
     connectionX = centerX + (rectX - centerX) * COS_45_DEG - (rectY - centerY) * SIN_45_DEG;
     connectionY = centerY + (rectX - centerX) * SIN_45_DEG + (rectY - centerY) * COS_45_DEG;
+    
+    // Rotate the direction vector as well
+    const rotatedDirX = directionX * COS_45_DEG - directionY * SIN_45_DEG;
+    const rotatedDirY = directionX * SIN_45_DEG + directionY * COS_45_DEG;
+    directionX = rotatedDirX;
+    directionY = rotatedDirY;
   } else if (node.type === 'triangle') {
     // Triangle-specific connection point calculations
     const centerX = x + width / 2;
@@ -125,32 +177,46 @@ export function calculateConnectionPointPosition(
       case 'n':
         connectionX = centerX;
         connectionY = y;
+        directionX = 0;
+        directionY = -1;
         break;
       case 's':
         connectionX = centerX;
         connectionY = y + height;
+        directionX = 0;
+        directionY = 1;
         break;
       case 'w':
         connectionX = x + width / 4;
         connectionY = y + height / 2;
+        directionX = -1;
+        directionY = 0;
         break;
       case 'e':
         connectionX = x + width * 3 / 4;
         connectionY = y + height / 2;
+        directionX = 1;
+        directionY = 0;
         break;
       case 'sw':
         connectionX = x;
         connectionY = y + height;
+        directionX = -1;
+        directionY = 1;
         break;
       case 'se':
         connectionX = x + width;
         connectionY = y + height;
+        directionX = 1;
+        directionY = 1;
         break;
       // nw and ne are not used for triangles
       case 'nw':
       case 'ne':
         connectionX = centerX;
         connectionY = y;
+        directionX = 0;
+        directionY = -1;
         break;
     }
   } else {
@@ -159,36 +225,65 @@ export function calculateConnectionPointPosition(
       case 'n':
         connectionX = x + width / 2;
         connectionY = y;
+        directionX = 0;
+        directionY = -1;
         break;
       case 's':
         connectionX = x + width / 2;
         connectionY = y + height;
+        directionX = 0;
+        directionY = 1;
         break;
       case 'w':
         connectionX = x;
         connectionY = y + height / 2;
+        directionX = -1;
+        directionY = 0;
         break;
       case 'e':
         connectionX = x + width;
         connectionY = y + height / 2;
+        directionX = 1;
+        directionY = 0;
         break;
       case 'nw':
         connectionX = x;
         connectionY = y;
+        directionX = -1;
+        directionY = -1;
         break;
       case 'ne':
         connectionX = x + width;
         connectionY = y;
+        directionX = 1;
+        directionY = -1;
         break;
       case 'sw':
         connectionX = x;
         connectionY = y + height;
+        directionX = -1;
+        directionY = 1;
         break;
       case 'se':
         connectionX = x + width;
         connectionY = y + height;
+        directionX = 1;
+        directionY = 1;
         break;
     }
+  }
+
+  // Normalize direction vector for diagonal positions
+  if (directionX !== 0 && directionY !== 0) {
+    const length = Math.sqrt(directionX * directionX + directionY * directionY);
+    directionX /= length;
+    directionY /= length;
+  }
+
+  // Apply the offset only if this is for a connected line endpoint
+  if (isConnected && CONNECTION_POINT_OFFSET !== 0) {
+    connectionX += directionX * CONNECTION_POINT_OFFSET;
+    connectionY += directionY * CONNECTION_POINT_OFFSET;
   }
 
   return { x: connectionX, y: connectionY };
@@ -198,11 +293,13 @@ export function calculateConnectionPointPosition(
  * Find the optimal connection point on a shape that minimizes the distance to a target point
  * @param shape The shape node to find the optimal connection point on
  * @param targetPoint The target point to minimize distance to
+ * @param isConnected Whether this is for a connected line endpoint
  * @returns The optimal connection position and its absolute coordinates
  */
 export function findOptimalConnectionPoint(
   shape: Node,
-  targetPoint: { x: number, y: number }
+  targetPoint: { x: number, y: number },
+  isConnected: boolean = false
 ): { position: ConnectionPointPosition, point: { x: number, y: number } } {
   // All possible connection positions
   const connectionPositions: ConnectionPointPosition[] = [
@@ -215,7 +312,7 @@ export function findOptimalConnectionPoint(
   
   // Check each connection point position
   for (const position of connectionPositions) {
-    const connectionPoint = calculateConnectionPointPosition(shape, position);
+    const connectionPoint = calculateConnectionPointPosition(shape, position, isConnected);
     
     // Calculate distance to target point
     const dx = connectionPoint.x - targetPoint.x;
@@ -272,7 +369,8 @@ export function findNearestConnectionPoint(
   // Check each node and each connection point
   for (const node of eligibleNodes) {
     for (const position of connectionPositions) {
-      const pointPos = calculateConnectionPointPosition(node, position);
+      // Don't apply offset when finding nearest connection point
+      const pointPos = calculateConnectionPointPosition(node, position, false);
       const dx = pointPos.x - x;
       const dy = pointPos.y - y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -365,18 +463,21 @@ export function updateConnectedLine(
   // Create a copy of the line to avoid direct mutation
   const updatedLine = { ...line, points: [...line.points] };
   
+  // Create a copy of the connection to avoid modifying the original
+  const connectionCopy = { ...connection };
+  
   // If we have nodes and this is a dynamic connection, find the optimal connection point
-  if (nodes && connection.dynamic) {
+  if (nodes && connectionCopy.dynamic) {
     // Find the other endpoint index
     // We need to find the opposite endpoint from the current connection point
     let otherEndpointIndex: number | null = null;
     
     // If this is the first point (index 0), the other endpoint is the last point
-    if (connection.pointIndex === 0) {
+    if (connectionCopy.pointIndex === 0) {
       otherEndpointIndex = line.points.length - 1;
     } 
     // If this is the last point, the other endpoint is the first point
-    else if (connection.pointIndex === line.points.length - 1) {
+    else if (connectionCopy.pointIndex === line.points.length - 1) {
       otherEndpointIndex = 0;
     }
     
@@ -389,16 +490,16 @@ export function updateConnectedLine(
       };
       
       // Find the shape node this connection is attached to
-      const shapeNode = nodes.find(n => n.id === connection.shapeId);
+      const shapeNode = nodes.find(n => n.id === connectionCopy.shapeId);
       
       if (shapeNode) {
         // Find the optimal connection point based on the other endpoint's position
-        const optimalConnection = findOptimalConnectionPoint(shapeNode, otherEndpoint);
+        const optimalConnection = findOptimalConnectionPoint(shapeNode, otherEndpoint, true);
         
         // Update the connection position
-        connection.position = optimalConnection.position;
+        connectionCopy.position = optimalConnection.position;
         
-        // Use the optimal connection point instead of the provided one
+        // Use the optimal connection point with offset
         connectionPoint = optimalConnection.point;
       }
     }
@@ -409,7 +510,7 @@ export function updateConnectedLine(
   const relativeY = connectionPoint.y - line.position.y;
   
   // Update the line point
-  updatedLine.points[connection.pointIndex] = { x: relativeX, y: relativeY };
+  updatedLine.points[connectionCopy.pointIndex] = { x: relativeX, y: relativeY };
   
   // Use the utility function to calculate the bounding box
   const boundingBox = calculateLineBoundingBox(updatedLine.points);
@@ -426,8 +527,10 @@ export function updateConnectedLine(
     
     // Adjust all points
     for (let i = 0; i < updatedLine.points.length; i++) {
-      updatedLine.points[i].x += boundingBox.pointAdjustments.x;
-      updatedLine.points[i].y += boundingBox.pointAdjustments.y;
+      updatedLine.points[i] = {
+        x: updatedLine.points[i].x + boundingBox.pointAdjustments.x,
+        y: updatedLine.points[i].y + boundingBox.pointAdjustments.y
+      };
     }
   }
 
@@ -483,12 +586,16 @@ export function updateAllLineConnections(
     conn.pointIndex === updatedLine.points!.length - 1
   );
   
+  // Create copies of the connections to avoid modifying the originals
+  const firstPointConnectionCopy = firstPointConnection ? { ...firstPointConnection } : null;
+  const lastPointConnectionCopy = lastPointConnection ? { ...lastPointConnection } : null;
+  
   // If both endpoints are connected, we need to optimize both
-  if (firstPointConnection && lastPointConnection && 
-      firstPointConnection.dynamic && lastPointConnection.dynamic) {
+  if (firstPointConnectionCopy && lastPointConnectionCopy && 
+      firstPointConnectionCopy.dynamic && lastPointConnectionCopy.dynamic) {
     // Find the shapes for both connections
-    const firstShape = nodes.find(n => n.id === firstPointConnection.shapeId);
-    const lastShape = nodes.find(n => n.id === lastPointConnection.shapeId);
+    const firstShape = nodes.find(n => n.id === firstPointConnectionCopy.shapeId);
+    const lastShape = nodes.find(n => n.id === lastPointConnectionCopy.shapeId);
     
     if (firstShape && lastShape) {
       // We need to iteratively find the optimal connection points for both endpoints
@@ -508,14 +615,14 @@ export function updateAllLineConnections(
       // Iterate a few times to converge on optimal points
       for (let i = 0; i < 3; i++) {
         // Find optimal connection point for first endpoint based on last point
-        const optimalFirst = findOptimalConnectionPoint(firstShape, lastPoint);
+        const optimalFirst = findOptimalConnectionPoint(firstShape, lastPoint, true);
         firstPoint = optimalFirst.point;
-        firstPointConnection.position = optimalFirst.position;
+        firstPointConnectionCopy.position = optimalFirst.position;
         
         // Find optimal connection point for last endpoint based on first point
-        const optimalLast = findOptimalConnectionPoint(lastShape, firstPoint);
+        const optimalLast = findOptimalConnectionPoint(lastShape, firstPoint, true);
         lastPoint = optimalLast.point;
-        lastPointConnection.position = optimalLast.position;
+        lastPointConnectionCopy.position = optimalLast.position;
       }
       
       // Update the line points with the final optimal positions
@@ -534,36 +641,39 @@ export function updateAllLineConnections(
     for (const connection of lineConnections) {
       if (!connection.dynamic) continue;
       
+      // Create a copy of the connection to avoid modifying the original
+      const connectionCopy = { ...connection };
+      
       // Find the shape node this connection is attached to
-      const shapeNode = nodes.find(n => n.id === connection.shapeId);
+      const shapeNode = nodes.find(n => n.id === connectionCopy.shapeId);
       
       if (shapeNode && updatedLine.points) {
         // Determine which point to use as reference for finding the optimal connection
         let referencePoint: { x: number, y: number } | null = null;
         
         // If this is an endpoint (first or last point), use the opposite endpoint
-        if (connection.pointIndex === 0 && updatedLine.points.length > 1) {
+        if (connectionCopy.pointIndex === 0 && updatedLine.points.length > 1) {
           // First point - use the last point as reference
           referencePoint = {
             x: updatedLine.position.x + updatedLine.points[updatedLine.points.length - 1].x,
             y: updatedLine.position.y + updatedLine.points[updatedLine.points.length - 1].y
           };
-        } else if (connection.pointIndex === updatedLine.points.length - 1) {
+        } else if (connectionCopy.pointIndex === updatedLine.points.length - 1) {
           // Last point - use the first point as reference
           referencePoint = {
             x: updatedLine.position.x + updatedLine.points[0].x,
             y: updatedLine.position.y + updatedLine.points[0].y
           };
-        } else if (connection.pointIndex > 0 && connection.pointIndex < updatedLine.points.length - 1) {
+        } else if (connectionCopy.pointIndex > 0 && connectionCopy.pointIndex < updatedLine.points.length - 1) {
           // Middle point - use the average of adjacent points as reference
           const prevPoint = {
-            x: updatedLine.position.x + updatedLine.points[connection.pointIndex - 1].x,
-            y: updatedLine.position.y + updatedLine.points[connection.pointIndex - 1].y
+            x: updatedLine.position.x + updatedLine.points[connectionCopy.pointIndex - 1].x,
+            y: updatedLine.position.y + updatedLine.points[connectionCopy.pointIndex - 1].y
           };
           
           const nextPoint = {
-            x: updatedLine.position.x + updatedLine.points[connection.pointIndex + 1].x,
-            y: updatedLine.position.y + updatedLine.points[connection.pointIndex + 1].y
+            x: updatedLine.position.x + updatedLine.points[connectionCopy.pointIndex + 1].x,
+            y: updatedLine.position.y + updatedLine.points[connectionCopy.pointIndex + 1].y
           };
           
           referencePoint = {
@@ -575,17 +685,17 @@ export function updateAllLineConnections(
         // Only proceed if we have a valid reference point
         if (referencePoint) {
           // Find the optimal connection point based on the reference point
-          const optimalConnection = findOptimalConnectionPoint(shapeNode, referencePoint);
+          const optimalConnection = findOptimalConnectionPoint(shapeNode, referencePoint, true);
           
-          // Update the connection position
-          connection.position = optimalConnection.position;
+          // Update the connection position in our copy
+          connectionCopy.position = optimalConnection.position;
           
           // Calculate the relative position for the line point
           const relativeX = optimalConnection.point.x - updatedLine.position.x;
           const relativeY = optimalConnection.point.y - updatedLine.position.y;
           
           // Update the line point
-          updatedLine.points[connection.pointIndex] = { x: relativeX, y: relativeY };
+          updatedLine.points[connectionCopy.pointIndex] = { x: relativeX, y: relativeY };
         }
       }
     }
@@ -607,8 +717,10 @@ export function updateAllLineConnections(
       
       // Adjust all points
       for (let i = 0; i < updatedLine.points.length; i++) {
-        updatedLine.points[i].x += boundingBox.pointAdjustments.x;
-        updatedLine.points[i].y += boundingBox.pointAdjustments.y;
+        updatedLine.points[i] = {
+          x: updatedLine.points[i].x + boundingBox.pointAdjustments.x,
+          y: updatedLine.points[i].y + boundingBox.pointAdjustments.y
+        };
       }
     }
   }

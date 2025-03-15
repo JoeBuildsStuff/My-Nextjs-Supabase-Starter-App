@@ -13,6 +13,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCanvasStore, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
+import { updateAllLineConnections } from '../../lib/utils/connection-utils';
 
 // Define types
 type LineType = 'straight' | 'elbow';
@@ -164,7 +165,7 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
     onChange?.(config);
   }, [config, onChange]);
   
-  // Update specific config property and store
+  // Update selected lines
   const updateConfig = <K extends keyof LineConnectorConfig>(
     key: K, 
     value: LineConnectorConfig[K]
@@ -185,6 +186,41 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
     
     // Update selected lines
     updateSelectedLineMarkers();
+    
+    // Update connections for all selected lines
+    const allNodes = useCanvasStore.getState().nodes;
+    const connections = useCanvasStore.getState().connections;
+    
+    // Only process line/arrow nodes that are selected
+    const selectedLines = allNodes
+      .filter(node => node.selected && (node.type === 'line' || node.type === 'arrow'))
+      .map(node => node.id);
+    
+    if (selectedLines.length > 0) {
+      // For each selected line, update its connections
+      selectedLines.forEach((lineId: string) => {
+        const lineNode = allNodes.find(n => n.id === lineId);
+        if (lineNode) {
+          // Use the imported utility function to update connections
+          const updatedLine = updateAllLineConnections(lineNode, connections, allNodes);
+          
+          // Update the node in the store
+          useCanvasStore.getState().updateNodePosition(
+            updatedLine.id, 
+            updatedLine.position.x, 
+            updatedLine.position.y
+          );
+          
+          if (updatedLine.dimensions) {
+            useCanvasStore.getState().updateNodeDimensions(
+              updatedLine.id, 
+              updatedLine.dimensions.width, 
+              updatedLine.dimensions.height
+            );
+          }
+        }
+      });
+    }
   };
   
   // Line type options
