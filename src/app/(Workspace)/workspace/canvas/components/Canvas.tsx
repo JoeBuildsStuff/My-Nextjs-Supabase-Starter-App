@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { useCanvasStore, Node, MarkerShape, FillStyle } from '../lib/store/canvas-store';
+import { useCanvasStore, Node, MarkerShape } from '../lib/store/canvas-store';
 import ShapeRenderer from './shapes/ShapeRenderer';
 import SelectionBox from './selection/SelectionBox';
 import CanvasGrid from './grid/CanvasGrid';
@@ -55,11 +55,8 @@ const Canvas: React.FC<CanvasProps> = ({
     addPointToExistingLine,
     deleteSelectedPoints,
     createConnection,
-    startMarker,
-    endMarker,
     markerFillStyle,
     setStartMarker,
-    setEndMarker,
     setMarkerFillStyle,
     updateSelectedLineMarkers
   } = useCanvasStore();
