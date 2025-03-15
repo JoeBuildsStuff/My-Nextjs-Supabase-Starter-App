@@ -20,16 +20,16 @@ import { updateAllLineConnections } from '../../lib/utils/connection-utils';
 // Define types
 type LineType = 'straight' | 'elbow';
 
-interface LineConnectorConfig {
+interface LineEndpointConfig {
   lineType: LineType;
   fillStyle: FillStyle;
   startMarker: MarkerShape;
   endMarker: MarkerShape;
 }
 
-interface LineConnectorProps {
-  defaultConfig?: LineConnectorConfig;
-  onChange?: (config: LineConnectorConfig) => void;
+interface LineEndpointProps {
+  defaultConfig?: LineEndpointConfig;
+  onChange?: (config: LineEndpointConfig) => void;
 }
 
 // Marker component for consistent rendering
@@ -151,7 +151,7 @@ const ToggleSection: React.FC<{
 );
 
 // Main component
-const LineConnectorControls: React.FC<LineConnectorProps> = ({ 
+const LineEndpointControls: React.FC<LineEndpointProps> = ({ 
   defaultConfig,
   onChange 
 }) => {
@@ -169,7 +169,7 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
   } = useCanvasStore();
   
   // Default configuration
-  const defaultValues: LineConnectorConfig = {
+  const defaultValues: LineEndpointConfig = {
     lineType: 'straight',
     fillStyle: markerFillStyle,
     startMarker: startMarker,
@@ -178,7 +178,7 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
   };
   
   // State
-  const [config, setConfig] = useState<LineConnectorConfig>(defaultValues);
+  const [config, setConfig] = useState<LineEndpointConfig>(defaultValues);
 
 
   // Function to get HSL value from color name (similar to getCurrentColorHsl in ColorControls)
@@ -559,9 +559,9 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
   }, [config, onChange]);
   
   // Update selected lines
-  const updateConfig = <K extends keyof LineConnectorConfig>(
+  const updateConfig = <K extends keyof LineEndpointConfig>(
     key: K, 
-    value: LineConnectorConfig[K]
+    value: LineEndpointConfig[K]
   ) => {
     setConfig(prev => ({
       ...prev,
@@ -702,34 +702,57 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
     ];
   };
   
-  // Preview of current configuration with proper colors
+  const MarkerComponent = ({ type, position, style }: { type: MarkerShape, position: 'start' | 'end', style: React.CSSProperties }) => {
+    // Map marker types to their components
+    const components = {
+      triangle: Triangle,
+      circle: Circle,
+      square: Square,
+      diamond: Diamond
+    };
+    
+    // Get the correct component based on type
+    const Component = components[type as keyof typeof components];
+    
+    // If no marker type is specified, return null
+    if (!Component) return null;
+    
+    // Calculate rotation based on position
+    const rotation = position === 'start' ? '-rotate-90' : position === 'end' ? 'rotate-90' : '';
+    
+    // Calculate margin based on position
+    const margin = position === 'start' ? '-mr-1' : position === 'end' ? '-ml-1' : '';
+    
+    return (
+      <Component 
+        className={`${rotation} ${margin}`} 
+        style={{ ...style, width: '12px', height: '12px' }} 
+      />
+    );
+  };
+  
   const renderPreview = () => {
     const fillValue = config.fillStyle === 'filled' ? `hsl(${fillHsl})` : 'none';
     const strokeValue = `hsl(${strokeHsl})`;
     
+    const markerStyle = {
+      stroke: strokeValue,
+      fill: fillValue
+    };
+    
     return (
       <div className="flex items-center">
-        {config.startMarker !== 'none' && (
-          <Marker 
-            shape={config.startMarker} 
-            fillStyle={config.fillStyle} 
-            isStart={true}
-            fillColor={fillValue}
-            strokeColor={strokeValue}
-          />
-        )}
-        {config.startMarker === 'none' && config.endMarker === 'none' && (
-          <Minus style={{ stroke: strokeValue }} />
-        )}
-        {config.endMarker !== 'none' && (
-          <Marker 
-            shape={config.endMarker} 
-            fillStyle={config.fillStyle} 
-            isStart={false}
-            fillColor={fillValue}
-            strokeColor={strokeValue}
-          />
-        )}
+        <MarkerComponent 
+          type={config.startMarker} 
+          position="start" 
+          style={markerStyle} 
+        />
+        <Minus className="" style={{ stroke: strokeValue }} />
+        <MarkerComponent 
+          type={config.endMarker} 
+          position="end" 
+          style={markerStyle} 
+        />
       </div>
     );
   };
@@ -780,4 +803,4 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
   );
 };
 
-export default LineConnectorControls;
+export default LineEndpointControls;
