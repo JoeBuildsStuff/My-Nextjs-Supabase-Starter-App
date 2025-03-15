@@ -51,6 +51,10 @@ export type ToolType =
   | 'eraser'
   | 'lock';
 
+// Add marker types
+export type MarkerShape = 'none' | 'triangle' | 'circle' | 'square' | 'diamond';
+export type FillStyle = 'filled' | 'outlined';
+
 // Add this interface to track connections between shapes and lines
 export interface Connection {
   lineId: string;
@@ -76,6 +80,11 @@ export interface CanvasState {
   strokeStyle: 'solid' | 'dashed' | 'dotted';
   textColor: string;
   presentationMode: boolean;
+  
+  // Line marker settings
+  startMarker: MarkerShape;
+  endMarker: MarkerShape;
+  markerFillStyle: FillStyle;
   
   // Line drawing state
   lineInProgress: Node | null;
@@ -179,6 +188,12 @@ export interface CanvasState {
 
   // Add this new function after the duplicateSelectedNodes function
   duplicateNodeToRight: (nodeId: string, spacing: number) => Node | undefined;
+  
+  // Line marker actions
+  setStartMarker: (marker: MarkerShape) => void;
+  setEndMarker: (marker: MarkerShape) => void;
+  setMarkerFillStyle: (style: FillStyle) => void;
+  updateSelectedLineMarkers: () => void;
 }
 
 // Add this helper function to determine if we're in dark mode
@@ -1126,6 +1141,10 @@ export const useCanvasStore = create<CanvasState>()(
     strokeStyle: 'solid',
     textColor: `black-${initialStrokeDefaultShade}`,
     presentationMode: false,
+    // Line marker settings
+    startMarker: 'none' as MarkerShape,
+    endMarker: 'none' as MarkerShape,
+    markerFillStyle: 'filled' as FillStyle,
     // Line drawing state
     lineInProgress: null,
     selectedPointIndices: null,
@@ -2363,7 +2382,13 @@ export const useCanvasStore = create<CanvasState>()(
           points: [
             { x: 0, y: 0 }, // First point is at the origin (relative to position)
             { x: 0, y: 0 }  // Second point starts at the same place, will be updated
-          ]
+          ],
+          data: {
+            ...baseNode.data,
+            startMarker: state.startMarker,
+            endMarker: state.endMarker,
+            markerFillStyle: state.markerFillStyle
+          }
         };
         
         state.lineInProgress = newLine;
@@ -2850,5 +2875,47 @@ export const useCanvasStore = create<CanvasState>()(
       
       return duplicatedNode;
     },
+    
+    // Line marker actions
+    setStartMarker: (marker: MarkerShape) =>
+      set((state) => {
+        state.startMarker = marker;
+      }),
+    
+    setEndMarker: (marker: MarkerShape) =>
+      set((state) => {
+        state.endMarker = marker;
+      }),
+    
+    setMarkerFillStyle: (style: FillStyle) =>
+      set((state) => {
+        state.markerFillStyle = style;
+      }),
+    
+    updateSelectedLineMarkers: () =>
+      set((state) => {
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
+        let updatedAnyNode = false;
+        
+        state.nodes.forEach(node => {
+          if (node.selected && (node.type === 'line' || node.type === 'arrow')) {
+            if (!node.data) node.data = {};
+            
+            // Update marker settings
+            node.data.startMarker = state.startMarker;
+            node.data.endMarker = state.endMarker;
+            node.data.markerFillStyle = state.markerFillStyle;
+            
+            updatedAnyNode = true;
+          }
+        });
+        
+        // Create a new nodes array to trigger a re-render
+        if (updatedAnyNode) {
+          state.nodes = [...state.nodes];
+        }
+      }),
   }))
 ); 

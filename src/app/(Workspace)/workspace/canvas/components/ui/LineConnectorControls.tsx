@@ -12,11 +12,10 @@ import {
 } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCanvasStore, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
 
 // Define types
 type LineType = 'straight' | 'elbow';
-type FillStyle = 'filled' | 'outlined';
-type MarkerShape = 'none' | 'triangle' | 'circle' | 'square' | 'diamond';
 
 interface LineConnectorConfig {
   lineType: LineType;
@@ -127,24 +126,45 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
   defaultConfig,
   onChange 
 }) => {
+  // Get marker settings from canvas store
+  const { 
+    startMarker, 
+    endMarker, 
+    markerFillStyle,
+    setStartMarker,
+    setEndMarker,
+    setMarkerFillStyle,
+    updateSelectedLineMarkers
+  } = useCanvasStore();
+  
   // Default configuration
   const defaultValues: LineConnectorConfig = {
     lineType: 'straight',
-    fillStyle: 'filled',
-    startMarker: 'none',
-    endMarker: 'none',
+    fillStyle: markerFillStyle,
+    startMarker: startMarker,
+    endMarker: endMarker,
     ...defaultConfig
   };
   
   // State
   const [config, setConfig] = useState<LineConnectorConfig>(defaultValues);
   
+  // Update local state when store changes
+  useEffect(() => {
+    setConfig(prev => ({
+      ...prev,
+      fillStyle: markerFillStyle,
+      startMarker: startMarker,
+      endMarker: endMarker
+    }));
+  }, [markerFillStyle, startMarker, endMarker]);
+  
   // Update parent component when config changes
   useEffect(() => {
     onChange?.(config);
   }, [config, onChange]);
   
-  // Update specific config property
+  // Update specific config property and store
   const updateConfig = <K extends keyof LineConnectorConfig>(
     key: K, 
     value: LineConnectorConfig[K]
@@ -153,6 +173,18 @@ const LineConnectorControls: React.FC<LineConnectorProps> = ({
       ...prev,
       [key]: value
     }));
+    
+    // Update store based on property
+    if (key === 'startMarker') {
+      setStartMarker(value as MarkerShape);
+    } else if (key === 'endMarker') {
+      setEndMarker(value as MarkerShape);
+    } else if (key === 'fillStyle') {
+      setMarkerFillStyle(value as FillStyle);
+    }
+    
+    // Update selected lines
+    updateSelectedLineMarkers();
   };
   
   // Line type options

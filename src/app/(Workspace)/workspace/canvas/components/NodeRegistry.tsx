@@ -79,7 +79,7 @@ export const defaultNodeTemplates: Record<string, NodeTemplate> = {
     label: 'Line',
     defaultDimensions: { width: 150, height: 2 },
     defaultStyle: {
-      borderColor: 'hsl(var(--foreground))',
+      borderColor: 'hsl(var(--text-muted))',
       borderWidth: 2,
     },
   },

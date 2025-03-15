@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { useCanvasStore, Node } from '../lib/store/canvas-store';
+import { useCanvasStore, Node, MarkerShape, FillStyle } from '../lib/store/canvas-store';
 import ShapeRenderer from './shapes/ShapeRenderer';
 import SelectionBox from './selection/SelectionBox';
 import CanvasGrid from './grid/CanvasGrid';
@@ -54,7 +54,14 @@ const Canvas: React.FC<CanvasProps> = ({
     selectedPointIndices,
     addPointToExistingLine,
     deleteSelectedPoints,
-    createConnection
+    createConnection,
+    startMarker,
+    endMarker,
+    markerFillStyle,
+    setStartMarker,
+    setEndMarker,
+    setMarkerFillStyle,
+    updateSelectedLineMarkers
   } = useCanvasStore();
   
   // State for tracking mouse interactions
@@ -204,6 +211,31 @@ const Canvas: React.FC<CanvasProps> = ({
           e.preventDefault();
         }
       }
+      
+      // Shortcuts for line markers - only when a line is selected
+      const selectedLine = nodes.find(node => 
+        node.selected && (node.type === 'line' || node.type === 'arrow')
+      );
+      
+      if (selectedLine) {
+        // Alt+1-5 for start marker types
+        if (e.key >= '1' && e.key <= '5' && e.altKey) {
+          e.preventDefault();
+          const markerIndex = parseInt(e.key) - 1;
+          const markers: MarkerShape[] = ['none', 'triangle', 'circle', 'square', 'diamond'];
+          if (markerIndex >= 0 && markerIndex < markers.length) {
+            setStartMarker(markers[markerIndex]);
+            updateSelectedLineMarkers();
+          }
+        }
+        
+        // Shift+F to toggle fill style
+        if (e.key === 'f' && e.shiftKey) {
+          e.preventDefault();
+          setMarkerFillStyle(markerFillStyle === 'filled' ? 'outlined' : 'filled');
+          updateSelectedLineMarkers();
+        }
+      }
     };
     
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -219,7 +251,7 @@ const Canvas: React.FC<CanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [lineInProgress, cancelLineDraw, selectedPointIndices, deleteSelectedPoints]);
+  }, [lineInProgress, cancelLineDraw, selectedPointIndices, deleteSelectedPoints, setStartMarker, setMarkerFillStyle, updateSelectedLineMarkers]);
   
   // Add effect to deselect all nodes when line tool is selected
   useEffect(() => {
@@ -1419,32 +1451,25 @@ const Canvas: React.FC<CanvasProps> = ({
       bottom: number;
       centerX: number;
       centerY: number;
-    }, staticBox: {
-      id: string;
-      left: number;
-      top: number;
-      right: number;
-      bottom: number;
-      centerX: number;
-      centerY: number;
-    }, type: 'top' | 'bottom' | 'center') => {
+    }, alignmentType: string) => {
       // Check if a similar guide already exists (within 1 pixel)
       const existingGuide = horizontalGuides.find(g => Math.abs(g.y - y) < 1);
+      
       if (existingGuide) {
-        // Update existing guide's start/end if needed
-        existingGuide.start = Math.min(existingGuide.start, Math.min(movingBox.left, staticBox.left) - EXTENSION_AMOUNT);
-        existingGuide.end = Math.max(existingGuide.end, Math.max(movingBox.right, staticBox.right) + EXTENSION_AMOUNT);
+        // Extend the existing guide if needed
+        existingGuide.start = Math.min(existingGuide.start, movingBox.left - EXTENSION_AMOUNT);
+        existingGuide.end = Math.max(existingGuide.end, movingBox.right + EXTENSION_AMOUNT);
         // If this is a center guide, mark it as such
-        if (type === 'center') {
+        if (alignmentType === 'center') {
           existingGuide.type = 'center';
         }
       } else {
-        // Add new guide
+        // Add a new guide
         horizontalGuides.push({
           y,
-          start: Math.min(movingBox.left, staticBox.left) - EXTENSION_AMOUNT,
-          end: Math.max(movingBox.right, staticBox.right) + EXTENSION_AMOUNT,
-          type
+          start: movingBox.left - EXTENSION_AMOUNT,
+          end: movingBox.right + EXTENSION_AMOUNT,
+          type: alignmentType as 'top' | 'bottom' | 'center'
         });
       }
     };
@@ -1458,32 +1483,25 @@ const Canvas: React.FC<CanvasProps> = ({
       bottom: number;
       centerX: number;
       centerY: number;
-    }, staticBox: {
-      id: string;
-      left: number;
-      top: number;
-      right: number;
-      bottom: number;
-      centerX: number;
-      centerY: number;
-    }, type: 'left' | 'right' | 'center') => {
+    }, alignmentType: string) => {
       // Check if a similar guide already exists (within 1 pixel)
       const existingGuide = verticalGuides.find(g => Math.abs(g.x - x) < 1);
+      
       if (existingGuide) {
-        // Update existing guide's start/end if needed
-        existingGuide.start = Math.min(existingGuide.start, Math.min(movingBox.top, staticBox.top) - EXTENSION_AMOUNT);
-        existingGuide.end = Math.max(existingGuide.end, Math.max(movingBox.bottom, staticBox.bottom) + EXTENSION_AMOUNT);
+        // Extend the existing guide if needed
+        existingGuide.start = Math.min(existingGuide.start, movingBox.top - EXTENSION_AMOUNT);
+        existingGuide.end = Math.max(existingGuide.end, movingBox.bottom + EXTENSION_AMOUNT);
         // If this is a center guide, mark it as such
-        if (type === 'center') {
+        if (alignmentType === 'center') {
           existingGuide.type = 'center';
         }
       } else {
-        // Add new guide
+        // Add a new guide
         verticalGuides.push({
           x,
-          start: Math.min(movingBox.top, staticBox.top) - EXTENSION_AMOUNT,
-          end: Math.max(movingBox.bottom, staticBox.bottom) + EXTENSION_AMOUNT,
-          type
+          start: movingBox.top - EXTENSION_AMOUNT,
+          end: movingBox.bottom + EXTENSION_AMOUNT,
+          type: alignmentType as 'left' | 'right' | 'center'
         });
       }
     };
@@ -1497,13 +1515,13 @@ const Canvas: React.FC<CanvasProps> = ({
       for (const staticBox of staticBoxes) {
         // Check for center alignment (horizontal)
         if (Math.abs(movingBox.centerY - staticBox.centerY) < ALIGNMENT_THRESHOLD) {
-          addHorizontalGuide(staticBox.centerY, movingBox, staticBox, 'center');
+          addHorizontalGuide(staticBox.centerY, movingBox, 'center');
           nodesWithCenterYAlignment.add(movingBox.id);
         }
         
         // Check for center alignment (vertical)
         if (Math.abs(movingBox.centerX - staticBox.centerX) < ALIGNMENT_THRESHOLD) {
-          addVerticalGuide(staticBox.centerX, movingBox, staticBox, 'center');
+          addVerticalGuide(staticBox.centerX, movingBox, 'center');
           nodesWithCenterXAlignment.add(movingBox.id);
         }
       }
@@ -1520,22 +1538,22 @@ const Canvas: React.FC<CanvasProps> = ({
         if (!hasCenterYAlignment) {
           // Top edge alignment
           if (Math.abs(movingBox.top - staticBox.top) < ALIGNMENT_THRESHOLD) {
-            addHorizontalGuide(staticBox.top, movingBox, staticBox, 'top');
+            addHorizontalGuide(staticBox.top, movingBox, 'top');
           }
           
           // Bottom edge alignment
           if (Math.abs(movingBox.bottom - staticBox.bottom) < ALIGNMENT_THRESHOLD) {
-            addHorizontalGuide(staticBox.bottom, movingBox, staticBox, 'bottom');
+            addHorizontalGuide(staticBox.bottom, movingBox, 'bottom');
           }
           
           // Top to bottom alignment
           if (Math.abs(movingBox.top - staticBox.bottom) < ALIGNMENT_THRESHOLD) {
-            addHorizontalGuide(staticBox.bottom, movingBox, staticBox, 'bottom');
+            addHorizontalGuide(staticBox.bottom, movingBox, 'bottom');
           }
           
           // Bottom to top alignment
           if (Math.abs(movingBox.bottom - staticBox.top) < ALIGNMENT_THRESHOLD) {
-            addHorizontalGuide(staticBox.top, movingBox, staticBox, 'top');
+            addHorizontalGuide(staticBox.top, movingBox, 'top');
           }
         }
         
@@ -1543,22 +1561,22 @@ const Canvas: React.FC<CanvasProps> = ({
         if (!hasCenterXAlignment) {
           // Left edge alignment
           if (Math.abs(movingBox.left - staticBox.left) < ALIGNMENT_THRESHOLD) {
-            addVerticalGuide(staticBox.left, movingBox, staticBox, 'left');
+            addVerticalGuide(staticBox.left, movingBox, 'left');
           }
           
           // Right edge alignment
           if (Math.abs(movingBox.right - staticBox.right) < ALIGNMENT_THRESHOLD) {
-            addVerticalGuide(staticBox.right, movingBox, staticBox, 'right');
+            addVerticalGuide(staticBox.right, movingBox, 'right');
           }
           
           // Left to right alignment
           if (Math.abs(movingBox.left - staticBox.right) < ALIGNMENT_THRESHOLD) {
-            addVerticalGuide(staticBox.right, movingBox, staticBox, 'right');
+            addVerticalGuide(staticBox.right, movingBox, 'right');
           }
           
           // Right to left alignment
           if (Math.abs(movingBox.right - staticBox.left) < ALIGNMENT_THRESHOLD) {
-            addVerticalGuide(staticBox.left, movingBox, staticBox, 'left');
+            addVerticalGuide(staticBox.left, movingBox, 'left');
           }
         }
       }
