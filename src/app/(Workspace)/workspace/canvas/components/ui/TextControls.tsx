@@ -7,96 +7,41 @@ import { AArrowDown, AArrowUp, ALargeSmall, AlignCenter, AlignLeft, AlignRight, 
 import { Card } from "@/components/ui/card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useCanvasStore } from "@/app/(Workspace)/workspace/canvas/lib/store/canvas-store"
-import { useTheme } from "next-themes"
-
-// Color options from ColorControls
-const baseColorOptions = [
-  { name: "none", hsl: "0 0% 0%", special: true },
-  { name: "white", hsl: "0 0% 100%" },
-  { name: "black", hsl: "0 0% 0%" },
-  { name: "slate", hsl: "215 16% 47%" },
-  { name: "gray", hsl: "220 9% 46%" },
-  { name: "zinc", hsl: "240 4% 46%" },
-  { name: "neutral", hsl: "0 0% 46%" },
-  { name: "stone", hsl: "25 6% 46%" },
-  { name: "red", hsl: "0 84% 60%" },
-  { name: "orange", hsl: "25 95% 53%" },
-  { name: "amber", hsl: "38 92% 50%" },
-  { name: "yellow", hsl: "48 96% 53%" },
-  { name: "lime", hsl: "84 81% 44%" },
-  { name: "green", hsl: "142 71% 45%" },
-  { name: "emerald", hsl: "152 69% 31%" },
-  { name: "teal", hsl: "173 80% 40%" },
-  { name: "cyan", hsl: "186 94% 41%" },
-  { name: "sky", hsl: "199 89% 48%" },
-  { name: "blue", hsl: "217 91% 60%" },
-  { name: "indigo", hsl: "239 84% 67%" },
-  { name: "violet", hsl: "250 83% 71%" },
-  { name: "purple", hsl: "270 91% 65%" },
-  { name: "fuchsia", hsl: "292 91% 69%" },
-  { name: "pink", hsl: "330 81% 60%" },
-  { name: "rose", hsl: "355 90% 67%" },
-];
-
-// Map color names to Tailwind text color classes
-// This ensures all classes are included in the build
-const colorClassMap: Record<string, string> = {
-  none: "text-foreground",
-  white: "text-white",
-  black: "text-black",
-  slate: "text-slate-500",
-  gray: "text-gray-500",
-  zinc: "text-zinc-500",
-  neutral: "text-neutral-500",
-  stone: "text-stone-500",
-  red: "text-red-500",
-  orange: "text-orange-500",
-  amber: "text-amber-500",
-  yellow: "text-yellow-500",
-  lime: "text-lime-500",
-  green: "text-green-500",
-  emerald: "text-emerald-500",
-  teal: "text-teal-500",
-  cyan: "text-cyan-500",
-  sky: "text-sky-500",
-  blue: "text-blue-500",
-  indigo: "text-indigo-500",
-  violet: "text-violet-500",
-  purple: "text-purple-500",
-  fuchsia: "text-fuchsia-500",
-  pink: "text-pink-500",
-  rose: "text-rose-500",
-};
+import { baseColorOptions, colorClassMap } from "../../lib/utils/tailwind-color-utils"
+import { useTailwindColors } from "../../lib/utils/use-tailwind-colors"
 
 export default function TextControls() {
-  const { nodes, textColor, setTextColor, setFontSize, setTextAlign, setVerticalAlign } = useCanvasStore()
-  const { resolvedTheme } = useTheme();
-  const isDarkMode = resolvedTheme === 'dark';
+  const { 
+    nodes, 
+    textColor, 
+    setTextColor, 
+    setFontSize, 
+    setTextAlign, 
+    setVerticalAlign,
+    updateColorsForTheme
+  } = useCanvasStore();
+  
+  // Use the tailwind colors hook for theme-aware color handling
+  const {
+    defaultStrokeShade,
+    hasThemeChanged,
+    isDarkMode
+  } = useTailwindColors();
 
   // Get the selected text node
   const selectedTextNode = nodes.find(node => node.selected && node.type === 'text')
   const textStyle = selectedTextNode?.style || {}
 
-  // Helper function to convert HSL value to color name
-  const getColorNameFromHsl = (hslValue: string): string => {
-    if (!hslValue) return "none";
+  // Helper function to extract base color from a color with shade
+  const getBaseColor = (colorName: string): string => {
+    if (!colorName || colorName === 'none') return 'none';
     
-    // Handle the foreground variable case
-    if (hslValue === 'hsl(var(--foreground))') return "none";
-    
-    // For other HSL values, try to match with baseColorOptions
-    for (const color of baseColorOptions) {
-      if (hslValue === `hsl(${color.hsl})`) {
-        return color.name;
-      }
+    const parts = colorName.split('-');
+    if (parts.length === 2) {
+      return parts[0];
     }
     
-    return "none"; // Default to none if no match found
-  };
-
-  // Get default shade based on theme
-  const getDefaultShade = () => {
-    return isDarkMode ? '300' : '800';
+    return colorName;
   };
 
   // Initialize state from the selected node or defaults
@@ -106,26 +51,34 @@ export default function TextControls() {
   const [horizontalAlignment, setLocalHorizontalAlignment] = useState(textStyle.textAlign?.toString() || "left")
   const [verticalAlignment, setLocalVerticalAlignment] = useState(textStyle.verticalAlign?.toString() || "top")
   const [selectedColorBase, setSelectedColorBase] = useState<string>(
-    getColorNameFromHsl(textStyle.textColor as string || textColor)
+    getBaseColor(textStyle.textColor as string || textColor)
   )
 
-  // Update color when theme changes
+  // Update text color when theme changes
   useEffect(() => {
-    if (selectedColorBase && selectedColorBase !== 'none') {
+    if (hasThemeChanged && selectedColorBase && selectedColorBase !== 'none') {
       // When theme changes, update the text color with the appropriate shade
-      const defaultShade = getDefaultShade();
-      setTextColor(`${selectedColorBase}-${defaultShade}`);
+      const newColor = `${selectedColorBase}-${defaultStrokeShade}`;
+      setTextColor(newColor);
+      
+      // Use the centralized function to update all node colors
+      updateColorsForTheme(isDarkMode);
     }
-  }, [resolvedTheme, selectedColorBase, getDefaultShade, setTextColor]);
+  }, [
+    hasThemeChanged, 
+    selectedColorBase, 
+    defaultStrokeShade, 
+    setTextColor, 
+    updateColorsForTheme, 
+    isDarkMode
+  ]);
 
   // Get the appropriate Tailwind class for the selected color
   const getColorClass = (colorName: string): string => {
-    if (colorName.includes('-')) {
-      // If it's a color with a shade, extract the base color
-      const baseName = colorName.split('-')[0];
-      return colorClassMap[baseName] || "text-foreground";
-    }
-    return colorClassMap[colorName] || "text-foreground";
+    if (!colorName || colorName === 'none') return "text-foreground";
+    
+    const baseColor = getBaseColor(colorName);
+    return colorClassMap[baseColor] || "text-foreground";
   };
 
   // Handle font size change
@@ -156,8 +109,8 @@ export default function TextControls() {
     }
     
     // Use the appropriate shade based on the theme
-    const defaultShade = getDefaultShade();
-    setTextColor(`${colorBase}-${defaultShade}`);
+    const newColor = `${colorBase}-${defaultStrokeShade}`;
+    setTextColor(newColor);
   }
 
   // Render color buttons
