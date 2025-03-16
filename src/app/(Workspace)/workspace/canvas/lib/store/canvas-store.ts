@@ -6,7 +6,8 @@ import {
   calculateLineBoundingBox,
   LINE_BOUNDING_BOX_PADDING,
   findNearestConnectionPoint,
-  updateAllLineConnections
+  updateAllLineConnections,
+  updateLineWithElbowRouting
 } from '../utils/connection-utils';
 // Always import the node registry to start with default node types and styles
 import { nodeRegistry } from '../../components/NodeRegistry';
@@ -1229,67 +1230,43 @@ export const useCanvasStore = create<CanvasState>()(
     },
     
     updateNodePosition: (nodeId, x, y) => {
-      set(state => {
-        const node = state.nodes.find(n => n.id === nodeId);
-        if (node) {
-          // Apply grid snapping if enabled
-          let newX, newY;
-          if (state.snapToGrid) {
-            newX = Math.round(x / state.gridSize) * state.gridSize;
-            newY = Math.round(y / state.gridSize) * state.gridSize;
-          } else {
-            newX = x;
-            newY = y;
-          }
-          
-          // Update the node position
-          node.position.x = newX;
-          node.position.y = newY;
-          
-          // If this is a line node with connections, update all its connections
-          if ((node.type === 'line' || node.type === 'arrow') && node.points && node.points.length > 0) {
-            // Use the utility function to update all connections for this line
-            const updatedNode = updateAllLineConnections(node, state.connections, state.nodes);
-            
-            // Update the node with the updated values
-            node.points = updatedNode.points;
-            node.position = updatedNode.position;
-            node.dimensions = updatedNode.dimensions;
-          }
-          
-          // Find all lines connected to this shape and update them
-          // This handles both cases:
-          // 1. Lines where this shape is directly connected to
-          // 2. Lines where this shape is one of the endpoints
-          const connectedLineIds = new Set<string>();
-          
-          // First, find all connections where this shape is involved
-          state.connections.forEach(connection => {
-            // Case 1: This shape is connected to a line
-            if (connection.shapeId === nodeId) {
-              connectedLineIds.add(connection.lineId);
-            }
-            
-            // Case 2: This shape is the line itself
-            if (connection.lineId === nodeId) {
-              // We've already handled this case above
-            }
-          });
-          
-          // Now update all the connected lines
-          connectedLineIds.forEach(lineId => {
-            const lineIndex = state.nodes.findIndex(n => n.id === lineId);
+      set((state) => {
+        const nodeIndex = state.nodes.findIndex(n => n.id === nodeId);
+        if (nodeIndex === -1) return state;
+        
+        // Update the node position
+        state.nodes[nodeIndex] = {
+          ...state.nodes[nodeIndex],
+          position: { x, y }
+        };
+        
+        // Find all connections that involve this node
+        const nodeConnections = state.connections.filter(conn => conn.shapeId === nodeId);
+        
+        // If there are connections, update the connected lines
+        if (nodeConnections.length > 0) {
+          // For each connection, update the line
+          nodeConnections.forEach(connection => {
+            const lineIndex = state.nodes.findIndex(n => n.id === connection.lineId);
             if (lineIndex !== -1) {
-              const line = state.nodes[lineIndex];
+              const lineNode = state.nodes[lineIndex];
+              const lineType = lineNode.data?.lineType as string || 'straight';
               
-              // Use the utility function to update all connections for this line
-              const updatedLine = updateAllLineConnections(line, state.connections, state.nodes);
+              // Create a deep copy of the line node to avoid modifying the original
+              const lineCopy = deepClone(lineNode);
               
-              // Update the line with the updated values
+              // Update the line based on its type
+              const updatedLine = lineType === 'elbow'
+                ? updateLineWithElbowRouting(lineCopy, state.connections, state.nodes)
+                : updateAllLineConnections(lineCopy, state.connections, state.nodes);
+              
+              // Update the line in the nodes array
               state.nodes[lineIndex] = updatedLine;
             }
           });
         }
+        
+        // With Immer, we don't need to return anything when we modify the draft state
       });
     },
       
@@ -2411,28 +2388,29 @@ function generateElbowPoints(
   startPoint: { x: number; y: number },
   endPoint: { x: number; y: number }
 ): Array<{ x: number; y: number }> {
-  // For now, return a simple 3-point elbow path
-  // This will be replaced with a more sophisticated algorithm
-  
+  // Calculate the direct distance between points
   const dx = endPoint.x - startPoint.x;
   const dy = endPoint.y - startPoint.y;
   
   // Determine which axis to bend on based on the relative positions
+  // For a single elbow, we'll use the longer axis to determine direction
+  let elbowX: number;
+  let elbowY: number;
+  
   if (Math.abs(dx) > Math.abs(dy)) {
-    // Bend horizontally first
-    return [
-      { x: startPoint.x, y: startPoint.y },
-      { x: startPoint.x + dx / 2, y: startPoint.y },
-      { x: startPoint.x + dx / 2, y: endPoint.y },
-      { x: endPoint.x, y: endPoint.y }
-    ];
+    // Horizontal distance is greater, so bend vertically at the end point's x-coordinate
+    elbowX = endPoint.x;
+    elbowY = startPoint.y;
   } else {
-    // Bend vertically first
-    return [
-      { x: startPoint.x, y: startPoint.y },
-      { x: startPoint.x, y: startPoint.y + dy / 2 },
-      { x: endPoint.x, y: startPoint.y + dy / 2 },
-      { x: endPoint.x, y: endPoint.y }
-    ];
+    // Vertical distance is greater, so bend horizontally at the end point's y-coordinate
+    elbowX = startPoint.x;
+    elbowY = endPoint.y;
   }
+  
+  // Return a 3-point path: start -> elbow -> end
+  return [
+    { x: startPoint.x, y: startPoint.y },
+    { x: elbowX, y: elbowY },
+    { x: endPoint.x, y: endPoint.y }
+  ];
 }

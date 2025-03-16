@@ -15,6 +15,7 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
   const startMarker = (data?.startMarker as MarkerShape) || 'none';
   const endMarker = (data?.endMarker as MarkerShape) || (type === 'arrow' ? 'triangle' : 'none');
   const markerFillStyle = (data?.markerFillStyle as FillStyle) || 'filled';
+  const lineType = (data?.lineType as string) || 'straight';
 
   if (!points || points.length < 1 || !dimensions) return null;
 
@@ -26,15 +27,52 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
   let endAngle = 0;
 
   if (points.length > 1) {
-    startAngle = Math.atan2(
-      points[1].y - points[0].y,
-      points[1].x - points[0].x
-    ) * 180 / Math.PI;
+    if (lineType === 'elbow' && points.length > 2) {
+      // For elbow connectors, use the angle of the first segment for start marker
+      startAngle = Math.atan2(
+        points[1].y - points[0].y,
+        points[1].x - points[0].x
+      ) * 180 / Math.PI;
+      
+      // And the angle of the last segment for end marker
+      const lastIndex = points.length - 1;
+      endAngle = Math.atan2(
+        points[lastIndex].y - points[lastIndex-1].y,
+        points[lastIndex].x - points[lastIndex-1].x
+      ) * 180 / Math.PI;
+    } else {
+      // For straight lines, calculate the angle between endpoints
+      startAngle = Math.atan2(
+        points[points.length-1].y - points[0].y,
+        points[points.length-1].x - points[0].x
+      ) * 180 / Math.PI;
+      
+      endAngle = startAngle;
+    }
+  }
 
-    endAngle = Math.atan2(
-      points[points.length-1].y - points[points.length-2].y,
-      points[points.length-1].x - points[points.length-2].x
-    ) * 180 / Math.PI;
+  // Create SVG path
+  let pathData = '';
+  
+  if (lineType === 'elbow' && points.length >= 3) {
+    // For elbow connectors, use a path that connects all points
+    pathData = points.reduce((path, point, index) => {
+      if (index === 0) {
+        return `M ${point.x} ${point.y}`;
+      }
+      return `${path} L ${point.x} ${point.y}`;
+    }, '');
+  } else if (points.length >= 2) {
+    // For straight lines or incomplete elbow, just connect the points we have
+    pathData = points.reduce((path, point, index) => {
+      if (index === 0) {
+        return `M ${point.x} ${point.y}`;
+      }
+      return `${path} L ${point.x} ${point.y}`;
+    }, '');
+  } else {
+    // Just a single point
+    pathData = `M ${points[0].x} ${points[0].y}`;
   }
 
   return (
@@ -60,12 +98,7 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
       >
         {/* Main path */}
         <path 
-          d={points.reduce((path, point, index) => {
-            if (index === 0) {
-              return `M ${point.x} ${point.y}`;
-            }
-            return `${path} L ${point.x} ${point.y}`;
-          }, '')}
+          d={pathData}
           fill="none"
           stroke={markerColor}
           strokeWidth={(style?.borderWidth as number) || 2}
