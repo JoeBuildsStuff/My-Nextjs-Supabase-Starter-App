@@ -1894,6 +1894,14 @@ export const useCanvasStore = create<CanvasState>()(
         const node = state.nodes.find(n => n.id === nodeId);
         if (!node || !node.points) return;
         
+        // Check if this is an elbow line
+        const isElbowLine = (node.data?.lineType as string) === 'elbow';
+        
+        // For elbow lines, only allow selecting endpoints (first and last points)
+        if (isElbowLine && pointIndex > 0 && pointIndex < node.points.length - 1) {
+          return; // Ignore selection of middle points for elbow lines
+        }
+        
         // Select the node first
         state.nodes.forEach(n => {
           n.selected = n.id === nodeId;
@@ -1980,6 +1988,31 @@ export const useCanvasStore = create<CanvasState>()(
         // Update the point
         node.points[pointIndex] = { x: relativeX, y: relativeY };
         
+        // Check if this is an elbow line and we're moving an endpoint
+        const isElbowLine = (node.data?.lineType as string) === 'elbow';
+        const isEndpoint = pointIndex === 0 || pointIndex === node.points.length - 1;
+        
+        if (isElbowLine && isEndpoint && node.points.length === 3) {
+          // Adjust the middle point to maintain the L-shape
+          if (pointIndex === 0) {
+            // If dragging the start point, adjust the middle point
+            // Keep the middle point's y-coordinate aligned with the start point
+            // and x-coordinate aligned with the end point
+            node.points[1] = {
+              x: node.points[2].x, // Align x with end point
+              y: node.points[0].y  // Align y with start point
+            };
+          } else if (pointIndex === node.points.length - 1) {
+            // If dragging the end point, adjust the middle point
+            // Keep the middle point's x-coordinate aligned with the start point
+            // and y-coordinate aligned with the end point
+            node.points[1] = {
+              x: node.points[0].x, // Align x with start point
+              y: node.points[2].y  // Align y with end point
+            };
+          }
+        }
+        
         // Use the utility function to calculate the bounding box
         const boundingBox = calculateLineBoundingBox(node.points);
         
@@ -2004,6 +2037,10 @@ export const useCanvasStore = create<CanvasState>()(
         // Find the node
         const node = state.nodes.find(n => n.id === nodeId);
         if (!node || !node.points || segmentIndex >= node.points.length - 1) return;
+        
+        // Check if this is an elbow line - don't allow adding points to elbow lines
+        const isElbowLine = (node.data?.lineType as string) === 'elbow';
+        if (isElbowLine) return;
         
         // Push current state to history before making changes
         get().pushToHistory();
@@ -2346,7 +2383,7 @@ export const useCanvasStore = create<CanvasState>()(
           node => node.selected && (node.type === 'line' || node.type === 'arrow')
         );
         
-        if (selectedLines.length === 0) return state;
+        if (selectedLines.length === 0) return;
         
         const updatedNodes = [...state.nodes];
         
@@ -2363,21 +2400,21 @@ export const useCanvasStore = create<CanvasState>()(
             
             // If we're changing to elbow, recalculate the path
             if (state.lineType === 'elbow' && updatedNodes[index].points && updatedNodes[index].points.length >= 2) {
-              const startPoint = updatedNodes[index].points[0];
-              const endPoint = updatedNodes[index].points[updatedNodes[index].points.length - 1];
+              // Generate elbow points based on current start and end points
+              const startPoint = updatedNodes[index].points![0];
+              const endPoint = updatedNodes[index].points![updatedNodes[index].points!.length - 1];
               
-              // Generate elbow points
-              const elbowPoints = generateElbowPoints(
-                startPoint,
-                endPoint
-              );
+              // Generate the elbow points
+              const elbowPoints = generateElbowPoints(startPoint, endPoint);
               
+              // Update the line with proper elbow routing
               updatedNodes[index].points = elbowPoints;
             }
           }
         }
         
-        return { nodes: updatedNodes };
+        // Update the nodes in the state
+        state.nodes = updatedNodes;
       });
     },
   }))

@@ -100,14 +100,9 @@ const Canvas: React.FC<CanvasProps> = ({
   // Use the nodes from props or from the store
   const displayNodes = nodes.length > 0 ? nodes : storeNodes;
   
-  // State for tracking the hovered connection point
+  // State for tracking connection points
   const [hoveredConnectionPoint, setHoveredConnectionPoint] = useState<{ nodeId: string; position: ConnectionPointPosition } | null>(null);
-  
-  // Add a new state to track the selected line endpoint
-  const [selectedLineEndpoint, setSelectedLineEndpoint] = useState<{
-    nodeId: string;
-    pointIndex: number;
-  } | null>(null);
+  const [selectedLineEndpoint, setSelectedLineEndpoint] = useState<{ nodeId: string; pointIndex: number } | null>(null);
   
   // Set dimensions after component mounts on client side
   useEffect(() => {
@@ -362,7 +357,15 @@ const Canvas: React.FC<CanvasProps> = ({
     for (const node of selectedNodes) {
       if (!node.points) continue;
       
+      // Check if this is an elbow line
+      const isElbowLine = (node.data?.lineType as string) === 'elbow';
+      
       for (let i = 0; i < node.points.length; i++) {
+        // For elbow lines, only allow selecting endpoints (first and last points)
+        if (isElbowLine && i > 0 && i < node.points.length - 1) {
+          continue; // Skip middle points for elbow lines
+        }
+        
         const point = node.points[i];
         const pointX = node.position.x + point.x;
         const pointY = node.position.y + point.y;
@@ -400,7 +403,9 @@ const Canvas: React.FC<CanvasProps> = ({
     const lineNodes = displayNodes?.filter(node => 
       node.points && 
       node.points.length > 1 &&
-      (node.type === 'line' || node.type === 'arrow')
+      (node.type === 'line' || node.type === 'arrow') &&
+      // Exclude elbow lines
+      (node.data?.lineType as string) !== 'elbow'
     ) || [];
     
     if (lineNodes.length === 0) return null;
@@ -585,84 +590,70 @@ const Canvas: React.FC<CanvasProps> = ({
   
   // Handle mouse down for panning, shape creation, or node interaction
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (activeTool === 'hand' || (e.button === 1) || (e.button === 0 && e.altKey)) {
+    if (e.button !== 0) return; // Only handle left mouse button
+    
+    // If we're in presentation mode, don't allow editing
+    if (presentationMode) return;
+    
+    // If we're in the middle of a drag operation, don't start a new one
+    if (isDragging || isMovingNode || isDraggingPoint) return;
+    
+    // Get canvas rect
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    // Calculate mouse position in canvas coordinates
+    const x = (e.clientX - rect.left - transform.x) / transform.zoom;
+    const y = (e.clientY - rect.top - transform.y) / transform.zoom;
+    
+    // Apply grid snapping if enabled
+    const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
+    const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
+    
+    // Check if shift key is pressed for angle constraints
+    const isShiftPressed = e.shiftKey;
+    
+    // Handle different tools
+    if (activeTool === 'hand') {
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
-      e.preventDefault();
-    } else if (['rectangle', 'circle', 'diamond', 'cylinder'].includes(activeTool)) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        const x = (e.clientX - rect.left - transform.x) / transform.zoom;
-        const y = (e.clientY - rect.top - transform.y) / transform.zoom;
+    } else if (['rectangle', 'circle', 'triangle', 'diamond', 'text'].includes(activeTool)) {
+      // Create a new shape at the clicked position
+      const newNode = createShapeAtPosition(activeTool, snappedX, snappedY);
+      
+      // Select the new node
+      selectNode(newNode.id);
+      
+      // Start moving the new node
+      setIsMovingNode(true);
+      setActiveNodeId(newNode.id);
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+      
+      const startPositions: Record<string, { x: number, y: number }> = {};
+      startPositions[newNode.id] = {
+        x: newNode.position.x,
+        y: newNode.position.y
+      };
+      
+      setNodeStartPos(startPositions);
+    } else if (['line', 'arrow'].includes(activeTool)) {
+      // Check if we're hovering over a connection point
+      const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y);
+      
+      if (connectionPointData) {
+        // Start drawing a line from this connection point
+        const { nodeId, position } = connectionPointData;
+        const node = displayNodes?.find(n => n.id === nodeId);
         
-        const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
-        const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
-        
-        createShapeAtPosition(activeTool, snappedX, snappedY);
-      }
-    } else if (activeTool === 'text') {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        const x = (e.clientX - rect.left - transform.x) / transform.zoom;
-        const y = (e.clientY - rect.top - transform.y) / transform.zoom;
-        
-        const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
-        const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
-        
-        // Create a new text shape with empty text and isNew flag
-        createShapeAtPosition('text', snappedX, snappedY, { 
-          isNew: true, 
-          text: '' 
-        });
-      }
-    } else if (['arrow', 'line'].includes(activeTool)) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        const x = (e.clientX - rect.left - transform.x) / transform.zoom;
-        const y = (e.clientY - rect.top - transform.y) / transform.zoom;
-        
-        const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
-        const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
-        
-        // Check if we're hovering over a connection point
-        if (hoveredConnectionPoint) {
-          // Find the node to get its actual position
-          const node = displayNodes?.find(n => n.id === hoveredConnectionPoint.nodeId);
-          if (node) {
-            // Calculate the exact connection point position
-            const connectionPoint = calculateConnectionPointPosition(node, hoveredConnectionPoint.position);
-            
-            if (lineInProgress) {
-              // If we already have a line in progress, finish it at this connection point
-              // Use the unified helper function to connect the line endpoint to the connection point
-              const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
-              connectLineToPoint(
-                lineInProgress.id,
-                pointIndex,
-                hoveredConnectionPoint
-              );
-              
-              finishLineDraw();
-            } else {
-              // Start a new line from this connection point
-              startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
-              setIsDrawingLine(true);
-              
-              // Store the connection information for the start point
-              const lineId = useCanvasStore.getState().lineInProgress?.id;
-              if (lineId) {
-                createConnection({
-                  sourceNodeId: lineId,
-                  sourcePointIndex: 0, // First point of the line
-                  targetNodeId: hoveredConnectionPoint.nodeId,
-                  targetPosition: hoveredConnectionPoint.position
-                });
-              }
-            }
-            return; // Exit early since we've handled the connection point
-          }
+        if (node) {
+          // Calculate the exact connection point position
+          const connectionPoint = calculateConnectionPointPosition(node, position);
+          
+          // Start drawing a line from this connection point
+          startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
+          setIsDrawingLine(true);
         }
-        
+      } else {
         // If no connection point is hovered, proceed with normal line drawing
         if (lineInProgress) {
           updateLineDraw(x, y, isShiftPressed);
@@ -711,10 +702,16 @@ const Canvas: React.FC<CanvasProps> = ({
         if (e.altKey) {
           const segmentData = findClosestLineSegment(x, y);
           if (segmentData) {
-            addPointToExistingLine(segmentData.nodeId, segmentData.segmentIndex, x, y);
-            selectNode(segmentData.nodeId);
-            e.stopPropagation();
-            return;
+            // Check if this is an elbow line - don't allow adding points to elbow lines
+            const node = displayNodes?.find(n => n.id === segmentData.nodeId);
+            const isElbowLine = node && (node.data?.lineType as string) === 'elbow';
+            
+            if (!isElbowLine) {
+              addPointToExistingLine(segmentData.nodeId, segmentData.segmentIndex, x, y);
+              selectNode(segmentData.nodeId);
+              e.stopPropagation();
+              return;
+            }
           }
         }
         
@@ -998,6 +995,32 @@ const Canvas: React.FC<CanvasProps> = ({
       }
     }
     
+    // If we were drawing a line, finalize it
+    if (lineInProgress && isDrawingLine) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = (e.clientX - rect.left - transform.x) / transform.zoom;
+        const y = (e.clientY - rect.top - transform.y) / transform.zoom;
+        
+        // First check if we already have a hovered connection point, then try to find one at the current position,
+        // and finally check for nearby connection points with a larger radius
+        const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y) || findNearbyConnectionPoint(x, y);
+        
+        if (connectionPointData) {
+          // Use the unified helper function to connect the line endpoint to the connection point
+          const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
+          connectLineToPoint(
+            lineInProgress.id,
+            pointIndex,
+            connectionPointData
+          );
+        }
+        
+        setIsDrawingLine(false);
+        finishLineDraw();
+      }
+    }
+    
     // Reset states
     setIsDragging(false);
     setIsDraggingPoint(false);
@@ -1027,32 +1050,6 @@ const Canvas: React.FC<CanvasProps> = ({
           selectMultipleNodes(selectedNodeIds);
         }
       }
-    }
-    
-    // If we were drawing a line, finalize it
-    if (lineInProgress && isDrawingLine) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        const x = (e.clientX - rect.left - transform.x) / transform.zoom;
-        const y = (e.clientY - rect.top - transform.y) / transform.zoom;
-        
-        // First check if we already have a hovered connection point, then try to find one at the current position,
-        // and finally check for nearby connection points with a larger radius
-        const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y) || findNearbyConnectionPoint(x, y);
-        
-        if (connectionPointData) {
-          // Use the unified helper function to connect the line endpoint to the connection point
-          const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
-          connectLineToPoint(
-            lineInProgress.id,
-            pointIndex,
-            connectionPointData
-          );
-        }
-      }
-      
-      setIsDrawingLine(false);
-      finishLineDraw();
     }
     
     setSelectedLineEndpoint(null);
@@ -1344,8 +1341,9 @@ const Canvas: React.FC<CanvasProps> = ({
   ) => {
     const { nodeId, position } = connectionPointData;
     const node = displayNodes?.find(n => n.id === nodeId);
+    const lineNode = displayNodes?.find(n => n.id === lineId);
     
-    if (!node) return;
+    if (!node || !lineNode) return;
     
     // Calculate the exact connection point position
     const connectionPoint = calculateConnectionPointPosition(node, position);
@@ -1371,6 +1369,9 @@ const Canvas: React.FC<CanvasProps> = ({
         connectionPoint.x,
         connectionPoint.y
       );
+      
+      // For elbow lines, we need to ensure the middle point is updated correctly
+      // This is now handled in the moveLinePoint function in the store
     }
   };
   

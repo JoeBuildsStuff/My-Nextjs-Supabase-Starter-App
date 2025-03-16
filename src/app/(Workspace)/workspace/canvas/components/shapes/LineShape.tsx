@@ -8,7 +8,7 @@ interface LineShapeProps {
   selectedEndpoint?: number;
 }
 
-const LineShape: React.FC<LineShapeProps> = ({ node, isSelected }) => {
+const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoint }) => {
   const { points, style, type, data } = node;
 
   // Extract marker settings from node data
@@ -24,12 +24,45 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected }) => {
   
   if (lineType === 'elbow') {
     // For elbow connectors, use a path that connects all points
-    pathData = points.reduce((path, point, index) => {
-      if (index === 0) {
-        return `M ${point.x} ${point.y}`;
+    // If an endpoint is being dragged, maintain the L-shape by adjusting the middle point
+    if (selectedEndpoint !== undefined && points.length === 3) {
+      // Create a copy of the points array to avoid mutating the original
+      const adjustedPoints = [...points];
+      
+      if (selectedEndpoint === 0) {
+        // If dragging the start point, adjust the middle point to maintain the L-shape
+        // Keep the middle point's y-coordinate aligned with the start point
+        // and x-coordinate aligned with the end point
+        adjustedPoints[1] = {
+          x: adjustedPoints[2].x, // Align x with end point
+          y: adjustedPoints[0].y  // Align y with start point
+        };
+      } else if (selectedEndpoint === points.length - 1) {
+        // If dragging the end point, adjust the middle point to maintain the L-shape
+        // Keep the middle point's x-coordinate aligned with the start point
+        // and y-coordinate aligned with the end point
+        adjustedPoints[1] = {
+          x: adjustedPoints[0].x, // Align x with start point
+          y: adjustedPoints[2].y  // Align y with end point
+        };
       }
-      return `${path} L ${point.x} ${point.y}`;
-    }, '');
+      
+      // Generate path from adjusted points
+      pathData = adjustedPoints.reduce((path, point, index) => {
+        if (index === 0) {
+          return `M ${point.x} ${point.y}`;
+        }
+        return `${path} L ${point.x} ${point.y}`;
+      }, '');
+    } else {
+      // Normal case - no endpoint being dragged
+      pathData = points.reduce((path, point, index) => {
+        if (index === 0) {
+          return `M ${point.x} ${point.y}`;
+        }
+        return `${path} L ${point.x} ${point.y}`;
+      }, '');
+    }
   } else {
     // For straight lines, just connect the first and last points
     pathData = `M ${points[0].x} ${points[0].y} L ${points[points.length-1].x} ${points[points.length-1].y}`;
@@ -112,12 +145,15 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected }) => {
         />
       )}
       
-      {/* Control points for selected lines */}
+      {/* Control points for selected lines - only show endpoints */}
       {isSelected && points.map((point, index) => {
-        // Determine if this point is an endpoint (first or last point)
+        // Only render control points for the first and last points (endpoints)
         const isEndpoint = index === 0 || index === points.length - 1;
         
-        // Use different styling for endpoints vs. middle points
+        // Skip middle points
+        if (!isEndpoint) return null;
+        
+        // Use styling for endpoints
         const radius = 6;
         const fillColor = 'hsl(var(--background))';
         const strokeColor = 'hsl(var(--border))';
@@ -132,7 +168,7 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected }) => {
             fill={fillColor}
             stroke={strokeColor}
             strokeWidth={strokeWidth}
-            className={`cursor-move ${isEndpoint ? 'endpoint' : ''}`}
+            className="cursor-move endpoint"
           />
         );
       })}
