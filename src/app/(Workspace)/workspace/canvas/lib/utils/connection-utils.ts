@@ -561,14 +561,236 @@ export function deepClone<T>(obj: T): T {
 }
 
 /**
- * Update all connections for a line to use optimal connection points
- * This is useful when a line is moved and we need to update all its connections
+ * Generate points for an elbow connector between two points
+ * @param startPoint The starting point
+ * @param endPoint The ending point
+ * @param startPosition The connection position of the start point (if connected to a shape)
+ * @param endPosition The connection position of the end point (if connected to a shape)
+ * @returns Array of points forming the elbow connector
  */
+export function generateElbowConnector(
+  startPoint: { x: number; y: number },
+  endPoint: { x: number; y: number },
+  startPosition?: ConnectionPointPosition,
+  endPosition?: ConnectionPointPosition
+): Array<{ x: number; y: number }> {
+  // Start with the simplest case - just the two endpoints
+  const points: Array<{ x: number; y: number }> = [
+    { x: startPoint.x, y: startPoint.y },
+    { x: endPoint.x, y: endPoint.y }
+  ];
+  
+  // Calculate the direct distance between points
+  const dx = endPoint.x - startPoint.x;
+  const dy = endPoint.y - startPoint.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  
+  // If the points are very close, just use a straight line
+  if (distance < 20) {
+    return points;
+  }
+  
+  // Determine the preferred direction based on connection points
+  let startDirection: 'horizontal' | 'vertical' = 'horizontal';
+  let endDirection: 'horizontal' | 'vertical' = 'horizontal';
+  
+  // Set direction based on connection position
+  if (startPosition) {
+    if (startPosition === 'n' || startPosition === 's') {
+      startDirection = 'vertical';
+    } else if (startPosition === 'e' || startPosition === 'w') {
+      startDirection = 'horizontal';
+    } else if (startPosition === 'nw' || startPosition === 'ne' || 
+               startPosition === 'sw' || startPosition === 'se') {
+      // For corner connections, use the longer axis
+      startDirection = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+    }
+  }
+  
+  if (endPosition) {
+    if (endPosition === 'n' || endPosition === 's') {
+      endDirection = 'vertical';
+    } else if (endPosition === 'e' || endPosition === 'w') {
+      endDirection = 'horizontal';
+    } else if (endPosition === 'nw' || endPosition === 'ne' || 
+               endPosition === 'sw' || endPosition === 'se') {
+      // For corner connections, use the longer axis
+      endDirection = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+    }
+  }
+  
+  // If no connection positions are provided, determine based on the relative positions
+  if (!startPosition && !endPosition) {
+    // If horizontal distance is greater, prefer horizontal first
+    if (Math.abs(dx) > Math.abs(dy)) {
+      startDirection = 'horizontal';
+      endDirection = 'horizontal';
+    } else {
+      startDirection = 'vertical';
+      endDirection = 'vertical';
+    }
+  }
+  
+  // Clear the points array and rebuild with elbow points
+  points.length = 0;
+  points.push({ x: startPoint.x, y: startPoint.y });
+  
+  // Case 1: Both directions are the same
+  if (startDirection === endDirection) {
+    if (startDirection === 'horizontal') {
+      // Add a middle point at half the horizontal distance
+      const midX = (startPoint.x + endPoint.x) / 2;
+      points.push({ x: midX, y: startPoint.y });
+      points.push({ x: midX, y: endPoint.y });
+    } else { // vertical
+      // Add a middle point at half the vertical distance
+      const midY = (startPoint.y + endPoint.y) / 2;
+      points.push({ x: startPoint.x, y: midY });
+      points.push({ x: endPoint.x, y: midY });
+    }
+  }
+  // Case 2: Different directions
+  else {
+    if (startDirection === 'horizontal') {
+      // Go horizontally from start, then vertically to end
+      points.push({ x: endPoint.x, y: startPoint.y });
+    } else {
+      // Go vertically from start, then horizontally to end
+      points.push({ x: startPoint.x, y: endPoint.y });
+    }
+  }
+  
+  points.push({ x: endPoint.x, y: endPoint.y });
+  
+  return points;
+}
+
+/**
+ * Update a line to use elbow routing
+ * @param line The line node to update
+ * @param connections Array of connections
+ * @param nodes Array of all nodes
+ * @returns Updated line node with elbow routing
+ */
+export function updateLineWithElbowRouting(
+  line: Node,
+  connections: Connection[],
+  nodes: Node[]
+): Node {
+  // Create a copy of the line to avoid direct mutation
+  const updatedLine = { ...line, points: [...(line.points || [])] };
+  
+  // If there are no points or fewer than 2 points, return the line as is
+  if (!updatedLine.points || updatedLine.points.length < 2) {
+    return updatedLine;
+  }
+  
+  // Find connections for the start and end points
+  const startConnection = connections.find(
+    conn => conn.lineId === line.id && conn.pointIndex === 0
+  );
+  
+  const endConnection = connections.find(
+    conn => conn.lineId === line.id && conn.pointIndex === updatedLine.points!.length - 1
+  );
+  
+  // Get absolute positions of start and end points
+  const startPoint = {
+    x: updatedLine.position.x + updatedLine.points[0].x,
+    y: updatedLine.position.y + updatedLine.points[0].y
+  };
+  
+  const endPoint = {
+    x: updatedLine.position.x + updatedLine.points[updatedLine.points.length - 1].x,
+    y: updatedLine.position.y + updatedLine.points[updatedLine.points.length - 1].y
+  };
+  
+  // Get connection positions if available
+  let startPosition: ConnectionPointPosition | undefined;
+  let endPosition: ConnectionPointPosition | undefined;
+  
+  if (startConnection) {
+    startPosition = startConnection.position;
+    
+    // Use nodes to find the connected shape and update the connection point if dynamic
+    if (startConnection.dynamic) {
+      const startShape = nodes.find(n => n.id === startConnection.shapeId);
+      if (startShape) {
+        const optimalPoint = calculateConnectionPointPosition(startShape, startConnection.position, true);
+        startPoint.x = optimalPoint.x;
+        startPoint.y = optimalPoint.y;
+      }
+    }
+  }
+  
+  if (endConnection) {
+    endPosition = endConnection.position;
+    
+    // Use nodes to find the connected shape and update the connection point if dynamic
+    if (endConnection.dynamic) {
+      const endShape = nodes.find(n => n.id === endConnection.shapeId);
+      if (endShape) {
+        const optimalPoint = calculateConnectionPointPosition(endShape, endConnection.position, true);
+        endPoint.x = optimalPoint.x;
+        endPoint.y = optimalPoint.y;
+      }
+    }
+  }
+  
+  // Generate elbow points
+  const elbowPoints = generateElbowConnector(
+    startPoint,
+    endPoint,
+    startPosition,
+    endPosition
+  );
+  
+  // Convert absolute points to relative points
+  updatedLine.points = elbowPoints.map(point => ({
+    x: point.x - updatedLine.position.x,
+    y: point.y - updatedLine.position.y
+  }));
+  
+  // Recalculate the bounding box
+  const boundingBox = calculateLineBoundingBox(updatedLine.points);
+  
+  // Update dimensions
+  updatedLine.dimensions = boundingBox.dimensions;
+  
+  // Apply position adjustment if needed
+  if (boundingBox.positionAdjustment) {
+    updatedLine.position = {
+      x: updatedLine.position.x + boundingBox.positionAdjustment.x,
+      y: updatedLine.position.y + boundingBox.positionAdjustment.y
+    };
+    
+    // Adjust all points
+    for (let i = 0; i < updatedLine.points.length; i++) {
+      updatedLine.points[i] = {
+        x: updatedLine.points[i].x + boundingBox.pointAdjustments.x,
+        y: updatedLine.points[i].y + boundingBox.pointAdjustments.y
+      };
+    }
+  }
+  
+  return updatedLine;
+}
+
+// Modify the existing updateAllLineConnections function to handle elbow routing
 export function updateAllLineConnections(
   line: Node,
   connections: Connection[],
   nodes: Node[]
 ): Node {
+  // Check if this line uses elbow routing
+  const lineType = line.data?.lineType as string || 'straight';
+  
+  // If this is an elbow connector, use the elbow routing function
+  if (lineType === 'elbow') {
+    return updateLineWithElbowRouting(line, connections, nodes);
+  }
+  
+  // Otherwise, use the existing straight line logic
   // Create a copy of the line to avoid direct mutation
   const updatedLine = { ...line, points: [...(line.points || [])] };
   

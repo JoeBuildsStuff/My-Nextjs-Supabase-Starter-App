@@ -161,10 +161,13 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
     startMarker, 
     endMarker, 
     markerFillStyle,
+    lineType,
     setStartMarker,
     setEndMarker,
     setMarkerFillStyle,
+    setLineType,
     updateSelectedLineMarkers,
+    updateSelectedLineTypes,
     strokeColor,
     fillColor,
     updateColorsForTheme
@@ -179,7 +182,7 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
   
   // Default configuration
   const defaultValues: LineEndpointConfig = {
-    lineType: 'straight',
+    lineType: lineType,
     fillStyle: markerFillStyle,
     startMarker: startMarker,
     endMarker: endMarker,
@@ -197,11 +200,12 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
   useEffect(() => {
     setConfig(prev => ({
       ...prev,
+      lineType: lineType,
       fillStyle: markerFillStyle,
       startMarker: startMarker,
       endMarker: endMarker
     }));
-  }, [markerFillStyle, startMarker, endMarker, strokeColor, fillColor]);
+  }, [lineType, markerFillStyle, startMarker, endMarker, strokeColor, fillColor]);
   
   // Update parent component when config changes
   useEffect(() => {
@@ -233,6 +237,11 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
       setEndMarker(value as MarkerShape);
     } else if (key === 'fillStyle') {
       setMarkerFillStyle(value as FillStyle);
+    } else if (key === 'lineType') {
+      setLineType(value as LineType);
+      // Update selected lines to use the new line type
+      updateSelectedLineTypes();
+      return; // Skip the rest of the function since updateSelectedLineTypes handles everything
     }
     
     // Update selected lines

@@ -71,6 +71,9 @@ export interface Connection {
   dynamic?: boolean; // Whether to dynamically recalculate the optimal connection point
 }
 
+// Add line type to the CanvasState interface
+export type LineType = 'straight' | 'elbow';
+
 export interface CanvasState {
   nodes: Node[];
   edges: Edge[];
@@ -204,6 +207,15 @@ export interface CanvasState {
 
   // Add a function to update colors based on theme changes
   updateColorsForTheme: (isDark: boolean) => void;
+  
+  // Add line type setting
+  lineType: LineType;
+  
+  // Add setter for line type
+  setLineType: (type: LineType) => void;
+  
+  // Add a new function to update selected line types
+  updateSelectedLineTypes: () => void;
 }
 
 // Add this helper function to determine if we're in dark mode
@@ -2342,5 +2354,85 @@ export const useCanvasStore = create<CanvasState>()(
         set({ nodes: updatedNodes });
       }
     },
+    
+    lineType: 'straight',
+    
+    setLineType: (type) => {
+      set({ lineType: type });
+      // Update selected lines to use the new line type
+      get().updateSelectedLineTypes();
+    },
+    
+    updateSelectedLineTypes: () => {
+      set((state) => {
+        const selectedLines = state.nodes.filter(
+          node => node.selected && (node.type === 'line' || node.type === 'arrow')
+        );
+        
+        if (selectedLines.length === 0) return state;
+        
+        const updatedNodes = [...state.nodes];
+        
+        for (const line of selectedLines) {
+          const index = updatedNodes.findIndex(n => n.id === line.id);
+          if (index !== -1) {
+            updatedNodes[index] = {
+              ...updatedNodes[index],
+              data: {
+                ...updatedNodes[index].data,
+                lineType: state.lineType
+              }
+            };
+            
+            // If we're changing to elbow, recalculate the path
+            if (state.lineType === 'elbow' && updatedNodes[index].points && updatedNodes[index].points.length >= 2) {
+              const startPoint = updatedNodes[index].points[0];
+              const endPoint = updatedNodes[index].points[updatedNodes[index].points.length - 1];
+              
+              // Generate elbow points
+              const elbowPoints = generateElbowPoints(
+                startPoint,
+                endPoint
+              );
+              
+              updatedNodes[index].points = elbowPoints;
+            }
+          }
+        }
+        
+        return { nodes: updatedNodes };
+      });
+    },
   }))
 ); 
+
+// Helper function to generate elbow points
+function generateElbowPoints(
+  startPoint: { x: number; y: number },
+  endPoint: { x: number; y: number }
+): Array<{ x: number; y: number }> {
+  // For now, return a simple 3-point elbow path
+  // This will be replaced with a more sophisticated algorithm
+  
+  const dx = endPoint.x - startPoint.x;
+  const dy = endPoint.y - startPoint.y;
+  
+  // Determine which axis to bend on based on the relative positions
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Bend horizontally first
+    return [
+      { x: startPoint.x, y: startPoint.y },
+      { x: startPoint.x + dx / 2, y: startPoint.y },
+      { x: startPoint.x + dx / 2, y: endPoint.y },
+      { x: endPoint.x, y: endPoint.y }
+    ];
+  } else {
+    // Bend vertically first
+    return [
+      { x: startPoint.x, y: startPoint.y },
+      { x: startPoint.x, y: startPoint.y + dy / 2 },
+      { x: endPoint.x, y: startPoint.y + dy / 2 },
+      { x: endPoint.x, y: endPoint.y }
+    ];
+  }
+}
