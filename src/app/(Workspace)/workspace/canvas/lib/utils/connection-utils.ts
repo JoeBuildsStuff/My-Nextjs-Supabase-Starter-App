@@ -1,5 +1,6 @@
 import { Node, Connection } from '../store/canvas-store';
 import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
+import { isElbowLine, updateLineWithElbowRouting } from './elbow-line-utils';
 
 // Define a constant for the snapping threshold
 export const CONNECTION_SNAP_THRESHOLD = 25; // Increased from 15 to 25 for better snapping
@@ -561,369 +562,15 @@ export function deepClone<T>(obj: T): T {
 }
 
 /**
- * Generate points for a single elbow connector between two points
- * @param startPoint The starting point
- * @param endPoint The ending point
- * @param startPosition The connection position of the start point (if connected to a shape)
- * @param endPosition The connection position of the end point (if connected to a shape)
- * @returns Array of points forming the elbow connector
+ * Modify the existing updateAllLineConnections function to handle elbow routing
  */
-export function generateElbowConnector(
-  startPoint: { x: number; y: number },
-  endPoint: { x: number; y: number },
-  startPosition?: ConnectionPointPosition,
-  endPosition?: ConnectionPointPosition
-): Array<{ x: number; y: number }> {
-  // Start with the simplest case - just the two endpoints
-  const points: Array<{ x: number; y: number }> = [
-    { x: startPoint.x, y: startPoint.y },
-    { x: endPoint.x, y: endPoint.y }
-  ];
-  
-  // Calculate the direct distance between points
-  const dx = endPoint.x - startPoint.x;
-  const dy = endPoint.y - startPoint.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-  
-  // If the points are very close, just use a straight line
-  if (distance < 20) {
-    return points;
-  }
-  
-  // Determine which direction to go first based on connection points
-  let startHorizontal = true; // Default to horizontal first
-  
-  // If we have connection positions, use them to determine the direction
-  if (startPosition) {
-    // If starting from top or bottom, go vertical first
-    if (startPosition === 'n' || startPosition === 's') {
-      startHorizontal = false;
-    }
-    // If starting from left or right, go horizontal first
-    else if (startPosition === 'e' || startPosition === 'w') {
-      startHorizontal = true;
-    }
-    // For corners, use the dominant axis
-    else {
-      startHorizontal = Math.abs(dx) > Math.abs(dy);
-    }
-  } 
-  // If no start position but we have end position
-  else if (endPosition) {
-    // If ending at top or bottom, go vertical last (horizontal first)
-    if (endPosition === 'n' || endPosition === 's') {
-      startHorizontal = true;
-    }
-    // If ending at left or right, go horizontal last (vertical first)
-    else if (endPosition === 'e' || endPosition === 'w') {
-      startHorizontal = false;
-    }
-    // For corners, use the dominant axis
-    else {
-      startHorizontal = Math.abs(dx) > Math.abs(dy);
-    }
-  }
-  // If no connection positions, use the dominant axis
-  else {
-    startHorizontal = Math.abs(dx) > Math.abs(dy);
-  }
-  
-  // Clear the points array and rebuild with a single elbow
-  points.length = 0;
-  points.push({ x: startPoint.x, y: startPoint.y });
-  
-  // Calculate the elbow point based on the determined direction
-  let elbowX: number;
-  let elbowY: number;
-  
-  if (startHorizontal) {
-    // Go horizontally first, then vertically
-    elbowX = endPoint.x;
-    elbowY = startPoint.y;
-  } else {
-    // Go vertically first, then horizontally
-    elbowX = startPoint.x;
-    elbowY = endPoint.y;
-  }
-  
-  // Add the elbow point
-  points.push({ x: elbowX, y: elbowY });
-  
-  // Add the end point
-  points.push({ x: endPoint.x, y: endPoint.y });
-  
-  return points;
-}
-
-/**
- * Determine the optimal connection points for a single elbow connector
- * @param startShape The starting shape
- * @param endShape The ending shape
- * @returns Optimal connection positions and points
- */
-export function findOptimalElbowConnectionPoints(
-  startShape: Node,
-  endShape: Node
-): {
-  startPosition: ConnectionPointPosition;
-  endPosition: ConnectionPointPosition;
-  startPoint: { x: number; y: number };
-  endPoint: { x: number; y: number };
-} {
-  // Get the center points of both shapes
-  const startCenter = {
-    x: startShape.position.x + (startShape.dimensions?.width || 0) / 2,
-    y: startShape.position.y + (startShape.dimensions?.height || 0) / 2
-  };
-  
-  const endCenter = {
-    x: endShape.position.x + (endShape.dimensions?.width || 0) / 2,
-    y: endShape.position.y + (endShape.dimensions?.height || 0) / 2
-  };
-  
-  // Determine relative positions
-  const dx = endCenter.x - startCenter.x;
-  const dy = endCenter.y - startCenter.y;
-  
-  // Determine optimal connection points based on relative positions
-  let startPosition: ConnectionPointPosition;
-  let endPosition: ConnectionPointPosition;
-  
-  // Following the rules:
-  // 1. If start is to the left of end, exit from east
-  // 2. If start is to the right of end, exit from west
-  // 3. If start is above end, exit from south
-  // 4. If start is below end, exit from north
-  if (Math.abs(dx) > Math.abs(dy)) {
-    // Horizontal relationship is stronger
-    if (dx > 0) {
-      // Start is to the left of end
-      startPosition = 'e';
-      endPosition = 'w';
-    } else {
-      // Start is to the right of end
-      startPosition = 'w';
-      endPosition = 'e';
-    }
-  } else {
-    // Vertical relationship is stronger
-    if (dy > 0) {
-      // Start is above end
-      startPosition = 's';
-      endPosition = 'n';
-    } else {
-      // Start is below end
-      startPosition = 'n';
-      endPosition = 's';
-    }
-  }
-  
-  // Calculate the actual connection points
-  const startPoint = calculateConnectionPointPosition(startShape, startPosition, true);
-  const endPoint = calculateConnectionPointPosition(endShape, endPosition, true);
-  
-  return {
-    startPosition,
-    endPosition,
-    startPoint,
-    endPoint
-  };
-}
-
-/**
- * Update a line to use single elbow routing
- * @param line The line node to update
- * @param connections Array of connections
- * @param nodes Array of all nodes
- * @returns Updated line node with elbow routing
- */
-export function updateLineWithElbowRouting(
-  line: Node,
-  connections: Connection[],
-  nodes: Node[]
-): Node {
-  // Create a copy of the line to avoid direct mutation
-  const updatedLine = { ...line, points: [...(line.points || [])] };
-  
-  // If there are no points or fewer than 2 points, return the line as is
-  if (!updatedLine.points || updatedLine.points.length < 2) {
-    return updatedLine;
-  }
-  
-  // Find connections for the start and end points
-  const startConnection = connections.find(
-    conn => conn.lineId === line.id && conn.pointIndex === 0
-  );
-  
-  const endConnection = connections.find(
-    conn => conn.lineId === line.id && conn.pointIndex === updatedLine.points!.length - 1
-  );
-  
-  // Get absolute positions of start and end points
-  const startPoint = {
-    x: updatedLine.position.x + updatedLine.points[0].x,
-    y: updatedLine.position.y + updatedLine.points[0].y
-  };
-  
-  const endPoint = {
-    x: updatedLine.position.x + updatedLine.points[updatedLine.points.length - 1].x,
-    y: updatedLine.position.y + updatedLine.points[updatedLine.points.length - 1].y
-  };
-  
-  // Get connection positions if available
-  let startPosition: ConnectionPointPosition | undefined;
-  let endPosition: ConnectionPointPosition | undefined;
-  
-  // If both endpoints are connected to shapes, find optimal connection points
-  if (startConnection && endConnection) {
-    const startShape = nodes.find(n => n.id === startConnection.shapeId);
-    const endShape = nodes.find(n => n.id === endConnection.shapeId);
-    
-    if (startShape && endShape) {
-      // Find optimal connection points for a single elbow
-      const optimalPoints = findOptimalElbowConnectionPoints(startShape, endShape);
-      
-      // Update connection positions
-      startPosition = optimalPoints.startPosition;
-      endPosition = optimalPoints.endPosition;
-      
-      // Update actual points
-      startPoint.x = optimalPoints.startPoint.x;
-      startPoint.y = optimalPoints.startPoint.y;
-      endPoint.x = optimalPoints.endPoint.x;
-      endPoint.y = optimalPoints.endPoint.y;
-      
-      // Update the connections in the store
-      if (startConnection.dynamic) {
-        startConnection.position = startPosition;
-      }
-      
-      if (endConnection.dynamic) {
-        endConnection.position = endPosition;
-      }
-    } else {
-      // One or both shapes not found, use existing connection positions
-      if (startConnection) {
-        startPosition = startConnection.position;
-        
-        // Update start point if dynamic
-        if (startConnection.dynamic && startShape) {
-          const point = calculateConnectionPointPosition(startShape, startConnection.position, true);
-          startPoint.x = point.x;
-          startPoint.y = point.y;
-        }
-      }
-      
-      if (endConnection) {
-        endPosition = endConnection.position;
-        
-        // Update end point if dynamic
-        if (endConnection.dynamic && endShape) {
-          const point = calculateConnectionPointPosition(endShape, endConnection.position, true);
-          endPoint.x = point.x;
-          endPoint.y = point.y;
-        }
-      }
-    }
-  } else {
-    // Handle cases where only one endpoint is connected
-    if (startConnection) {
-      const startShape = nodes.find(n => n.id === startConnection.shapeId);
-      
-      if (startShape) {
-        if (startConnection.dynamic) {
-          // If dynamic, find the optimal connection point based on the end point
-          const optimalConnection = findOptimalConnectionPoint(startShape, endPoint, true);
-          startPosition = optimalConnection.position;
-          startPoint.x = optimalConnection.point.x;
-          startPoint.y = optimalConnection.point.y;
-          
-          // Update the connection position in the store
-          startConnection.position = startPosition;
-        } else {
-          // Use the fixed connection point
-          startPosition = startConnection.position;
-          const point = calculateConnectionPointPosition(startShape, startConnection.position, true);
-          startPoint.x = point.x;
-          startPoint.y = point.y;
-        }
-      }
-    }
-    
-    if (endConnection) {
-      const endShape = nodes.find(n => n.id === endConnection.shapeId);
-      
-      if (endShape) {
-        if (endConnection.dynamic) {
-          // If dynamic, find the optimal connection point based on the start point
-          const optimalConnection = findOptimalConnectionPoint(endShape, startPoint, true);
-          endPosition = optimalConnection.position;
-          endPoint.x = optimalConnection.point.x;
-          endPoint.y = optimalConnection.point.y;
-          
-          // Update the connection position in the store
-          endConnection.position = endPosition;
-        } else {
-          // Use the fixed connection point
-          endPosition = endConnection.position;
-          const point = calculateConnectionPointPosition(endShape, endConnection.position, true);
-          endPoint.x = point.x;
-          endPoint.y = point.y;
-        }
-      }
-    }
-  }
-  
-  // Generate elbow points
-  const elbowPoints = generateElbowConnector(
-    startPoint,
-    endPoint,
-    startPosition,
-    endPosition
-  );
-  
-  // Convert absolute points to relative points
-  updatedLine.points = elbowPoints.map(point => ({
-    x: point.x - updatedLine.position.x,
-    y: point.y - updatedLine.position.y
-  }));
-  
-  // Recalculate the bounding box
-  const boundingBox = calculateLineBoundingBox(updatedLine.points);
-  
-  // Update dimensions
-  updatedLine.dimensions = boundingBox.dimensions;
-  
-  // Apply position adjustment if needed
-  if (boundingBox.positionAdjustment) {
-    updatedLine.position = {
-      x: updatedLine.position.x + boundingBox.positionAdjustment.x,
-      y: updatedLine.position.y + boundingBox.positionAdjustment.y
-    };
-    
-    // Adjust all points
-    for (let i = 0; i < updatedLine.points.length; i++) {
-      updatedLine.points[i] = {
-        x: updatedLine.points[i].x + boundingBox.pointAdjustments.x,
-        y: updatedLine.points[i].y + boundingBox.pointAdjustments.y
-      };
-    }
-  }
-  
-  return updatedLine;
-}
-
-// Modify the existing updateAllLineConnections function to handle elbow routing
 export function updateAllLineConnections(
   line: Node,
   connections: Connection[],
   nodes: Node[]
 ): Node {
-  // Check if this line uses elbow routing
-  const lineType = line.data?.lineType as string || 'straight';
-  
-  // If this is an elbow connector, use the elbow routing function
-  if (lineType === 'elbow') {
+  // Check if this line uses elbow routing using the utility function
+  if (isElbowLine(line)) {
     return updateLineWithElbowRouting(line, connections, nodes);
   }
   
@@ -946,15 +593,23 @@ export function updateAllLineConnections(
   );
   
   // Create copies of the connections to avoid modifying the originals
-  const firstPointConnectionCopy = firstPointConnection ? { ...firstPointConnection } : null;
-  const lastPointConnectionCopy = lastPointConnection ? { ...lastPointConnection } : null;
+  // DO NOT modify the original connection objects as they may be read-only
+  const firstPointConnectionInfo = firstPointConnection ? { 
+    ...firstPointConnection,
+    position: firstPointConnection.position 
+  } : null;
+  
+  const lastPointConnectionInfo = lastPointConnection ? { 
+    ...lastPointConnection,
+    position: lastPointConnection.position 
+  } : null;
   
   // If both endpoints are connected, we need to optimize both
-  if (firstPointConnectionCopy && lastPointConnectionCopy && 
-      firstPointConnectionCopy.dynamic && lastPointConnectionCopy.dynamic) {
+  if (firstPointConnectionInfo && lastPointConnectionInfo && 
+      firstPointConnectionInfo.dynamic && lastPointConnectionInfo.dynamic) {
     // Find the shapes for both connections
-    const firstShape = nodes.find(n => n.id === firstPointConnectionCopy.shapeId);
-    const lastShape = nodes.find(n => n.id === lastPointConnectionCopy.shapeId);
+    const firstShape = nodes.find(n => n.id === firstPointConnectionInfo.shapeId);
+    const lastShape = nodes.find(n => n.id === lastPointConnectionInfo.shapeId);
     
     if (firstShape && lastShape) {
       // We need to iteratively find the optimal connection points for both endpoints
@@ -976,12 +631,12 @@ export function updateAllLineConnections(
         // Find optimal connection point for first endpoint based on last point
         const optimalFirst = findOptimalConnectionPoint(firstShape, lastPoint, true);
         firstPoint = optimalFirst.point;
-        firstPointConnectionCopy.position = optimalFirst.position;
+        firstPointConnectionInfo.position = optimalFirst.position;
         
         // Find optimal connection point for last endpoint based on first point
         const optimalLast = findOptimalConnectionPoint(lastShape, firstPoint, true);
         lastPoint = optimalLast.point;
-        lastPointConnectionCopy.position = optimalLast.position;
+        lastPointConnectionInfo.position = optimalLast.position;
       }
       
       // Update the line points with the final optimal positions
@@ -1001,38 +656,42 @@ export function updateAllLineConnections(
       if (!connection.dynamic) continue;
       
       // Create a copy of the connection to avoid modifying the original
-      const connectionCopy = { ...connection };
+      // DO NOT modify the original connection object as it may be read-only
+      const connectionInfo = { 
+        ...connection,
+        position: connection.position 
+      };
       
       // Find the shape node this connection is attached to
-      const shapeNode = nodes.find(n => n.id === connectionCopy.shapeId);
+      const shapeNode = nodes.find(n => n.id === connectionInfo.shapeId);
       
       if (shapeNode && updatedLine.points) {
         // Determine which point to use as reference for finding the optimal connection
         let referencePoint: { x: number, y: number } | null = null;
         
         // If this is an endpoint (first or last point), use the opposite endpoint
-        if (connectionCopy.pointIndex === 0 && updatedLine.points.length > 1) {
+        if (connectionInfo.pointIndex === 0 && updatedLine.points.length > 1) {
           // First point - use the last point as reference
           referencePoint = {
             x: updatedLine.position.x + updatedLine.points[updatedLine.points.length - 1].x,
             y: updatedLine.position.y + updatedLine.points[updatedLine.points.length - 1].y
           };
-        } else if (connectionCopy.pointIndex === updatedLine.points.length - 1) {
+        } else if (connectionInfo.pointIndex === updatedLine.points.length - 1) {
           // Last point - use the first point as reference
           referencePoint = {
             x: updatedLine.position.x + updatedLine.points[0].x,
             y: updatedLine.position.y + updatedLine.points[0].y
           };
-        } else if (connectionCopy.pointIndex > 0 && connectionCopy.pointIndex < updatedLine.points.length - 1) {
+        } else if (connectionInfo.pointIndex > 0 && connectionInfo.pointIndex < updatedLine.points.length - 1) {
           // Middle point - use the average of adjacent points as reference
           const prevPoint = {
-            x: updatedLine.position.x + updatedLine.points[connectionCopy.pointIndex - 1].x,
-            y: updatedLine.position.y + updatedLine.points[connectionCopy.pointIndex - 1].y
+            x: updatedLine.position.x + updatedLine.points[connectionInfo.pointIndex - 1].x,
+            y: updatedLine.position.y + updatedLine.points[connectionInfo.pointIndex - 1].y
           };
           
           const nextPoint = {
-            x: updatedLine.position.x + updatedLine.points[connectionCopy.pointIndex + 1].x,
-            y: updatedLine.position.y + updatedLine.points[connectionCopy.pointIndex + 1].y
+            x: updatedLine.position.x + updatedLine.points[connectionInfo.pointIndex + 1].x,
+            y: updatedLine.position.y + updatedLine.points[connectionInfo.pointIndex + 1].y
           };
           
           referencePoint = {
@@ -1047,14 +706,14 @@ export function updateAllLineConnections(
           const optimalConnection = findOptimalConnectionPoint(shapeNode, referencePoint, true);
           
           // Update the connection position in our copy
-          connectionCopy.position = optimalConnection.position;
+          connectionInfo.position = optimalConnection.position;
           
           // Calculate the relative position for the line point
           const relativeX = optimalConnection.point.x - updatedLine.position.x;
           const relativeY = optimalConnection.point.y - updatedLine.position.y;
           
           // Update the line point
-          updatedLine.points[connectionCopy.pointIndex] = { x: relativeX, y: relativeY };
+          updatedLine.points[connectionInfo.pointIndex] = { x: relativeX, y: relativeY };
         }
       }
     }

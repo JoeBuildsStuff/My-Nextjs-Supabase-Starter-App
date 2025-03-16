@@ -10,6 +10,7 @@ import { ConnectionPointPosition } from './ui/ConnectionPoints';
 import { ResizeHandleDirection } from './ui/ResizeHandles';
 import { calculateConnectionPointPosition, deepClone } from '../lib/utils/connection-utils';
 import AlignmentGuide from './alignment/AlignmentGuide';
+import { isElbowLine } from '../lib/utils/elbow-line-utils';
 
 interface CanvasProps {
   width?: number;
@@ -358,11 +359,11 @@ const Canvas: React.FC<CanvasProps> = ({
       if (!node.points) continue;
       
       // Check if this is an elbow line
-      const isElbowLine = (node.data?.lineType as string) === 'elbow';
+      const isElbowLineNode = isElbowLine(node);
       
       for (let i = 0; i < node.points.length; i++) {
         // For elbow lines, only allow selecting endpoints (first and last points)
-        if (isElbowLine && i > 0 && i < node.points.length - 1) {
+        if (isElbowLineNode && i > 0 && i < node.points.length - 1) {
           continue; // Skip middle points for elbow lines
         }
         
@@ -395,25 +396,21 @@ const Canvas: React.FC<CanvasProps> = ({
     return null;
   };
   
-  // Helper function to find the closest line segment to a point
+  // Find the closest line segment to the given point
   const findClosestLineSegment = (
     x: number, 
     y: number
   ): { nodeId: string; segmentIndex: number; distance: number } | null => {
-    const lineNodes = displayNodes?.filter(node => 
-      node.points && 
-      node.points.length > 1 &&
-      (node.type === 'line' || node.type === 'arrow') &&
-      // Exclude elbow lines
-      (node.data?.lineType as string) !== 'elbow'
-    ) || [];
-    
-    if (lineNodes.length === 0) return null;
+    if (!displayNodes) return null;
     
     let closestSegment: { nodeId: string; segmentIndex: number; distance: number } | null = null;
     
-    for (const node of lineNodes) {
-      if (!node.points) continue;
+    for (const node of displayNodes) {
+      // Skip nodes without points or with fewer than 2 points
+      if (!node.points || node.points.length < 2) continue;
+      
+      // Skip elbow lines - we don't allow adding points to them
+      if (isElbowLine(node)) continue;
       
       for (let i = 0; i < node.points.length - 1; i++) {
         const p1 = {
@@ -704,13 +701,10 @@ const Canvas: React.FC<CanvasProps> = ({
           if (segmentData) {
             // Check if this is an elbow line - don't allow adding points to elbow lines
             const node = displayNodes?.find(n => n.id === segmentData.nodeId);
-            const isElbowLine = node && (node.data?.lineType as string) === 'elbow';
+            const isElbowLineNode = node && isElbowLine(node);
             
-            if (!isElbowLine) {
+            if (!isElbowLineNode) {
               addPointToExistingLine(segmentData.nodeId, segmentData.segmentIndex, x, y);
-              selectNode(segmentData.nodeId);
-              e.stopPropagation();
-              return;
             }
           }
         }

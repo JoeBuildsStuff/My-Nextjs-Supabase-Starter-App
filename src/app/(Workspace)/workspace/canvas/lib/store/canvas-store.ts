@@ -6,9 +6,15 @@ import {
   calculateLineBoundingBox,
   LINE_BOUNDING_BOX_PADDING,
   findNearestConnectionPoint,
-  updateAllLineConnections,
-  updateLineWithElbowRouting
+  updateAllLineConnections
 } from '../utils/connection-utils';
+// Import the elbow line utilities
+import {
+  generateElbowPoints,
+  isElbowLine,
+  handleElbowEndpointDrag,
+  updateLineWithElbowRouting
+} from '../utils/elbow-line-utils';
 // Always import the node registry to start with default node types and styles
 import { nodeRegistry } from '../../components/NodeRegistry';
 
@@ -500,11 +506,11 @@ const mergeNodeStyles = (
 export const useCanvasStore = create<CanvasState>()(
   immer((set, get) => ({
     // Initial state
-    nodes: [],
-    edges: [],
-    selectedElements: [],
+    nodes: [] as Node[],
+    edges: [] as Edge[],
+    selectedElements: [] as Array<Node | Edge>,
     transform: { x: 0, y: 0, zoom: 1 },
-    activeTool: 'select',
+    activeTool: 'select' as ToolType,
     gridSize: 20,
     snapToGrid: true,
     strokeColor: `black-${initialStrokeDefaultShade}`,
@@ -512,7 +518,7 @@ export const useCanvasStore = create<CanvasState>()(
     defaultShade: initialStrokeDefaultShade,
     borderRadius: 0,
     strokeWidth: 2,
-    strokeStyle: 'solid',
+    strokeStyle: 'solid' as const,
     textColor: `black-${initialStrokeDefaultShade}`,
     presentationMode: false,
     // Line marker settings
@@ -524,7 +530,7 @@ export const useCanvasStore = create<CanvasState>()(
     selectedPointIndices: null,
     
     // Connection tracking
-    connections: [],
+    connections: [] as Connection[],
     createConnection: ({ sourceNodeId, sourcePointIndex, targetNodeId, targetPosition }) => {
       set(state => {
         // First, remove any existing connection for this line point
@@ -1250,13 +1256,12 @@ export const useCanvasStore = create<CanvasState>()(
             const lineIndex = state.nodes.findIndex(n => n.id === connection.lineId);
             if (lineIndex !== -1) {
               const lineNode = state.nodes[lineIndex];
-              const lineType = lineNode.data?.lineType as string || 'straight';
               
               // Create a deep copy of the line node to avoid modifying the original
               const lineCopy = deepClone(lineNode);
               
               // Update the line based on its type
-              const updatedLine = lineType === 'elbow'
+              const updatedLine = isElbowLine(lineNode)
                 ? updateLineWithElbowRouting(lineCopy, state.connections, state.nodes)
                 : updateAllLineConnections(lineCopy, state.connections, state.nodes);
               
@@ -1895,10 +1900,10 @@ export const useCanvasStore = create<CanvasState>()(
         if (!node || !node.points) return;
         
         // Check if this is an elbow line
-        const isElbowLine = (node.data?.lineType as string) === 'elbow';
+        const isElbowLineNode = isElbowLine(node);
         
         // For elbow lines, only allow selecting endpoints (first and last points)
-        if (isElbowLine && pointIndex > 0 && pointIndex < node.points.length - 1) {
+        if (isElbowLineNode && pointIndex > 0 && pointIndex < node.points.length - 1) {
           return; // Ignore selection of middle points for elbow lines
         }
         
@@ -1989,28 +1994,14 @@ export const useCanvasStore = create<CanvasState>()(
         node.points[pointIndex] = { x: relativeX, y: relativeY };
         
         // Check if this is an elbow line and we're moving an endpoint
-        const isElbowLine = (node.data?.lineType as string) === 'elbow';
+        const isElbowLineNode = isElbowLine(node);
         const isEndpoint = pointIndex === 0 || pointIndex === node.points.length - 1;
         
-        if (isElbowLine && isEndpoint && node.points.length === 3) {
-          // Adjust the middle point to maintain the L-shape
-          if (pointIndex === 0) {
-            // If dragging the start point, adjust the middle point
-            // Keep the middle point's y-coordinate aligned with the start point
-            // and x-coordinate aligned with the end point
-            node.points[1] = {
-              x: node.points[2].x, // Align x with end point
-              y: node.points[0].y  // Align y with start point
-            };
-          } else if (pointIndex === node.points.length - 1) {
-            // If dragging the end point, adjust the middle point
-            // Keep the middle point's x-coordinate aligned with the start point
-            // and y-coordinate aligned with the end point
-            node.points[1] = {
-              x: node.points[0].x, // Align x with start point
-              y: node.points[2].y  // Align y with end point
-            };
-          }
+        if (isElbowLineNode && isEndpoint && node.points.length === 3) {
+          // Use the utility function to adjust the middle point
+          const newPoint = { x: relativeX, y: relativeY };
+          const updatedPoints = handleElbowEndpointDrag(node, pointIndex, newPoint);
+          node.points = updatedPoints;
         }
         
         // Use the utility function to calculate the bounding box
@@ -2039,8 +2030,8 @@ export const useCanvasStore = create<CanvasState>()(
         if (!node || !node.points || segmentIndex >= node.points.length - 1) return;
         
         // Check if this is an elbow line - don't allow adding points to elbow lines
-        const isElbowLine = (node.data?.lineType as string) === 'elbow';
-        if (isElbowLine) return;
+        const isElbowLineNode = isElbowLine(node);
+        if (isElbowLineNode) return;
         
         // Push current state to history before making changes
         get().pushToHistory();
@@ -2420,34 +2411,4 @@ export const useCanvasStore = create<CanvasState>()(
   }))
 ); 
 
-// Helper function to generate elbow points
-function generateElbowPoints(
-  startPoint: { x: number; y: number },
-  endPoint: { x: number; y: number }
-): Array<{ x: number; y: number }> {
-  // Calculate the direct distance between points
-  const dx = endPoint.x - startPoint.x;
-  const dy = endPoint.y - startPoint.y;
-  
-  // Determine which axis to bend on based on the relative positions
-  // For a single elbow, we'll use the longer axis to determine direction
-  let elbowX: number;
-  let elbowY: number;
-  
-  if (Math.abs(dx) > Math.abs(dy)) {
-    // Horizontal distance is greater, so bend vertically at the end point's x-coordinate
-    elbowX = endPoint.x;
-    elbowY = startPoint.y;
-  } else {
-    // Vertical distance is greater, so bend horizontally at the end point's y-coordinate
-    elbowX = startPoint.x;
-    elbowY = endPoint.y;
-  }
-  
-  // Return a 3-point path: start -> elbow -> end
-  return [
-    { x: startPoint.x, y: startPoint.y },
-    { x: elbowX, y: elbowY },
-    { x: endPoint.x, y: endPoint.y }
-  ];
-}
+// Helper function to generate elbow points has been moved to elbow-line-utils.ts

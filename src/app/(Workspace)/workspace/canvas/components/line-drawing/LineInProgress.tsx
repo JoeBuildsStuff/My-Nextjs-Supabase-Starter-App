@@ -1,6 +1,7 @@
 import React from 'react';
 import { Node, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
 import Marker from '../shapes/Marker';
+import { isElbowLine } from '../../lib/utils/elbow-line-utils';
 
 interface LineInProgressProps {
   lineInProgress: Node;
@@ -15,7 +16,6 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
   const startMarker = (data?.startMarker as MarkerShape) || 'none';
   const endMarker = (data?.endMarker as MarkerShape) || (type === 'arrow' ? 'triangle' : 'none');
   const markerFillStyle = (data?.markerFillStyle as FillStyle) || 'filled';
-  const lineType = (data?.lineType as string) || 'straight';
 
   if (!points || points.length < 1 || !dimensions) return null;
 
@@ -27,7 +27,9 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
   let endAngle = 0;
 
   if (points.length > 1) {
-    if (lineType === 'elbow' && points.length > 2) {
+    const isElbowLineNode = isElbowLine(lineInProgress);
+    
+    if (isElbowLineNode && points.length > 2) {
       // For elbow connectors, use the angle of the first segment for start marker
       startAngle = Math.atan2(
         points[1].y - points[0].y,
@@ -54,7 +56,9 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
   // Create SVG path
   let pathData = '';
   
-  if (lineType === 'elbow' && points.length >= 3) {
+  const isElbowLineNode = isElbowLine(lineInProgress);
+  
+  if (isElbowLineNode && points.length >= 3) {
     // For elbow connectors, use a path that connects all points
     pathData = points.reduce((path, point, index) => {
       if (index === 0) {

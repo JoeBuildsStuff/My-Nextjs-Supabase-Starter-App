@@ -1,6 +1,7 @@
 import React from 'react';
 import { Node, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
 import Marker from './Marker';
+import { adjustElbowMiddlePoint, isElbowLine } from '../../lib/utils/elbow-line-utils';
 
 interface LineShapeProps {
   node: Node;
@@ -15,39 +16,22 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
   const startMarker = (data?.startMarker as MarkerShape) || 'none';
   const endMarker = (data?.endMarker as MarkerShape) || (type === 'arrow' ? 'triangle' : 'none');
   const markerFillStyle = (data?.markerFillStyle as FillStyle) || 'filled';
-  const lineType = (data?.lineType as string) || 'straight';
 
   if (!points || points.length < 2) return null;
 
   // Create SVG path from points
   let pathData = '';
   
-  if (lineType === 'elbow') {
+  const isElbowLineNode = isElbowLine(node);
+  
+  if (isElbowLineNode) {
     // For elbow connectors, use a path that connects all points
     // If an endpoint is being dragged, maintain the L-shape by adjusting the middle point
     if (selectedEndpoint !== undefined && points.length === 3) {
       // Create a copy of the points array to avoid mutating the original
-      const adjustedPoints = [...points];
+      const adjustedPoints = adjustElbowMiddlePoint([...points], selectedEndpoint);
       
-      if (selectedEndpoint === 0) {
-        // If dragging the start point, adjust the middle point to maintain the L-shape
-        // Keep the middle point's y-coordinate aligned with the start point
-        // and x-coordinate aligned with the end point
-        adjustedPoints[1] = {
-          x: adjustedPoints[2].x, // Align x with end point
-          y: adjustedPoints[0].y  // Align y with start point
-        };
-      } else if (selectedEndpoint === points.length - 1) {
-        // If dragging the end point, adjust the middle point to maintain the L-shape
-        // Keep the middle point's x-coordinate aligned with the start point
-        // and y-coordinate aligned with the end point
-        adjustedPoints[1] = {
-          x: adjustedPoints[0].x, // Align x with start point
-          y: adjustedPoints[2].y  // Align y with end point
-        };
-      }
-      
-      // Generate path from adjusted points
+      // Create the path data from the adjusted points
       pathData = adjustedPoints.reduce((path, point, index) => {
         if (index === 0) {
           return `M ${point.x} ${point.y}`;
@@ -55,7 +39,7 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
         return `${path} L ${point.x} ${point.y}`;
       }, '');
     } else {
-      // Normal case - no endpoint being dragged
+      // No endpoint being dragged, just connect all points
       pathData = points.reduce((path, point, index) => {
         if (index === 0) {
           return `M ${point.x} ${point.y}`;
@@ -64,15 +48,20 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
       }, '');
     }
   } else {
-    // For straight lines, just connect the first and last points
-    pathData = `M ${points[0].x} ${points[0].y} L ${points[points.length-1].x} ${points[points.length-1].y}`;
+    // For straight lines, just connect all points
+    pathData = points.reduce((path, point, index) => {
+      if (index === 0) {
+        return `M ${point.x} ${point.y}`;
+      }
+      return `${path} L ${point.x} ${point.y}`;
+    }, '');
   }
 
   // Calculate angles for markers
   let startAngle = 0;
   let endAngle = 0;
 
-  if (lineType === 'elbow' && points.length > 2) {
+  if (isElbowLineNode && points.length > 2) {
     // For elbow connectors, use the angle of the first segment for start marker
     startAngle = Math.atan2(
       points[1].y - points[0].y,
