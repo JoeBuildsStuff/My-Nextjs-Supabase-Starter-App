@@ -144,12 +144,26 @@ class NodeRegistry {
     return this.templates;
   }
   
-  // Create a node from a template
-  createNode(type: string, position: { x: number; y: number }, id: string): NodeType {
+  // Create a node from a template with theme awareness
+  createNode(type: string, position: { x: number; y: number }, id: string, isDark: boolean = false): NodeType {
     const template = this.getTemplate(type);
     
     if (!template) {
       throw new Error(`Node template for type "${type}" not found`);
+    }
+    
+    // Apply theme-aware colors to the style
+    const themeAwareStyle = { ...template.defaultStyle };
+    
+    // Update colors based on theme
+    if (themeAwareStyle.borderColor === "black" && isDark) {
+      themeAwareStyle.borderColor = "white";
+    }
+    if (themeAwareStyle.stroke === "black" && isDark) {
+      themeAwareStyle.stroke = "white";
+    }
+    if (themeAwareStyle.textColor === "black" && isDark) {
+      themeAwareStyle.textColor = "white";
     }
     
     return {
@@ -157,7 +171,7 @@ class NodeRegistry {
       type,
       position,
       dimensions: { ...template.defaultDimensions },
-      style: { ...template.defaultStyle },
+      style: themeAwareStyle,
       data: template.defaultData ? { ...template.defaultData } : {},
       selected: false,
     };

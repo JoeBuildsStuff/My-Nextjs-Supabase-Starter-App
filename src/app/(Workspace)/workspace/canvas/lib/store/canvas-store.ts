@@ -1157,8 +1157,11 @@ export const useCanvasStore = create<CanvasState>()(
         // Generate a unique ID for the new node
         const id = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         
-        // Create the node using NodeRegistry
-        const baseNode = nodeRegistry.createNode(type, { x, y }, id);
+        // Get the theme information from the data object
+        const isDark = data.isDarkTheme === true;
+        
+        // Create the node using NodeRegistry with theme awareness
+        const baseNode = nodeRegistry.createNode(type, { x, y }, id, isDark);
         
         // Apply current state settings and merge with any provided data
         const newNode: Node = {
@@ -1731,8 +1734,19 @@ export const useCanvasStore = create<CanvasState>()(
         // Generate a unique ID for the new line
         const id = `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         
-        // Create a new line node using NodeRegistry
-        const baseNode = nodeRegistry.createNode(type, { x, y }, id);
+        // Determine if we're in dark mode
+        let isDark = false;
+        if (typeof window !== 'undefined') {
+          const storedTheme = localStorage.getItem('theme');
+          if (storedTheme === 'dark') isDark = true;
+          else if (storedTheme !== 'light' && window.matchMedia && 
+                   window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            isDark = true;
+          }
+        }
+        
+        // Create a new line node using NodeRegistry with theme awareness
+        const baseNode = nodeRegistry.createNode(type, { x, y }, id, isDark);
         
         // Create a new line node with initial points
         const newLine: Node = {

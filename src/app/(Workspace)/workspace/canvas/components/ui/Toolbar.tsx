@@ -19,9 +19,12 @@ import {
   Triangle,
 } from 'lucide-react';
 import { useCanvasStore, ToolType } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
+import { useTheme } from 'next-themes';
 
 const Toolbar = () => {
   const { activeTool, setActiveTool, transform, createShapeAtPosition } = useCanvasStore();
+  const { resolvedTheme } = useTheme();
+  const isDarkTheme = resolvedTheme === 'dark';
   
   // Map tool IDs to tool types
   const toolMap: Record<number, ToolType> = {
@@ -79,8 +82,8 @@ const Toolbar = () => {
         const canvasX = (centerX - transform.x) / transform.zoom;
         const canvasY = (toolbarHeight - transform.y) / transform.zoom;
         
-        // Create the shape at the calculated position
-        createShapeAtPosition(toolType, canvasX, canvasY);
+        // Create the shape at the calculated position with theme information
+        createShapeAtPosition(toolType, canvasX, canvasY, { isDarkTheme });
       }
     }
   };
