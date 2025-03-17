@@ -59,7 +59,8 @@ const Canvas: React.FC<CanvasProps> = ({
     markerFillStyle,
     setStartMarker,
     setMarkerFillStyle,
-    updateSelectedLineMarkers
+    updateSelectedLineMarkers,
+    toggleNodeSelection
   } = useCanvasStore();
   
   // State for tracking mouse interactions
@@ -711,9 +712,17 @@ const Canvas: React.FC<CanvasProps> = ({
         
         const clickedNode = findNodeAtPosition(x, y);
         if (clickedNode) {
-          if (!clickedNode.selected) {
-            selectNode(clickedNode.id);
+          // Check if shift key is pressed for multi-selection
+          if (e.shiftKey) {
+            // Toggle selection state of the clicked node
+            toggleNodeSelection(clickedNode.id);
             deselectLinePoints();
+          } else {
+            // Normal click behavior - deselect others and select this one
+            if (!clickedNode.selected) {
+              selectNode(clickedNode.id);
+              deselectLinePoints();
+            }
           }
           
           setIsMovingNode(true);
@@ -898,11 +907,25 @@ const Canvas: React.FC<CanvasProps> = ({
         });
         
         if (displayNodes) {
-          const selectedNodeIds = displayNodes
-            .filter(node => isNodeInSelectionBox(node, { ...selectionBox, end: { x, y } }))
-            .map(node => node.id);
+          const nodesInBox = displayNodes
+            .filter(node => isNodeInSelectionBox(node, { ...selectionBox, end: { x, y } }));
           
-          selectMultipleNodes(selectedNodeIds);
+          if (e.shiftKey) {
+            // With shift, add these nodes to the current selection
+            const currentSelectedIds = displayNodes
+              .filter(node => node.selected)
+              .map(node => node.id);
+              
+            const newSelectedIds = nodesInBox
+              .filter(node => !node.selected)
+              .map(node => node.id);
+              
+            selectMultipleNodes([...currentSelectedIds, ...newSelectedIds]);
+          } else {
+            // Without shift, select only the nodes in the box
+            const selectedNodeIds = nodesInBox.map(node => node.id);
+            selectMultipleNodes(selectedNodeIds);
+          }
         }
       }
     } else if (lineInProgress) {
@@ -1037,11 +1060,25 @@ const Canvas: React.FC<CanvasProps> = ({
         });
         
         if (displayNodes) {
-          const selectedNodeIds = displayNodes
-            .filter(node => isNodeInSelectionBox(node, { ...selectionBox, end: { x, y } }))
-            .map(node => node.id);
+          const nodesInBox = displayNodes
+            .filter(node => isNodeInSelectionBox(node, { ...selectionBox, end: { x, y } }));
           
-          selectMultipleNodes(selectedNodeIds);
+          if (e.shiftKey) {
+            // With shift, add these nodes to the current selection
+            const currentSelectedIds = displayNodes
+              .filter(node => node.selected)
+              .map(node => node.id);
+              
+            const newSelectedIds = nodesInBox
+              .filter(node => !node.selected)
+              .map(node => node.id);
+              
+            selectMultipleNodes([...currentSelectedIds, ...newSelectedIds]);
+          } else {
+            // Without shift, select only the nodes in the box
+            const selectedNodeIds = nodesInBox.map(node => node.id);
+            selectMultipleNodes(selectedNodeIds);
+          }
         }
       }
     }

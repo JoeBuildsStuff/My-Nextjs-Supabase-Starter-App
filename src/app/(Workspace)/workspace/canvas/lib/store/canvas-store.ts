@@ -223,6 +223,9 @@ export interface CanvasState {
   
   // Add a new function to update selected line types
   updateSelectedLineTypes: () => void;
+
+  // Add this to the CanvasState interface
+  toggleNodeSelection: (nodeId: string) => void;
 }
 
 // Add this helper function to determine if we're in dark mode
@@ -961,13 +964,15 @@ export const useCanvasStore = create<CanvasState>()(
       
     selectMultipleNodes: (nodeIds) =>
       set((state) => {
-        // Deselect all nodes first
-        state.nodes.forEach(node => {
-          node.selected = nodeIds.includes(node.id);
-        });
+        const updatedNodes = state.nodes.map(node => ({
+          ...node,
+          selected: nodeIds.includes(node.id)
+        }));
         
-        // Update selectedElements array
-        state.selectedElements = state.nodes.filter(node => nodeIds.includes(node.id));
+        return {
+          nodes: updatedNodes,
+          selectedElements: updatedNodes.filter(node => node.selected)
+        };
       }),
     
     moveSelectedToFront: () =>
@@ -2408,6 +2413,22 @@ export const useCanvasStore = create<CanvasState>()(
         state.nodes = updatedNodes;
       });
     },
+
+    // Add this to the CanvasState interface
+    toggleNodeSelection: (nodeId) => 
+      set((state) => {
+        const updatedNodes = state.nodes.map(node => {
+          if (node.id === nodeId) {
+            return { ...node, selected: !node.selected };
+          }
+          return node;
+        });
+        
+        return {
+          nodes: updatedNodes,
+          selectedElements: updatedNodes.filter(node => node.selected)
+        };
+      }),
   }))
 ); 
 
