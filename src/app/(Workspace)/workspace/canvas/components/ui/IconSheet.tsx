@@ -115,11 +115,15 @@ const IconSheet = () => {
                         const canvasY = (centerY - transform.y) / transform.zoom;
                         
                         // Create a shape with the icon information
-                        createShapeAtPosition('rectangle', canvasX, canvasY, { 
+                        createShapeAtPosition('icon', canvasX, canvasY, { 
                           iconName: icon.name,
                           isIcon: true,
                           iconSize,
-                          iconStrokeWidth: strokeWidth
+                          iconStrokeWidth: strokeWidth,
+                          customDimensions: {
+                            width: iconSize,
+                            height: iconSize
+                          }
                         });
                         
                         // Close the sheet after selection

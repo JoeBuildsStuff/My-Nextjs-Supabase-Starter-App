@@ -14,8 +14,18 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ node, onResize }) => {
   const handleSize = 12; // Slightly larger handles for better usability
   const baseHandleOffset = 10; // Distance from the shape edge to the handle center for most shapes
   
+  // Calculate handle offset based on node type and data
+  let handleOffset = baseHandleOffset;
+  
   // Use a larger offset for diamond shapes
-  const handleOffset = node.type === 'diamond' ? 27 : baseHandleOffset;
+  if (node.type === 'diamond') {
+    handleOffset = 27;
+  } 
+  // Use a smaller offset for icon shapes based on the icon size
+  else if (node.type === 'icon' || (node.data?.isIcon === true)) {
+    // For icon shapes, use a minimal offset to keep handles close to the icon
+    handleOffset = 2;
+  }
   
   // Handle mouse down on a resize handle
   const handleMouseDown = (e: React.MouseEvent, direction: ResizeHandleDirection) => {
@@ -88,17 +98,28 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ node, onResize }) => {
       <div style={boundingBoxStyle} />
       
       {/* Resize handles */}
-      {Object.entries(handlePositions).map(([direction, position]) => (
-        <div
-          key={direction}
-          style={{
-            ...commonHandleStyle,
-            ...position,
-          }}
-          onMouseDown={(e) => handleMouseDown(e, direction as ResizeHandleDirection)}
-          className="resize-handle"
-        />
-      ))}
+      {Object.entries(handlePositions).map(([direction, position]) => {
+        // For icon shapes, only show diagonal (corner) handles
+        const isIconShape = node.type === 'icon' || (node.data?.isIcon === true);
+        const isDiagonalHandle = ['nw', 'ne', 'sw', 'se'].includes(direction);
+        
+        // Skip non-diagonal handles for icon shapes
+        if (isIconShape && !isDiagonalHandle) {
+          return null;
+        }
+        
+        return (
+          <div
+            key={direction}
+            style={{
+              ...commonHandleStyle,
+              ...position,
+            }}
+            onMouseDown={(e) => handleMouseDown(e, direction as ResizeHandleDirection)}
+            className="resize-handle"
+          />
+        );
+      })}
     </>
   );
 };

@@ -1199,6 +1199,11 @@ export const useCanvasStore = create<CanvasState>()(
             ...baseNode.data,
             ...data,
           },
+          // Apply custom dimensions if provided
+          dimensions: data.customDimensions ? 
+            { width: (data.customDimensions as { width: number; height: number }).width, 
+              height: (data.customDimensions as { width: number; height: number }).height } : 
+            baseNode.dimensions,
           selected: true,
           // Use the utility function to merge styles consistently
           style: mergeNodeStyles(baseNode.style, state, type)
@@ -1317,6 +1322,17 @@ export const useCanvasStore = create<CanvasState>()(
           } else {
             node.dimensions.width = width;
             node.dimensions.height = height;
+          }
+          
+          // If this is an icon shape, update the icon size to match the new dimensions
+          if (node.type === 'icon' || node.data?.isIcon === true) {
+            // Use the smaller of width and height to maintain aspect ratio
+            const newIconSize = Math.min(node.dimensions.width, node.dimensions.height);
+            
+            // Update the icon size in the node data
+            if (node.data) {
+              node.data.iconSize = newIconSize;
+            }
           }
           
           // Find all lines connected to this shape and update them

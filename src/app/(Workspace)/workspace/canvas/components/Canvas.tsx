@@ -1266,6 +1266,33 @@ const Canvas: React.FC<CanvasProps> = ({
       newY = Math.round(newY / gridSize) * gridSize;
     }
     
+    // For icon shapes, maintain a square aspect ratio
+    const isIconShape = node.type === 'icon' || (node.data?.isIcon === true);
+    if (isIconShape) {
+      // Use the larger dimension to ensure the icon stays square
+      // and doesn't get too small when resizing
+      const maxDimension = Math.max(newWidth, newHeight);
+      
+      // Adjust position based on which corner is being dragged
+      switch (direction) {
+        case 'nw':
+          newX = node.position.x + node.dimensions.width - maxDimension;
+          newY = node.position.y + node.dimensions.height - maxDimension;
+          break;
+        case 'ne':
+          newY = node.position.y + node.dimensions.height - maxDimension;
+          break;
+        case 'sw':
+          newX = node.position.x + node.dimensions.width - maxDimension;
+          break;
+        // SE corner doesn't need position adjustment
+      }
+      
+      // Set both dimensions to the same value
+      newWidth = maxDimension;
+      newHeight = maxDimension;
+    }
+    
     const isGroup = node.data?.isGroup === true;
     
     if (isGroup && displayNodes) {
