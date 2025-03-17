@@ -17,12 +17,13 @@ import {
   Diamond,
   Cylinder,
   Triangle,
+  Image,
 } from 'lucide-react';
 import { useCanvasStore, ToolType } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import { useTheme } from 'next-themes';
 
 const Toolbar = () => {
-  const { activeTool, setActiveTool, transform, createShapeAtPosition } = useCanvasStore();
+  const { activeTool, setActiveTool, transform, createShapeAtPosition, toggleIconSheet } = useCanvasStore();
   const { resolvedTheme } = useTheme();
   const isDarkTheme = resolvedTheme === 'dark';
   
@@ -39,7 +40,8 @@ const Toolbar = () => {
     8: 'line',
     9: 'pen',
     10: 'text',
-    11: 'eraser'
+    11: 'eraser',
+    12: 'icon'
   };
   
   const tools = [
@@ -61,7 +63,10 @@ const Toolbar = () => {
     { type: 'separator' },
     // Content tools
     { id: 10, icon: <Type className="" size={16} />, name: "Text"},
-    { id: 11, icon: <Eraser className="" size={16} />, name: "Eraser"}
+    { id: 11, icon: <Eraser className="" size={16} />, name: "Eraser"},
+    { type: 'separator' },
+    // Icon tool
+    { id: 12, icon: <Image className="" size={16} />, name: "Icons"}
   ];
 
   // Handle tool selection
@@ -69,6 +74,12 @@ const Toolbar = () => {
     const toolType = toolMap[toolId];
     if (toolType) {
       setActiveTool(toolType);
+      
+      // If icon tool is selected, open the icon sheet
+      if (toolType === 'icon') {
+        toggleIconSheet();
+        return;
+      }
       
       // If a shape tool is selected, create the shape below the toolbar
       if (['rectangle', 'triangle', 'diamond', 'circle', 'cylinder', 'text'].includes(toolType)) {

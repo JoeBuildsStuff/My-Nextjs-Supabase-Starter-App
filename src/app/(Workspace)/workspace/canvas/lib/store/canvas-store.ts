@@ -63,7 +63,8 @@ export type ToolType =
   | 'pen' 
   | 'text' 
   | 'eraser'
-  | 'lock';
+  | 'lock'
+  | 'icon';
 
 // Add marker types
 export type MarkerShape = 'none' | 'triangle' | 'circle' | 'square' | 'diamond';
@@ -226,6 +227,10 @@ export interface CanvasState {
 
   // Add this to the CanvasState interface
   toggleNodeSelection: (nodeId: string) => void;
+  
+  // Icon sheet state
+  isIconSheetOpen: boolean;
+  toggleIconSheet: () => void;
 }
 
 // Add this helper function to determine if we're in dark mode
@@ -2429,6 +2434,12 @@ export const useCanvasStore = create<CanvasState>()(
           selectedElements: updatedNodes.filter(node => node.selected)
         };
       }),
+    
+    // Icon sheet state
+    isIconSheetOpen: false,
+    toggleIconSheet: () => set(state => {
+      state.isIconSheetOpen = !state.isIconSheetOpen;
+    }),
   }))
 ); 
 

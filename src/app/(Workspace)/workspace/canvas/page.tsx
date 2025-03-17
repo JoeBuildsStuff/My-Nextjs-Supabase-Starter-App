@@ -67,13 +67,6 @@ const DrawingCanvasUI = () => {
       {presentationMode && (
         <TopMenuControls position="right" presentationModeOnly={true} />
       )}
-
-      {/* ESC to exit presentation mode hint - only shown in presentation mode */}
-      {presentationMode && (
-        <div className="absolute bottom-4 left-4 text-sm text-muted-foreground bg-background/50 backdrop-blur-sm px-2 py-1 rounded-md opacity-50 hover:opacity-100 transition-opacity">
-          Press ESC or F5 to exit presentation mode
-        </div>
-      )}
     </div>
   );
 };
