@@ -97,6 +97,7 @@ export const defaultNodeTemplates: Record<string, NodeTemplate> = {
     defaultStyle: {
       borderColor: "black",
       borderWidth: 2,
+      borderRadius: "8px",
     },
   },
   text: {

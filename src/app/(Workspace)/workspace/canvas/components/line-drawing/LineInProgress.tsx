@@ -1,7 +1,7 @@
 import React from 'react';
 import { Node, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
 import Marker from '../shapes/Marker';
-import { isElbowLine } from '../../lib/utils/elbow-line-utils';
+import { isElbowLine, generateRoundedElbowPathData } from '../../lib/utils/elbow-line-utils';
 
 interface LineInProgressProps {
   lineInProgress: Node;
@@ -59,13 +59,10 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
   const isElbowLineNode = isElbowLine(lineInProgress);
   
   if (isElbowLineNode && points.length >= 3) {
-    // For elbow connectors, use a path that connects all points
-    pathData = points.reduce((path, point, index) => {
-      if (index === 0) {
-        return `M ${point.x} ${point.y}`;
-      }
-      return `${path} L ${point.x} ${point.y}`;
-    }, '');
+    // For elbow connectors, use rounded corners
+    // Use the border radius from style, or default to 8
+    const cornerRadius = parseInt((style?.borderRadius as string) || '8', 10);
+    pathData = generateRoundedElbowPathData(points, cornerRadius);
   } else if (points.length >= 2) {
     // For straight lines or incomplete elbow, just connect the points we have
     pathData = points.reduce((path, point, index) => {

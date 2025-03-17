@@ -719,3 +719,93 @@ export function convertElbowToStraight(line: Node): Node {
   // Return the updated line
   return updatedLine;
 }
+
+/**
+ * Generate SVG path data for an elbow connector with rounded corners
+ * 
+ * @param points - Array of points defining the elbow connector
+ * @param cornerRadius - Radius for the rounded corners in pixels (default: 8)
+ * @returns SVG path data string for drawing the rounded elbow connector
+ */
+export function generateRoundedElbowPathData(
+  points: Array<{ x: number; y: number }>,
+  cornerRadius: number = 8
+): string {
+  // If we don't have enough points for an elbow, return a straight line
+  if (!points || points.length < 3) {
+    if (points && points.length === 2) {
+      return `M ${points[0].x},${points[0].y} L ${points[1].x},${points[1].y}`;
+    }
+    return '';
+  }
+
+  // Start building the SVG path
+  let pathData = `M ${points[0].x},${points[0].y}`;
+  
+  // For each middle point, create a rounded corner
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const current = points[i];
+    const next = points[i + 1];
+    
+    // Calculate direction vectors
+    const dx1 = current.x - prev.x;
+    const dy1 = current.y - prev.y;
+    const dx2 = next.x - current.x;
+    const dy2 = next.y - current.y;
+    
+    // Calculate distances
+    const dist1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+    const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+    
+    // Ensure the corner radius doesn't exceed half of the shortest segment
+    const maxRadius = Math.min(dist1, dist2) / 2;
+    const radius = Math.min(cornerRadius, maxRadius);
+    
+    // Calculate the start and end points of the arc
+    const arcStart = {
+      x: current.x - (radius * dx1) / dist1,
+      y: current.y - (radius * dy1) / dist1
+    };
+    
+    const arcEnd = {
+      x: current.x + (radius * dx2) / dist2,
+      y: current.y + (radius * dy2) / dist2
+    };
+    
+    // Add line to the start of the arc
+    pathData += ` L ${arcStart.x},${arcStart.y}`;
+    
+    // Add the arc
+    // The large-arc-flag and sweep-flag are set to 0 for a small arc
+    pathData += ` Q ${current.x},${current.y} ${arcEnd.x},${arcEnd.y}`;
+  }
+  
+  // Add line to the final point
+  pathData += ` L ${points[points.length - 1].x},${points[points.length - 1].y}`;
+  
+  return pathData;
+}
+
+/**
+ * Generate SVG path element for a rounded elbow connector
+ * 
+ * This function creates a complete SVG path element string that can be used
+ * directly in an SVG component.
+ * 
+ * @param points - Array of points defining the elbow connector
+ * @param cornerRadius - Radius for the rounded corners in pixels (default: 8)
+ * @param strokeColor - Color of the line (default: "black")
+ * @param strokeWidth - Width of the line in pixels (default: 2)
+ * @returns SVG path element string
+ */
+export function createRoundedElbowPath(
+  points: Array<{ x: number; y: number }>,
+  cornerRadius: number = 8,
+  strokeColor: string = "black",
+  strokeWidth: number = 2
+): string {
+  const pathData = generateRoundedElbowPathData(points, cornerRadius);
+  
+  return `<path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
+}

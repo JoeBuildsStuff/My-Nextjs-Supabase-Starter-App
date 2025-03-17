@@ -1,7 +1,7 @@
 import React from 'react';
 import { Node, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
 import Marker from './Marker';
-import { adjustElbowMiddlePoint, isElbowLine } from '../../lib/utils/elbow-line-utils';
+import { adjustElbowMiddlePoint, isElbowLine, generateRoundedElbowPathData } from '../../lib/utils/elbow-line-utils';
 
 interface LineShapeProps {
   node: Node;
@@ -31,21 +31,15 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
       // Create a copy of the points array to avoid mutating the original
       const adjustedPoints = adjustElbowMiddlePoint([...points], selectedEndpoint);
       
-      // Create the path data from the adjusted points
-      pathData = adjustedPoints.reduce((path, point, index) => {
-        if (index === 0) {
-          return `M ${point.x} ${point.y}`;
-        }
-        return `${path} L ${point.x} ${point.y}`;
-      }, '');
+      // Create the path data from the adjusted points with rounded corners
+      // Use the border radius from style, or default to 8
+      const cornerRadius = parseInt((style?.borderRadius as string) || '8', 10);
+      pathData = generateRoundedElbowPathData(adjustedPoints, cornerRadius);
     } else {
-      // No endpoint being dragged, just connect all points
-      pathData = points.reduce((path, point, index) => {
-        if (index === 0) {
-          return `M ${point.x} ${point.y}`;
-        }
-        return `${path} L ${point.x} ${point.y}`;
-      }, '');
+      // No endpoint being dragged, just connect all points with rounded corners
+      // Use the border radius from style, or default to 8
+      const cornerRadius = parseInt((style?.borderRadius as string) || '8', 10);
+      pathData = generateRoundedElbowPathData(points, cornerRadius);
     }
   } else {
     // For straight lines, just connect all points

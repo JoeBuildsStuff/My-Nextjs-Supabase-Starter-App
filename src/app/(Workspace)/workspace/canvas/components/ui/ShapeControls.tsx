@@ -7,16 +7,18 @@ import { SquareRoundCorner } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
+import { useCanvasStore, Node } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import { useTailwindColors } from '../../lib/utils/use-tailwind-colors';
+import { isElbowLine } from '../../lib/utils/elbow-line-utils';
 
 const ShapeControls = () => {
   const { 
     borderRadius, 
     setBorderRadius, 
     strokeColor, 
-    fillColor, 
-    updateColorsForTheme 
+    fillColor,
+    updateColorsForTheme,
+    nodes
   } = useCanvasStore();
   
   // Use the tailwind colors hook for theme-aware color handling
@@ -35,6 +37,12 @@ const ShapeControls = () => {
   
   // Determine if fill is "none"
   const hasFill = fillColor !== 'none';
+
+  // Get selected nodes
+  const selectedNodes = nodes?.filter((node: Node) => node.selected);
+
+  // Check if any selected node is an elbow line
+  const hasSelectedElbowLine = selectedNodes?.some((node: Node) => isElbowLine(node));
   
   // Update shape colors when theme changes
   useEffect(() => {
@@ -44,9 +52,15 @@ const ShapeControls = () => {
     }
   }, [hasThemeChanged, updateColorsForTheme, isDarkMode]);
 
+  // Only show controls if we have a shape or elbow line selected
+  const showBorderRadius = selectedNodes?.length === 1 && 
+    (selectedNodes[0].type !== 'line' || hasSelectedElbowLine);
+
+  if (!showBorderRadius) return null;
+
   return (
     <div className="flex flex-row items-center justify-between w-full">
-      <Label className="text-sm font-medium text-muted-foreground">Edge</Label>
+      <Label className="text-sm font-medium text-muted-foreground">Corner</Label>
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon">
@@ -62,7 +76,7 @@ const ShapeControls = () => {
         </PopoverTrigger>
         <PopoverContent side="right" className="w-fit" sideOffset={15} align="start">
           <div className="flex items-center justify-between mb-2">
-            <Label className="text-sm">Border Radius</Label>
+            <Label className="text-sm">Corner Radius</Label>
             <span className="text-sm text-muted-foreground">{borderRadius}px</span>
           </div>
           {/* Preset Toggle Group */}
