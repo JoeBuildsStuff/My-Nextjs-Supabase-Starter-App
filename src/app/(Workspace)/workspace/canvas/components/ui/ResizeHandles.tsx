@@ -54,7 +54,7 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ node, onResize }) => {
     backgroundColor: 'hsl(var(--background))',
     border: '1px solid hsl(var(--border))',
     borderRadius: '3px', // Changed from 50% to 4px for rounded squares
-    zIndex: 100, // Higher z-index to ensure visibility
+    zIndex: 999, // Higher z-index to ensure visibility
     pointerEvents: 'auto', // Make sure handles are clickable
     touchAction: 'none', // Prevent touch actions for better mobile experience
   };
@@ -79,7 +79,7 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ node, onResize }) => {
     bottom: -handleOffset,
     border: '1px solid hsl(var(--border))',
     pointerEvents: 'none', // Don't interfere with mouse events
-    zIndex: 90,
+    zIndex: 900,
   };
   
   return (

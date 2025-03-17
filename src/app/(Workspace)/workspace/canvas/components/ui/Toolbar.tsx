@@ -71,7 +71,7 @@ const Toolbar = () => {
       setActiveTool(toolType);
       
       // If a shape tool is selected, create the shape below the toolbar
-      if (['rectangle', 'triangle', 'diamond', 'circle', 'cylinder' ].includes(toolType)) {
+      if (['rectangle', 'triangle', 'diamond', 'circle', 'cylinder', 'text'].includes(toolType)) {
         // Calculate position below the toolbar
         const toolbarHeight = 100; // Approximate height of toolbar + margin
         

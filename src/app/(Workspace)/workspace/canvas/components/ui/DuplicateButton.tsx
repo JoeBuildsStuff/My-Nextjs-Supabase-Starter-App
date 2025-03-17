@@ -257,7 +257,7 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
       top: area.top,
       width: area.width,
       height: area.height,
-      zIndex: 999,
+      zIndex: 500,
     };
   };
 

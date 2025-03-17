@@ -116,7 +116,7 @@ export const defaultNodeTemplates: Record<string, NodeTemplate> = {
       textAlign: "left",
     },
     defaultData: {
-      text: "Text",
+      text: "",
       isNew: true,
     },
   },
