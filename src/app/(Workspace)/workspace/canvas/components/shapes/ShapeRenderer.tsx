@@ -5,6 +5,7 @@ import ConnectionPoints, { ConnectionPointPosition } from '../ui/ConnectionPoint
 import LineShape from './LineShape';
 import LineResizeHandles from '../ui/LineResizeHandles';
 import TextShape from './TextShape';
+import IconShape from './IconShape';
 import DuplicateButton from '../ui/DuplicateButton';
 
 interface ShapeRendererProps {
@@ -100,6 +101,10 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   const renderShape = () => {
     switch (type) {
       case 'rectangle':
+        // If this is an icon rectangle, render the IconShape component
+        if (data?.isIcon) {
+          return <IconShape node={node} />;
+        }
         return <div style={baseStyle} />;
 
       case 'circle':
@@ -173,6 +178,9 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             onTextChange={onTextChange}
           />
         );
+
+      case 'icon':
+        return <IconShape node={node} />;
 
       case 'arrow':
       case 'line':

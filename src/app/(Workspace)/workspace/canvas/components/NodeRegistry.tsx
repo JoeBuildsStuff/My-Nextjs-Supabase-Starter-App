@@ -120,6 +120,24 @@ export const defaultNodeTemplates: Record<string, NodeTemplate> = {
       isNew: true,
     },
   },
+  icon: {
+    type: 'icon',
+    label: 'Icon',
+    defaultDimensions: { width: 48, height: 48 },
+    defaultStyle: {
+      backgroundColor: "transparent",
+      borderColor: "transparent",
+      borderWidth: 0,
+      borderStyle: "none",
+      borderRadius: "0",
+      iconColor: "black",
+      iconSize: "24px",
+    },
+    defaultData: {
+      iconName: "",
+      isIcon: true,
+    },
+  },
 };
 
 // NodeRegistry class to manage node templates
