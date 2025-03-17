@@ -2,10 +2,9 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, BookOpen, Presentation, PencilRuler, HelpCircle, Grip } from 'lucide-react';
+import { Menu, Presentation, PencilRuler, HelpCircle, Grip } from 'lucide-react';
 import { useCanvasStore } from '../../lib/store/canvas-store';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
@@ -13,6 +12,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
 import { ExportButton } from './ExportButton';
 import { ImportButton } from './ImportButton';
+import { InstructionsComponent } from './InstructionsComponent';
 
 interface TopMenuControlsProps {
   position: 'left' | 'right';
@@ -35,7 +35,6 @@ const TopMenuControls = ({ position, presentationModeOnly = false }: TopMenuCont
   const handleGridSizeChange = (value: number[]) => {
     setGridSize(value[0]);
   };
-
 
   return (
     <div className={`absolute top-4 ${position === 'left' ? 'left-4' : 'right-4'} ${position === 'right' ? 'flex space-x-2' : ''}`}>
@@ -118,17 +117,7 @@ const TopMenuControls = ({ position, presentationModeOnly = false }: TopMenuCont
             <>
               <ExportButton />
               <ImportButton />
-              
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="bg-background/80 backdrop-blur-sm">
-                    <BookOpen className="w-4 h-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent side="bottom" align="end" sideOffset={10} className="w-fit">
-                  <p>I don&apos;t do anything... yet</p>
-                </PopoverContent>
-              </Popover>
+              <InstructionsComponent />
             </>
           )}
           
