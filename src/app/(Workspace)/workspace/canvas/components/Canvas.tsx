@@ -193,13 +193,19 @@ const Canvas: React.FC<CanvasProps> = ({
   // Add event listeners for keyboard events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if the event target is an input or textarea element
+      const target = e.target as HTMLElement;
+      const isEditingText = target.tagName === 'INPUT' || 
+                           target.tagName === 'TEXTAREA' || 
+                           target.isContentEditable;
+      
       if (e.key === 'Shift') {
         setIsShiftPressed(true);
       } else if (e.key === 'Escape') {
         if (lineInProgress) {
           cancelLineDraw();
         }
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditingText) {
         if (selectedPointIndices && selectedPointIndices.length > 0) {
           deleteSelectedPoints();
           e.preventDefault();

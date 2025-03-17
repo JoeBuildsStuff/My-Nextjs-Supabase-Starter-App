@@ -27,6 +27,12 @@ const ActionControls = () => {
   // Add keyboard event handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if the event target is an input or textarea element
+      const target = e.target as HTMLElement;
+      const isEditingText = target.tagName === 'INPUT' || 
+                           target.tagName === 'TEXTAREA' || 
+                           target.isContentEditable;
+      
       // Check if Command/Control + D is pressed for duplicate
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
         e.preventDefault(); // Prevent browser's default behavior
@@ -34,7 +40,8 @@ const ActionControls = () => {
       }
       
       // Check if Delete or Backspace is pressed for delete
-      if (e.key === 'Delete' || e.key === 'Backspace') {
+      // Only delete nodes if not editing text
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditingText) {
         deleteSelectedNodes();
       }
       
