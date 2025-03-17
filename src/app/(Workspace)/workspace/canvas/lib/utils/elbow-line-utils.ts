@@ -413,7 +413,7 @@ function validateConnectionPoints(
         endPosition = dx > 0 ? 'w' : 'e';
       } else {
         // Otherwise, try using the north connection of the end shape
-        endPosition = 'n';
+        endPosition = 'w';
       }
     }
   }
@@ -429,7 +429,7 @@ function validateConnectionPoints(
         endPosition = dx > 0 ? 'w' : 'e';
       } else {
         // Otherwise, try using the south connection of the end shape
-        endPosition = 's';
+        endPosition = 'e';
       }
     }
   }
@@ -445,7 +445,7 @@ function validateConnectionPoints(
         endPosition = dx > 0 ? 'w' : 'e';
       } else {
         // Otherwise, try using the north connection of the end shape
-        endPosition = 'n';
+        endPosition = 'e';
       }
     }
   }
@@ -461,7 +461,7 @@ function validateConnectionPoints(
         endPosition = dy > 0 ? 'n' : 's';
       } else {
         // Otherwise, try using the west connection of the end shape
-        endPosition = 'w';
+        endPosition = 's';
       }
     }
   }
@@ -477,7 +477,7 @@ else if (startPosition === 'n' && endPosition === 'w') {
         endPosition = dy > 0 ? 'n' : 's';
       } else {
         // Otherwise, try using the east connection of the end shape
-        endPosition = 'e';
+        endPosition = 's';
       }
     }
   }
@@ -493,7 +493,7 @@ else if (startPosition === 'n' && endPosition === 'w') {
         endPosition = dy > 0 ? 'n' : 's';
       } else {
         // Otherwise, try using the west connection of the end shape
-        endPosition = 'w';
+        endPosition = 'n';
       }
     }
   }
@@ -509,7 +509,7 @@ else if (startPosition === 'n' && endPosition === 'w') {
         endPosition = dy > 0 ? 'n' : 's';
       } else {
         // Otherwise, try using the east connection of the end shape
-        endPosition = 'e';
+        endPosition = 'n';
       }
     }
   }
