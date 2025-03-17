@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 export const InstructionsComponent = () => {
   const { toast } = useToast();
 
+  // Using raw string to avoid TypeScript trying to interpret the markdown content
   const markdownContent = `# Canvas Import JSON Format Guide
 
 This document explains the structure of the JSON format used for importing diagrams into the Canvas application. The import JSON contains nodes (shapes, text, lines, etc.), connections between nodes, metadata, and version information.
@@ -48,18 +49,21 @@ Each node represents a visual element on the canvas. All nodes have some common 
 
 ### Style Properties
 
-Style properties can include:
+Style properties can include a mix of hex color values and tailwind-style color names:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| \`backgroundColor\` | string | Background color (e.g., "transparent", "blue-500") |
-| \`borderColor\` | string | Border color (e.g., "black-500", "blue-500") |
+| \`backgroundColor\` | string | Background color (e.g., "#7dd3fc", "transparent", "blue-500") |
+| \`borderColor\` | string | Border color (e.g., "#0284c7", "black-500") |
 | \`borderWidth\` | number | Border width in pixels |
 | \`borderStyle\` | string | Border style ("solid", "dashed", "dotted") |
-| \`borderRadius\` | string or number | Border radius for rounded corners (e.g., "8px" or 8) |
-| \`color\` | string | Text color for text nodes |
-| \`textColor\` | string | Another way to specify text color |
-| \`fontSize\` | string | Font size with units (e.g., "14px") |
+| \`borderRadius\` | string | Border radius for rounded corners with units (e.g., "8px") |
+| \`stroke\` | string | Stroke color (e.g., "black-800") |
+| \`fill\` | string | Fill color (e.g., "white-300") |
+| \`strokeWidth\` | number | Width of stroke in pixels |
+| \`strokeStyle\` | string | Style of stroke ("solid", "dashed", "dotted") |
+| \`textColor\` | string | Text color (e.g., "sky-800", "black") |
+| \`fontSize\` | string | Font size with units (e.g., "16px") |
 | \`fontFamily\` | string | Font family (e.g., "sans-serif") |
 | \`textAlign\` | string | Text alignment ("left", "center", "right") |
 | \`verticalAlign\` | string | Vertical alignment ("top", "middle", "bottom") |
@@ -79,14 +83,25 @@ Different shape types may have specific style properties. For example:
   "position": { "x": 100, "y": 100 },
   "dimensions": { "width": 175, "height": 41 },
   "style": {
-    "backgroundColor": "transparent",
-    "borderColor": "transparent",
-    "textColor": "black-500",
-    "fontSize": "14px",
-    "textAlign": "left"
+    "backgroundColor": "#7dd3fc",
+    "borderColor": "#0284c7",
+    "borderWidth": 1,
+    "borderStyle": "solid",
+    "borderRadius": "8px",
+    "textColor": "sky-800",
+    "fontSize": "16px",
+    "fontFamily": "sans-serif",
+    "textAlign": "center",
+    "verticalAlign": "middle",
+    "stroke": "black-800",
+    "fill": "white-300",
+    "strokeWidth": 2,
+    "strokeStyle": "solid"
   },
   "data": {
-    "text": "This is a text node"
+    "text": "This is a text node",
+    "isNew": false,
+    "isDarkTheme": false
   }
 }
 \`\`\`
@@ -168,11 +183,14 @@ Target positions can be cardinal directions ("n", "s", "e", "w") or corners ("nw
 
 Colors in the canvas can be specified in several formats:
 
-1. Base color with shade: \`"blue-500"\`, \`"red-300"\`, etc.
-2. Single colors: \`"black"\`, \`"white"\`
-3. Special value: \`"none"\` or \`"transparent"\`
+1. Hex color codes: \`"#7dd3fc"\`, \`"#0284c7"\`, etc.
+2. Base color with shade: \`"blue-500"\`, \`"red-300"\`, \`"sky-800"\`, etc.
+3. Single colors: \`"black"\`, \`"white"\`
+4. Special value: \`"none"\` or \`"transparent"\`
 
-When using shades, the first part is the color name, and the second part (after the hyphen) is the shade intensity.
+Your application supports a mix of these formats, with some properties typically using hex codes (like \`backgroundColor\` and \`borderColor\`) and others using the named colors with intensity (like \`textColor\`, \`stroke\`, and \`fill\`).
+
+When using named colors with shades, the first part is the color name, and the second part (after the hyphen) is the shade intensity.
 
 ## Complete Example
 
@@ -187,10 +205,18 @@ Here's a simplified example of a complete import JSON with different types of no
       "position": { "x": 100, "y": 100 },
       "dimensions": { "width": 120, "height": 80 },
       "style": {
-        "backgroundColor": "blue-100",
-        "borderColor": "blue-500",
+        "backgroundColor": "#dbeafe",
+        "borderColor": "#3b82f6",
         "borderWidth": 2,
-        "borderRadius": "8"
+        "borderRadius": "8px",
+        "stroke": "blue-500",
+        "fill": "blue-100",
+        "strokeWidth": 2,
+        "strokeStyle": "solid"
+      },
+      "data": {
+        "isNew": false,
+        "isDarkTheme": false
       },
       "selected": false
     },
@@ -204,10 +230,16 @@ Here's a simplified example of a complete import JSON with different types of no
         "borderColor": "transparent",
         "textColor": "black-800",
         "fontSize": "14px",
-        "textAlign": "center"
+        "fontFamily": "sans-serif",
+        "textAlign": "center",
+        "verticalAlign": "middle",
+        "stroke": "black-800",
+        "fill": "white-300"
       },
       "data": {
-        "text": "Hello World"
+        "text": "Hello World",
+        "isNew": false,
+        "isDarkTheme": false
       },
       "selected": false
     },
@@ -217,8 +249,9 @@ Here's a simplified example of a complete import JSON with different types of no
       "position": { "x": 220, "y": 140 },
       "dimensions": { "width": 100, "height": 2 },
       "style": {
-        "borderColor": "black-500",
-        "borderWidth": 2
+        "borderColor": "#1e293b",
+        "borderWidth": 2,
+        "borderStyle": "solid"
       },
       "points": [
         { "x": 0, "y": 0 },
@@ -226,7 +259,10 @@ Here's a simplified example of a complete import JSON with different types of no
       ],
       "data": {
         "lineType": "straight",
-        "endMarker": "triangle"
+        "endMarker": "triangle",
+        "markerFillStyle": "filled",
+        "isNew": false,
+        "isDarkTheme": false
       },
       "selected": false
     }
@@ -251,8 +287,10 @@ Here's a simplified example of a complete import JSON with different types of no
 3. **Consistent connections**: Any connection defined should reference valid node IDs.
 4. **Appropriate dimension values**: Width and height should be appropriate for the node type.
 5. **Coordinate system**: The top-left of the canvas is (0,0), with x increasing to the right and y increasing downward.
-6. **Use the export feature**: The easiest way to understand the format is to create a diagram and use the export feature to see the resulting JSON.
-7. **Data validation**: Before importing, check that your JSON is well-formed and follows the structure outlined above.`;
+6. **Data properties**: Include \`"isNew": false\` and \`"isDarkTheme": false\` in the data object for each node.
+7. **Style consistency**: Maintain the style structure shown in the examples, including the mix of hex colors and named colors.
+8. **Use the export feature**: The easiest way to understand the format is to create a diagram and use the export feature to see the resulting JSON.
+9. **Data validation**: Before importing, check that your JSON is well-formed and follows the structure outlined above.`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(markdownContent)
