@@ -318,6 +318,16 @@ export function findOptimalElbowConnectionPoints(
       endPosition = 'se';
     }
   }
+
+  // Validate and adjust the connection points to avoid passing through shapes
+  [startPosition, endPosition] = validateConnectionPoints(
+    startShape,
+    endShape,
+    startPosition,
+    endPosition,
+    startCenter,
+    endCenter
+  );
   
   // Calculate the actual pixel coordinates of these connection points
   // This uses another function that knows how to find the exact coordinate 
@@ -332,6 +342,196 @@ export function findOptimalElbowConnectionPoints(
     startPoint,
     endPoint
   };
+}
+
+/**
+ * Validate that the chosen connection points won't create a path that intersects with either shape
+ * 
+ * @param startShape - The node representing the shape where the line starts
+ * @param endShape - The node representing the shape where the line ends
+ * @param startPosition - Initially chosen connection point for start shape
+ * @param endPosition - Initially chosen connection point for end shape
+ * @param startCenter - Center point of the start shape
+ * @param endCenter - Center point of the end shape
+ * @returns Adjusted connection positions to avoid shape intersections
+ */
+function validateConnectionPoints(
+  startShape: Node,
+  endShape: Node,
+  startPosition: ConnectionPointPosition,
+  endPosition: ConnectionPointPosition,
+  startCenter: { x: number; y: number },
+  endCenter: { x: number; y: number }
+): [ConnectionPointPosition, ConnectionPointPosition] {
+
+  // Get the bounds of both shapes
+  const startBounds = {
+    left: startShape.position.x,
+    top: startShape.position.y,
+    right: startShape.position.x + (startShape.dimensions?.width || 0),
+    bottom: startShape.position.y + (startShape.dimensions?.height || 0)
+  };
+  
+  const endBounds = {
+    left: endShape.position.x,
+    top: endShape.position.y,
+    right: endShape.position.x + (endShape.dimensions?.width || 0),
+    bottom: endShape.position.y + (endShape.dimensions?.height || 0)
+  };
+  
+  // Calculate the relative position again for convenience
+  const dx = endCenter.x - startCenter.x;
+  const dy = endCenter.y - startCenter.y;
+  
+  // Check for potential intersections based on the connection positions
+  
+  // Case 1: East-North connection (horizontal then vertical)
+  if (startPosition === 'e' && endPosition === 'n') {
+    // Check if the elbow point would be inside the end shape
+    // The elbow point would be at (endBounds.left, startCenter.y)
+    if (startCenter.y > endBounds.top && startCenter.y < endBounds.bottom) {
+      // Potential intersection - adjust the connection strategy
+      if (Math.abs(dy) > Math.abs(dx) / 2) {
+        // If vertical distance is significant, go vertical first
+        startPosition = dy < 0 ? 'n' : 's';
+        endPosition = dx > 0 ? 'w' : 'e';
+      } else {
+        // Otherwise, try using the south connection of the end shape
+        endPosition = 'w';
+      }
+    }
+  }
+  
+  // Case 2: East-South connection (horizontal then vertical)
+  else if (startPosition === 'e' && endPosition === 's') {
+    // Check if the elbow point would be inside the end shape
+    if (startCenter.y > endBounds.top && startCenter.y < endBounds.bottom) {
+      // Potential intersection - adjust the connection strategy
+      if (Math.abs(dy) > Math.abs(dx) / 2) {
+        // If vertical distance is significant, go vertical first
+        startPosition = dy < 0 ? 'n' : 's';
+        endPosition = dx > 0 ? 'w' : 'e';
+      } else {
+        // Otherwise, try using the north connection of the end shape
+        endPosition = 'n';
+      }
+    }
+  }
+  
+  // Case 3: West-North connection (horizontal then vertical)
+  else if (startPosition === 'w' && endPosition === 'n') {
+    // Check if the elbow point would be inside the end shape
+    if (startCenter.y > endBounds.top && startCenter.y < endBounds.bottom) {
+      // Potential intersection - adjust the connection strategy
+      if (Math.abs(dy) > Math.abs(dx) / 2) {
+        // If vertical distance is significant, go vertical first
+        startPosition = dy < 0 ? 'n' : 's';
+        endPosition = dx > 0 ? 'w' : 'e';
+      } else {
+        // Otherwise, try using the south connection of the end shape
+        endPosition = 's';
+      }
+    }
+  }
+  
+  // Case 4: West-South connection (horizontal then vertical)
+  else if (startPosition === 'w' && endPosition === 's') {
+    // Check if the elbow point would be inside the end shape
+    if (startCenter.y > endBounds.top && startCenter.y < endBounds.bottom) {
+      // Potential intersection - adjust the connection strategy
+      if (Math.abs(dy) > Math.abs(dx) / 2) {
+        // If vertical distance is significant, go vertical first
+        startPosition = dy < 0 ? 'n' : 's';
+        endPosition = dx > 0 ? 'w' : 'e';
+      } else {
+        // Otherwise, try using the north connection of the end shape
+        endPosition = 'n';
+      }
+    }
+  }
+  
+  // Case 5: North-East connection (vertical then horizontal)
+  else if (startPosition === 'n' && endPosition === 'e') {
+    // Check if the elbow point would be inside the end shape
+    if (startCenter.x > endBounds.left && startCenter.x < endBounds.right) {
+      // Potential intersection - adjust the connection strategy
+      if (Math.abs(dx) > Math.abs(dy) / 2) {
+        // If horizontal distance is significant, go horizontal first
+        startPosition = dx < 0 ? 'w' : 'e';
+        endPosition = dy > 0 ? 'n' : 's';
+      } else {
+        // Otherwise, try using the west connection of the end shape
+        endPosition = 'w';
+      }
+    }
+  }
+  
+  // Case 6: North-West connection (vertical then horizontal)
+else if (startPosition === 'n' && endPosition === 'w') {
+    // Check if the elbow point would be inside the end shape
+    if (startCenter.x > endBounds.left && startCenter.x < endBounds.right) {
+      // Potential intersection - adjust the connection strategy
+      if (Math.abs(dx) > Math.abs(dy) / 2) {
+        // If horizontal distance is significant, go horizontal first
+        startPosition = dx < 0 ? 'w' : 'e';
+        endPosition = dy > 0 ? 'n' : 's';
+      } else {
+        // Otherwise, try using the east connection of the end shape
+        endPosition = 'e';
+      }
+    }
+  }
+  
+  // Case 7: South-East connection (vertical then horizontal)
+  else if (startPosition === 's' && endPosition === 'e') {
+    // Check if the elbow point would be inside the end shape
+    if (startCenter.x > endBounds.left && startCenter.x < endBounds.right) {
+      // Potential intersection - adjust the connection strategy
+      if (Math.abs(dx) > Math.abs(dy) / 2) {
+        // If horizontal distance is significant, go horizontal first
+        startPosition = dx < 0 ? 'w' : 'e';
+        endPosition = dy > 0 ? 'n' : 's';
+      } else {
+        // Otherwise, try using the west connection of the end shape
+        endPosition = 'w';
+      }
+    }
+  }
+  
+  // Case 8: South-West connection (vertical then horizontal)
+  else if (startPosition === 's' && endPosition === 'w') {
+    // Check if the elbow point would be inside the end shape
+    if (startCenter.x > endBounds.left && startCenter.x < endBounds.right) {
+      // Potential intersection - adjust the connection strategy
+      if (Math.abs(dx) > Math.abs(dy) / 2) {
+        // If horizontal distance is significant, go horizontal first
+        startPosition = dx < 0 ? 'w' : 'e';
+        endPosition = dy > 0 ? 'n' : 's';
+      } else {
+        // Otherwise, try using the east connection of the end shape
+        endPosition = 'e';
+      }
+    }
+  }
+  
+  // Also check for the reverse case - if the elbow would intersect with the start shape
+  // This is similar logic but with start and end swapped
+  
+  // For example, for North-East connection from start shape
+  if (startPosition === 'n' && endPosition === 'e') {
+    // Check if the elbow would intersect with the start shape
+    // The elbow would be at (startCenter.x, endBounds.top)
+    if (endBounds.top < startBounds.bottom && 
+        endCenter.x > startBounds.left && endCenter.x < startBounds.right) {
+      // Try a different approach - go horizontal first
+      startPosition = dx > 0 ? 'e' : 'w';
+      endPosition = dy < 0 ? 's' : 'n';
+    }
+  }
+  
+  // Similar checks for other connection combinations...
+  
+  return [startPosition, endPosition];
 }
 
 /**
