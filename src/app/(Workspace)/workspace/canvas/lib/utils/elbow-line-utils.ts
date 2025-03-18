@@ -558,6 +558,27 @@ export function updateLineWithElbowRouting(
   if (!updatedLine.points || updatedLine.points.length < 2) {
     return updatedLine;
   }
+
+  // The connections array is organized like this:
+  // [
+  //   {
+  //       lineId: 'node-1742339908991-398',
+  //       pointIndex: 0,
+  //       shapeId: 'node-1742339903125-579',
+  //       position: 'e',
+  //       dynamic: true
+  //     },
+  //   {
+  //       lineId: 'node-1742339908991-398',
+  //       pointIndex: 1,
+  //       shapeId: 'node-1742339905016-910',
+  //       position: 'n',
+  //       dynamic: true
+  //     }
+  //   ]
+  //
+  // Where each connection has a lineId.  The pointIndex of 0 represents the
+  // start point of the line.  A pointIndex of 1 represents the end point of the line
   
   // Find the connection for the start point (index 0) of the line
   const startConnection = connections.find(
@@ -566,7 +587,7 @@ export function updateLineWithElbowRouting(
   
   // Find the connection for the end point of the line in the connections array.
   const endConnection = connections.find(
-    conn => conn.lineId === line.id && conn.pointIndex === updatedLine.points!.length - 1
+    conn => conn.lineId === line.id && conn.pointIndex === 1
   );
 
   // Calculate the absolute (on-canvas) positions of the start and end points
