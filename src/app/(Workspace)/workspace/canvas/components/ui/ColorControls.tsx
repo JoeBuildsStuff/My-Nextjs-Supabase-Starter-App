@@ -11,7 +11,23 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { baseColorOptions } from '../../lib/utils/tailwind-color-utils';
 import { useTailwindColors } from '../../lib/utils/use-tailwind-colors';
 
-const ColorControls = () => {
+// Define types
+interface IconConfig {
+  iconColor: string;
+  iconStrokeWidth: number;
+}
+
+interface ColorControlsProps {
+  showIconControls?: boolean;
+  defaultIconConfig?: IconConfig;
+  onIconConfigChange?: (config: IconConfig) => void;
+}
+
+const ColorControls: React.FC<ColorControlsProps> = ({ 
+  showIconControls = false,
+  defaultIconConfig,
+  onIconConfigChange 
+}) => {
   const { 
     strokeColor, 
     fillColor, 
@@ -24,7 +40,8 @@ const ColorControls = () => {
     setStrokeWidth,
     setStrokeStyle,
     updateColorsForTheme,
-    pushToHistory
+    pushToHistory,
+    updateSelectedIconStyles
   } = useCanvasStore();
   
   // Use the tailwind colors hook for theme-aware color handling
@@ -44,6 +61,14 @@ const ColorControls = () => {
   const [selectedFillBase, setSelectedFillBase] = useState<string>('');
   const [selectedFillShade, setSelectedFillShade] = useState<string>(defaultShade);
   
+  // State for icon controls if needed
+  const [iconConfig, setIconConfig] = useState<IconConfig>(defaultIconConfig || {
+    iconColor: strokeColor,
+    iconStrokeWidth: strokeWidth
+  });
+  const [selectedIconBase, setSelectedIconBase] = useState<string>('');
+  const [selectedIconShade, setSelectedIconShade] = useState<string>(defaultStrokeShade);
+  
   // Available stroke widths
   const strokeWidths = [1, 2, 3, 4, 6];
   
@@ -54,11 +79,19 @@ const ColorControls = () => {
     { name: 'dotted', icon: <Grip className="h-4 w-4" /> }
   ];
 
+  // Update parent component when icon config changes
+  useEffect(() => {
+    if (showIconControls && onIconConfigChange) {
+      onIconConfigChange(iconConfig);
+    }
+  }, [iconConfig, onIconConfigChange, showIconControls]);
+
   // Handle color selection
   const handleStrokeColorChange = (colorBase: string) => {
     if (colorBase === 'none') {
       setStrokeColor(colorBase);
       setSelectedStrokeBase(colorBase);
+      setSelectedIconBase(colorBase);
       return;
     }
     
@@ -69,6 +102,8 @@ const ColorControls = () => {
       setStrokeColor(newColor);
       setSelectedStrokeBase(colorBase);
       setSelectedStrokeShade(shade);
+      setSelectedIconBase(colorBase);
+      setSelectedIconShade(shade);
       return;
     }
     
@@ -77,6 +112,15 @@ const ColorControls = () => {
     setStrokeColor(newColor);
     setSelectedStrokeBase(colorBase);
     setSelectedStrokeShade(defaultStrokeShade);
+
+        // Update selected icons
+        updateSelectedIconStyles();
+
+            // Update icon config
+    setIconConfig(prev => ({
+      ...prev,
+      iconColor: newColor
+    }));
   };
 
   const handleFillColorChange = (colorBase: string) => {
@@ -112,6 +156,17 @@ const ColorControls = () => {
     setStrokeColor(newColor);
     setSelectedStrokeShade(shade);
     setDefaultShade(shade);
+
+    setSelectedIconShade(shade);
+    
+    // Update selected icons
+    updateSelectedIconStyles();
+
+    // Update icon config
+    setIconConfig(prev => ({
+      ...prev,
+      iconColor: newColor
+    }));
   };
 
   const handleFillShadeChange = (shade: string) => {
@@ -128,6 +183,15 @@ const ColorControls = () => {
   // Handle preset width click
   const handlePresetWidthClick = (width: number) => {
     setStrokeWidth(width);
+
+        // Update selected icons
+        updateSelectedIconStyles();
+
+        // Update icon config
+        setIconConfig(prev => ({
+          ...prev,
+          iconStrokeWidth: width
+        }));
   };
 
   // Handle stroke style change
@@ -142,8 +206,15 @@ const ColorControls = () => {
       if (parts.length === 2) {
         setSelectedStrokeBase(parts[0]);
         setSelectedStrokeShade(parts[1]);
+        if (showIconControls) {
+          setSelectedIconBase(parts[0]);  
+          setSelectedIconShade(parts[1]);
+        }
       } else {
         setSelectedStrokeBase(strokeColor);
+        if (showIconControls) {
+          setSelectedIconBase(strokeColor);
+        }
       }
     }
     
@@ -156,12 +227,20 @@ const ColorControls = () => {
         setSelectedFillBase(fillColor);
       }
     }
+
+    // Initialize icon config
+    if (showIconControls) {
+      setIconConfig({
+        iconColor: strokeColor,
+        iconStrokeWidth: strokeWidth
+      });
+    }
   }, []);
 
   // Update colors when theme changes
   useEffect(() => {
     if (hasThemeChanged) {
-      // Only update if the current shade is not in the available range for the current theme
+      // For stroke
       if (selectedStrokeBase && selectedStrokeBase !== 'none') {
         if (!strokeShades.includes(selectedStrokeShade)) {
           setSelectedStrokeShade(defaultStrokeShade);
@@ -169,10 +248,25 @@ const ColorControls = () => {
         }
       }
       
+      // For fill
       if (selectedFillBase && selectedFillBase !== 'none') {
         if (!fillShades.includes(selectedFillShade)) {
           setSelectedFillShade(defaultFillShade);
           setFillColor(`${selectedFillBase}-${defaultFillShade}`);
+        }
+      }
+      
+      // For icon (if showing)
+      if (showIconControls && selectedIconBase && selectedIconBase !== 'none') {
+        if (!strokeShades.includes(selectedIconShade)) {
+          setSelectedIconShade(defaultStrokeShade);
+          setStrokeColor(`${selectedIconBase}-${defaultStrokeShade}`);
+          
+          // Update icon config
+          setIconConfig(prev => ({
+            ...prev,
+            iconColor: `${selectedIconBase}-${defaultStrokeShade}`
+          }));
         }
       }
       
@@ -191,6 +285,8 @@ const ColorControls = () => {
     selectedStrokeShade,
     selectedFillBase,
     selectedFillShade,
+    selectedIconBase,
+    selectedIconShade,
     strokeShades,
     fillShades,
     defaultStrokeShade,
@@ -200,11 +296,12 @@ const ColorControls = () => {
     setFillColor,
     updateColorsForTheme,
     isDarkMode,
-    pushToHistory
+    pushToHistory,
+    showIconControls
   ]);
 
   // Render the color button in the trigger based on whether it's "none" or a regular color
-  const renderColorButton = (colorName: string, isStroke: boolean) => {
+  const renderColorButton = (colorName: string, isStroke: boolean, isIcon: boolean = false) => {
     if (colorName === "none") {
       return (
         <div className="relative h-4 w-4">
@@ -225,13 +322,13 @@ const ColorControls = () => {
 
     const hsl = getColorHsl(colorName);
     
-    if (isStroke) {
+    if (isStroke || isIcon) {
       // For stroke trigger, use the same style as the line style toggle group items
       return (
         <div 
           className="w-4 h-4" 
           style={{ 
-            border: `${strokeWidth}px ${strokeStyle} hsl(${hsl})`,
+            border: `${strokeWidth}px ${isIcon ? 'solid' : strokeStyle} hsl(${hsl})`,
             borderRadius: '2px',
             backgroundColor: 'transparent'
           }}
@@ -336,16 +433,16 @@ const ColorControls = () => {
 
   return (
     <div className="space-y-4">
-      {/* Stroke color picker */}
-      <div className="flex flex-row items-center justify-between w-full">
-        <Label htmlFor="stroke-color" className="text-sm font-medium text-muted-foreground mr-2">Stroke</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon">
-              {renderColorButton(strokeColor, true)}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
+          {/* Stroke color picker */}
+          <div className="flex flex-row items-center justify-between w-full">
+            <Label htmlFor="stroke-color" className="text-sm font-medium text-muted-foreground mr-2">Stroke</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  {renderColorButton(strokeColor, true)}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
                 {/* Color grid */}
                 <Card className="p-2 border-none">
                   <Label className="text-xs text-muted-foreground mb-2 block">Color</Label>
@@ -360,30 +457,30 @@ const ColorControls = () => {
               
                 {/* Stroke width */}
                 <Card className="p-2 border-none">
-                    {/* width buttons */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground mb-2 block">Width</Label>
-                      <ToggleGroup type="single" className="justify-start" value={strokeWidth.toString()} onValueChange={(value) => handlePresetWidthClick(Number(value))}>
-                        <div className="flex gap-1">
-                          {strokeWidths.map((width) => (
-                            <ToggleGroupItem 
-                              key={`width-${width}`}
-                              value={width.toString()}
-                              className="h-8 w-8 p-0 flex items-center justify-center"
-                            >
-                              <div 
-                                className="w-4 h-4" 
-                                style={{ 
-                                  border: `${width}px solid ${selectedStrokeBase === 'none' ? 'hsl(var(--muted-foreground))' : `hsl(${getColorHsl(strokeColor)})`}`,
-                                  borderRadius: '2px',
-                                  backgroundColor: 'transparent'
-                                }}
-                              />
-                            </ToggleGroupItem>
-                          ))}
-                        </div>
-                      </ToggleGroup>
-                    </div>
+                  {/* width buttons */}
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Width</Label>
+                    <ToggleGroup type="single" className="justify-start" value={strokeWidth.toString()} onValueChange={(value) => handlePresetWidthClick(Number(value))}>
+                      <div className="flex gap-1">
+                        {strokeWidths.map((width) => (
+                          <ToggleGroupItem 
+                            key={`width-${width}`}
+                            value={width.toString()}
+                            className="h-8 w-8 p-0 flex items-center justify-center"
+                          >
+                            <div 
+                              className="w-4 h-4" 
+                              style={{ 
+                                border: `${width}px solid ${selectedStrokeBase === 'none' ? 'hsl(var(--muted-foreground))' : `hsl(${getColorHsl(strokeColor)})`}`,
+                                borderRadius: '2px',
+                                backgroundColor: 'transparent'
+                              }}
+                            />
+                          </ToggleGroupItem>
+                        ))}
+                      </div>
+                    </ToggleGroup>
+                  </div>
                 </Card>
 
                 {/* Stroke style selector */}
@@ -410,37 +507,36 @@ const ColorControls = () => {
                     </div>
                   </ToggleGroup>
                 </Card>
+              </PopoverContent>
+            </Popover>
+          </div>
 
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Fill color picker */}
-      <div className="flex flex-row items-center justify-between w-full">
-        <Label htmlFor="fill-color" className="text-sm font-medium text-muted-foreground mr-2">Fill</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon">
-              {renderColorButton(fillColor, false)}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
-            <div className="space-y-4">
-              {/* Color grid */}
-              <Card className="p-2 border-none">
-                <Label className="text-xs text-muted-foreground mb-2 block">Color</Label>
-                {renderColorButtons(selectedFillBase, handleFillColorChange)}
-              </Card>
-              
-              {/* Shade selector */}
-              <Card className="p-2 border-none">
-                <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
-                {renderShadeButtons(selectedFillBase, selectedFillShade, handleFillShadeChange, false)}
-              </Card>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+          {/* Fill color picker */}
+          <div className="flex flex-row items-center justify-between w-full">
+            <Label htmlFor="fill-color" className="text-sm font-medium text-muted-foreground mr-2">Fill</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  {renderColorButton(fillColor, false)}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
+                <div className="space-y-4">
+                  {/* Color grid */}
+                  <Card className="p-2 border-none">
+                    <Label className="text-xs text-muted-foreground mb-2 block">Color</Label>
+                    {renderColorButtons(selectedFillBase, handleFillColorChange)}
+                  </Card>
+                  
+                  {/* Shade selector */}
+                  <Card className="p-2 border-none">
+                    <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
+                    {renderShadeButtons(selectedFillBase, selectedFillShade, handleFillShadeChange, false)}
+                  </Card>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
     </div>
   );
 };

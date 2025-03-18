@@ -10,7 +10,7 @@ import AlignmentControls from '@/app/(Workspace)/workspace/canvas/components/ui/
 import { useCanvasStore } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import TextControls from '@/app/(Workspace)/workspace/canvas/components/ui/TextControls';
 import LineConnectorControls from '@/app/(Workspace)/workspace/canvas/components/ui/LineEndpointControls';
-import IconControls from '@/app/(Workspace)/workspace/canvas/components/ui/IconControls';
+
 const SideControls = () => {
   // Get nodes from the canvas store
   const { nodes } = useCanvasStore();
@@ -29,9 +29,6 @@ const SideControls = () => {
 
         {/* Text Controls */}
         <TextControls />
-
-        {/* Icon Controls */}
-        <IconControls />
 
         {/* Color Controls */}
         <ColorControls />
