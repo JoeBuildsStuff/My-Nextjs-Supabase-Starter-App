@@ -196,14 +196,16 @@ export interface CanvasState {
   // Text properties
   fontSize: number;
   textAlign: 'left' | 'center' | 'right';
-  verticalAlign: 'top' | 'middle' | 'bottom';  // Add this line
+  verticalAlign: 'top' | 'middle' | 'bottom';
+  fontWeight: number; // Add fontWeight property
   
   // Text actions
   setTextColor: (color: string) => void;
   setFontSize: (size: number) => void;
   setTextAlign: (align: 'left' | 'center' | 'right') => void;
-  setVerticalAlign: (align: 'top' | 'middle' | 'bottom') => void;  // Add this line
-
+  setVerticalAlign: (align: 'top' | 'middle' | 'bottom') => void;
+  setFontWeight: (weight: number) => void; // Add setFontWeight function
+  
   // Add this new function after the duplicateSelectedNodes function
   duplicateNodeToRight: (nodeId: string, spacing: number) => Node | undefined;
   
@@ -2203,6 +2205,7 @@ export const useCanvasStore = create<CanvasState>()(
     fontSize: 14,
     textAlign: 'left' as const,
     verticalAlign: 'top' as const,  // Add this line
+    fontWeight: 400, // Add fontWeight property
     
     // Text actions
     setTextColor: (color: string) => {
@@ -2248,6 +2251,18 @@ export const useCanvasStore = create<CanvasState>()(
           if (node.selected && node.type === 'text') {
             if (!node.style) node.style = {};
             node.style.verticalAlign = align;
+          }
+        });
+      });
+    },
+    
+    setFontWeight: (weight: number) => {
+      set(state => {
+        state.fontWeight = weight;
+        state.nodes.forEach(node => {
+          if (node.selected && node.type === 'text') {
+            if (!node.style) node.style = {};
+            node.style.fontWeight = weight;
           }
         });
       });

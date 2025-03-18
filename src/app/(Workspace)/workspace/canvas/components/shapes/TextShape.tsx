@@ -264,7 +264,7 @@ const TextShape: React.FC<TextShapeProps> = ({ node, isSelected, onTextChange })
     backgroundColor: (style?.backgroundColor as string) || 'transparent',
     fontSize: (style?.fontSize as string) || '14px',
     fontFamily: (style?.fontFamily as string) || 'sans-serif',
-    fontWeight: (style?.fontWeight as string) || 'normal',
+    fontWeight: (style?.fontWeight as number) || 400,
     textAlign: (style?.textAlign as 'left' | 'center' | 'right') || 'left',
   };
 

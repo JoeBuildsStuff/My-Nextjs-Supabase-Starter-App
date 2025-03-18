@@ -3,12 +3,13 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
-import { AArrowDown, AArrowUp, ALargeSmall, AlignCenter, AlignLeft, AlignRight, Type, Square, Slash } from "lucide-react"
+import { AArrowDown, AArrowUp, ALargeSmall, AlignCenter, AlignLeft, AlignRight, Type, Square, Slash} from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useCanvasStore } from "@/app/(Workspace)/workspace/canvas/lib/store/canvas-store"
 import { baseColorOptions, colorClassMap } from "../../lib/utils/tailwind-color-utils"
 import { useTailwindColors } from "../../lib/utils/use-tailwind-colors"
+import { Slider } from "@/components/ui/slider"
 
 export default function TextControls() {
   const { 
@@ -18,6 +19,7 @@ export default function TextControls() {
     setFontSize, 
     setTextAlign, 
     setVerticalAlign,
+    setFontWeight,
     updateColorsForTheme
   } = useCanvasStore();
   
@@ -46,7 +48,10 @@ export default function TextControls() {
 
   // Initialize state from the selected node or defaults
   const [fontSize, setLocalFontSize] = useState(
-    textStyle.fontSize ? textStyle.fontSize.toString().replace('px', '') : "14"
+    textStyle.fontSize ? parseInt(textStyle.fontSize.toString().replace('px', '')) : 14
+  )
+  const [fontWeight, setLocalFontWeight] = useState(
+    textStyle.fontWeight ? Number(textStyle.fontWeight) : 400
   )
   const [horizontalAlignment, setLocalHorizontalAlignment] = useState(textStyle.textAlign?.toString() || "left")
   const [verticalAlignment, setLocalVerticalAlignment] = useState(textStyle.verticalAlign?.toString() || "top")
@@ -82,9 +87,17 @@ export default function TextControls() {
   };
 
   // Handle font size change
-  const handleFontSizeChange = (value: string) => {
-    setLocalFontSize(value)
-    setFontSize(parseInt(value))
+  const handleFontSizeChange = (value: number[]) => {
+    const size = value[0];
+    setLocalFontSize(size);
+    setFontSize(size);
+  }
+
+  // Handle font weight change
+  const handleFontWeightChange = (value: number[]) => {
+    const weight = value[0];
+    setLocalFontWeight(weight);
+    setFontWeight(weight);
   }
 
   // Handle horizontal alignment change
@@ -174,15 +187,38 @@ export default function TextControls() {
             {renderColorButtons()}
           </Card>
 
+          {/* Weight selection */}
+          <Card className="p-2 border-none">
+            <Label className="text-xs text-muted-foreground mb-2 block">Weight</Label>
+            <div className="flex flex-row items-center space-x-2">
+              <span className="font-thin text-xs">A</span>
+              <Slider 
+                value={[fontWeight]} 
+                onValueChange={handleFontWeightChange} 
+                max={800} 
+                min={100} 
+                step={100} 
+                className="flex-1"
+              />
+              <span className="font-black text-xs">B</span>
+            </div>
+          </Card>
+
           {/* Size selection */}
           <Card className="p-2 border-none">
             <Label className="text-xs text-muted-foreground mb-2 block">Size</Label>
-            <ToggleGroup type="single" value={fontSize} onValueChange={handleFontSizeChange} className="justify-start">
-              <ToggleGroupItem variant="outline" value="14" className="shadow-none">S</ToggleGroupItem>
-              <ToggleGroupItem variant="outline" value="16" className="shadow-none">M</ToggleGroupItem>
-              <ToggleGroupItem variant="outline" value="18" className="shadow-none">L</ToggleGroupItem>
-              <ToggleGroupItem variant="outline" value="20" className="shadow-none">XL</ToggleGroupItem>
-            </ToggleGroup>
+            <div className="flex flex-row items-center space-x-2">
+              <span className="text-xs">S</span>
+              <Slider 
+                value={[fontSize]} 
+                onValueChange={handleFontSizeChange} 
+                max={36} 
+                min={8} 
+                step={1} 
+                className="flex-1"
+              />
+              <span className="text-xs">XL</span>
+            </div>
           </Card>
 
           {/* Horizontal Alignment */}

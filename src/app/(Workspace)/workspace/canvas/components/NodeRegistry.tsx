@@ -115,6 +115,7 @@ export const defaultNodeTemplates: Record<string, NodeTemplate> = {
       fontFamily: "sans-serif",
       textAlign: "left",
       verticalAlign: "middle",
+      fontWeight: 400,
     },
     defaultData: {
       text: "",

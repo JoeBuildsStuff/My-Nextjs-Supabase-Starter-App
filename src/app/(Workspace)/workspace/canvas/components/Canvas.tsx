@@ -63,7 +63,9 @@ const Canvas: React.FC<CanvasProps> = ({
     setStartMarker,
     setMarkerFillStyle,
     updateSelectedLineMarkers,
-    toggleNodeSelection
+    toggleNodeSelection,
+    zoomIn,
+    zoomOut
   } = useCanvasStore();
   
   // State for tracking mouse interactions
@@ -248,6 +250,58 @@ const Canvas: React.FC<CanvasProps> = ({
       const isEditingText = target.tagName === 'INPUT' || 
                            target.tagName === 'TEXTAREA' || 
                            target.isContentEditable;
+      
+      // Add arrow key detection
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        // Only handle arrow keys if we're not editing text
+        if (!isEditingText) {
+          e.preventDefault(); // Prevent page scrolling
+          
+          // Get selected nodes
+          const selectedNodes = displayNodes.filter(node => node.selected);
+          
+          // If any nodes are selected, move them in the direction of the arrow key
+          if (selectedNodes.length > 0) {
+            // Determine base distance to move
+            const baseDistance = snapToGrid ? gridSize : 1;
+            
+            // Use a multiplier of 5 when Shift is pressed
+            const multiplier = e.shiftKey ? 5 : 1;
+            const moveDistance = baseDistance * multiplier;
+            
+            // Calculate the movement based on key pressed
+            let dx = 0;
+            let dy = 0;
+            
+            switch (e.key) {
+              case 'ArrowUp':
+                dy = -moveDistance;
+                break;
+              case 'ArrowDown':
+                dy = moveDistance;
+                break;
+              case 'ArrowLeft':
+                dx = -moveDistance;
+                break;
+              case 'ArrowRight':
+                dx = moveDistance;
+                break;
+            }
+            
+            // Move each selected node
+            selectedNodes.forEach(node => {
+              updateNodePosition(
+                node.id,
+                node.position.x + dx,
+                node.position.y + dy
+              );
+            });
+            
+            // Push to history to preserve the movement
+            useCanvasStore.getState().pushToHistory();
+          }
+        }
+      }
       
       if (e.key === 'Shift') {
         setIsShiftPressed(true);
@@ -1966,6 +2020,43 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   };
   
+  // Handle wheel event for panning and zooming
+  const handleWheel = (e: React.WheelEvent) => {
+    // Prevent default scrolling behavior
+    e.preventDefault();
+    
+    // Check if we're in presentation mode
+    if (presentationMode) return;
+    
+    // Get the delta values
+    const deltaX = e.deltaX;
+    const deltaY = e.deltaY;
+
+    // Check for Cmd/Ctrl key for zooming
+    if (e.metaKey || e.ctrlKey) {
+      // Zoom in/out based on wheel direction
+      if (deltaY < 0) {
+        // Zoom in - wheel up
+        zoomIn();
+      } else if (deltaY > 0) {
+        // Zoom out - wheel down
+        zoomOut();
+      }
+    } else {
+      // Handle both horizontal and vertical panning
+      // This supports the MX Master's thumb scroll wheel for horizontal panning
+      if (deltaX !== 0) {
+        // Horizontal panning - using the thumb wheel or Shift+scroll on other mice
+        panCanvas(-deltaX, 0);
+      }
+      
+      if (deltaY !== 0) {
+        // Vertical panning with main wheel
+        panCanvas(0, -deltaY);
+      }
+    }
+  };
+  
   return (
     <div 
       ref={canvasRef}
@@ -1981,6 +2072,7 @@ const Canvas: React.FC<CanvasProps> = ({
       onMouseUp={handleMouseUp}
       onDoubleClick={handleDoubleClick}
       onPaste={handlePaste}
+      onWheel={handleWheel}
       tabIndex={0} // Make the div focusable to receive keyboard events
     >
       <CanvasGrid 

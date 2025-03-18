@@ -17,7 +17,7 @@ import {
   Diamond,
   Cylinder,
   Triangle,
-  Image,
+  Smile,
 } from 'lucide-react';
 import { useCanvasStore, ToolType } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import { useTheme } from 'next-themes';
@@ -66,7 +66,7 @@ const Toolbar = () => {
     { id: 11, icon: <Eraser className="" size={16} />, name: "Eraser"},
     { type: 'separator' },
     // Icon tool
-    { id: 12, icon: <Image className="" size={16} />, name: "Icons"}
+    { id: 12, icon: <Smile className="" size={16} />, name: "Icons"}
   ];
 
   // Handle tool selection
