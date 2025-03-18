@@ -1145,10 +1145,11 @@ const Canvas: React.FC<CanvasProps> = ({
         // First check if we already have a hovered connection point, then try to find one at the current position,
         // and finally check for nearby connection points with a larger radius
         const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y) || findNearbyConnectionPoint(x, y);
-        
+
         if (connectionPointData) {
           // Use the unified helper function to connect the line endpoint to the connection point
           const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
+          
           connectLineToPoint(
             lineInProgress.id,
             pointIndex,
@@ -1157,6 +1158,7 @@ const Canvas: React.FC<CanvasProps> = ({
         }
         
         setIsDrawingLine(false);
+        // Important: Only finish the line draw AFTER we've completed any connection
         finishLineDraw();
       }
     }
@@ -1396,6 +1398,7 @@ const Canvas: React.FC<CanvasProps> = ({
           { nodeId, position }
         );
         
+        // Important: Only finish the line draw AFTER we've established the connection
         finishLineDraw();
       } else {
         // Start a new line from this connection point
@@ -1406,10 +1409,10 @@ const Canvas: React.FC<CanvasProps> = ({
         const lineId = useCanvasStore.getState().lineInProgress?.id;
         if (lineId) {
           createConnection({
-            sourceNodeId: lineId,
-            sourcePointIndex: 0, // First point of the line
-            targetNodeId: nodeId,
-            targetPosition: position
+            sourceNodeId: lineId,     // Correct property name
+            sourcePointIndex: 0,       // First point of the line
+            targetNodeId: nodeId,      // Correct property name
+            targetPosition: position   // Correct property name
           });
         }
       }
@@ -1544,10 +1547,29 @@ const Canvas: React.FC<CanvasProps> = ({
     connectionPointData: { nodeId: string; position: ConnectionPointPosition }
   ) => {
     const { nodeId, position } = connectionPointData;
-    const node = displayNodes?.find(n => n.id === nodeId);
-    const lineNode = displayNodes?.find(n => n.id === lineId);
     
-    if (!node || !lineNode) return;
+    // First, check if this is a line in progress
+    let lineNode = null;
+    
+    if (lineInProgress && lineId === lineInProgress.id) {
+      // If it's a line in progress, use that directly
+      lineNode = lineInProgress;
+    } else {
+      // Otherwise, look for it in displayNodes
+      lineNode = displayNodes?.find(n => n.id === lineId);
+    }
+    
+    const node = displayNodes?.find(n => n.id === nodeId);
+    
+    if (!node || !lineNode) {
+      console.error('Failed to find nodes for connection:', { 
+        nodeId, 
+        lineId, 
+        node: !!node, 
+        lineNode: !!lineNode 
+      });
+      return;
+    }
     
     // Calculate the exact connection point position
     const connectionPoint = calculateConnectionPointPosition(node, position);
@@ -1573,9 +1595,6 @@ const Canvas: React.FC<CanvasProps> = ({
         connectionPoint.x,
         connectionPoint.y
       );
-      
-      // For elbow lines, we need to ensure the middle point is updated correctly
-      // This is now handled in the moveLinePoint function in the store
     }
   };
   
