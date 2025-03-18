@@ -2417,13 +2417,17 @@ export const useCanvasStore = create<CanvasState>()(
         const selectedLines = state.nodes.filter(
           node => node.selected && (node.type === 'line' || node.type === 'arrow')
         );
-        
+
         if (selectedLines.length === 0) return;
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
         
         const updatedNodes = [...state.nodes];
         
         for (const line of selectedLines) {
           const index = updatedNodes.findIndex(n => n.id === line.id);
+
           if (index !== -1) {
             updatedNodes[index] = {
               ...updatedNodes[index],
@@ -2433,17 +2437,20 @@ export const useCanvasStore = create<CanvasState>()(
               }
             };
             
-            // If we're changing to elbow, recalculate the path
+            // If we're changing to elbow, recalculate the path and update connections
             if (state.lineType === 'elbow' && updatedNodes[index].points && updatedNodes[index].points.length >= 2) {
-              // Generate elbow points based on current start and end points
-              const startPoint = updatedNodes[index].points![0];
-              const endPoint = updatedNodes[index].points![updatedNodes[index].points!.length - 1];
-              
-              // Generate the elbow points
-              const elbowPoints = generateElbowPoints(startPoint, endPoint);
-              
-              // Update the line with proper elbow routing
-              updatedNodes[index].points = elbowPoints;
+              // Find connections for this line
+              const lineConnections = state.connections.filter(conn => conn.lineId === line.id);
+
+              if (lineConnections.length > 0) {
+                // If there are connections, use updateLineWithElbowRouting to properly set up the elbow
+              updatedNodes[index] = updateLineWithElbowRouting(updatedNodes[index], state.connections, state.nodes);
+              } else {
+                // If no connections, just use simple elbow points
+                const startPoint = updatedNodes[index].points![0];
+                const endPoint = updatedNodes[index].points![updatedNodes[index].points!.length - 1];
+                updatedNodes[index].points = generateElbowPoints(startPoint, endPoint);
+              }
             }
           }
         }

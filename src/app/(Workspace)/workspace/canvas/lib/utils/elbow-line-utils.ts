@@ -564,11 +564,11 @@ export function updateLineWithElbowRouting(
     conn => conn.lineId === line.id && conn.pointIndex === 0
   );
   
-  // Find the connection for the end point (last point) of the line
+  // Find the connection for the end point of the line in the connections array.
   const endConnection = connections.find(
     conn => conn.lineId === line.id && conn.pointIndex === updatedLine.points!.length - 1
   );
-  
+
   // Calculate the absolute (on-canvas) positions of the start and end points
   // Line points are stored relative to the line's position, so we need to add that offset
   const startPoint = {
