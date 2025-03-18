@@ -3,6 +3,7 @@
 import React from 'react';
 import { Node } from '../../lib/store/canvas-store';
 import { iconMap } from '../../lib/icons';
+import { useTailwindColors } from '../../lib/utils/use-tailwind-colors';
 
 interface IconShapeProps {
   node: Node;
@@ -10,31 +11,63 @@ interface IconShapeProps {
 
 const IconShape: React.FC<IconShapeProps> = ({ node }) => {
   const { style, data, dimensions } = node;
+  const { getColorHsl } = useTailwindColors();
   
   // Get the icon name from the node data
   const iconName = data?.iconName as string;
   
-  // Get the icon color from the style or use a default
-  const iconColor = (style?.iconColor as string) || 'black';
-  
-  // Get the stroke width from the data first, then style, or use a default
-  const getStrokeWidth = () => {
-    if (data?.iconStrokeWidth !== undefined) {
-      return typeof data.iconStrokeWidth === 'number' ? data.iconStrokeWidth : parseFloat(data.iconStrokeWidth as string);
+  // Get the icon color from the style with better handling of color format
+  const getIconColor = () => {
+    // First check for iconColor in style
+    if (style?.iconColor) {
+      const colorName = style.iconColor as string;
+      
+      // If it's already a hex or HSL value, use it directly
+      if (colorName.startsWith('#') || colorName.startsWith('hsl')) {
+        return colorName;
+      }
+      
+      // If it's a Tailwind color name, convert to HSL
+      if (colorName.includes('-')) {
+        return `hsl(${getColorHsl(colorName)})`;
+      }
+      
+      return colorName;
     }
     
-    if (style?.iconStrokeWidth !== undefined) {
-      return typeof style.iconStrokeWidth === 'number' ? style.iconStrokeWidth : parseFloat(style.iconStrokeWidth as string);
+    // Fallback to data if not in style
+    if (data?.iconColor) {
+      return data.iconColor as string;
     }
     
-    return 2; // Default stroke width
+    // Default
+    return 'hsl(var(--foreground))';
   };
   
-  // We still need to get the stroke width
+  // Get the stroke width with better handling
+  const getStrokeWidth = () => {
+    // First check style
+    if (style?.iconStrokeWidth !== undefined) {
+      return typeof style.iconStrokeWidth === 'number' 
+        ? style.iconStrokeWidth 
+        : parseFloat(style.iconStrokeWidth as string);
+    }
+    
+    // Then check data
+    if (data?.iconStrokeWidth !== undefined) {
+      return typeof data.iconStrokeWidth === 'number' 
+        ? data.iconStrokeWidth 
+        : parseFloat(data.iconStrokeWidth as string);
+    }
+    
+    // Default
+    return 2;
+  };
+  
+  const iconColor = getIconColor();
   const strokeWidth = getStrokeWidth();
   
   // Calculate the size to fit within the node dimensions
-  // Use the node dimensions directly to ensure the icon fills the shape
   const size = Math.min(dimensions?.width || 48, dimensions?.height || 48);
   
   // Get the icon component from the map

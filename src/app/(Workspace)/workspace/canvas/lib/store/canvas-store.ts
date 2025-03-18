@@ -233,6 +233,9 @@ export interface CanvasState {
   // Icon sheet state
   isIconSheetOpen: boolean;
   toggleIconSheet: () => void;
+  
+  // Add this new function to the CanvasState interface
+  updateSelectedIconStyles: () => void;
 }
 
 // Add this helper function to determine if we're in dark mode
@@ -2471,6 +2474,38 @@ export const useCanvasStore = create<CanvasState>()(
     toggleIconSheet: () => set(state => {
       state.isIconSheetOpen = !state.isIconSheetOpen;
     }),
+    
+    // Add this new function to the CanvasState interface
+    updateSelectedIconStyles: () =>
+      set((state) => {
+        const strokeColorHex = getTailwindColor(state.strokeColor);
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
+        let updatedAnyNode = false;
+        
+        state.nodes.forEach(node => {
+          if (node.selected && node.type === 'icon') {
+            if (!node.style) node.style = {};
+            
+            // Update icon color and stroke width
+            node.style.iconColor = strokeColorHex;
+            node.style.iconStrokeWidth = state.strokeWidth;
+            
+            // Update data properties for the icon if needed
+            if (!node.data) node.data = {};
+            node.data.iconStrokeWidth = state.strokeWidth;
+            
+            updatedAnyNode = true;
+          }
+        });
+        
+        // Create a new nodes array to trigger a re-render
+        if (updatedAnyNode) {
+          state.nodes = [...state.nodes];
+        }
+      }),
   }))
 ); 
 
