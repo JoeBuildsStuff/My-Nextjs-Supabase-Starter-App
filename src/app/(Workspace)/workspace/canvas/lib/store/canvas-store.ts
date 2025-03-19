@@ -940,6 +940,11 @@ export const useCanvasStore = create<CanvasState>()(
                 
                 childNode.style.borderWidth = state.strokeWidth;
                 childNode.style.borderStyle = state.strokeStyle;
+                
+                // Update text color for text nodes within groups
+                if (childNode.type === 'text') {
+                  childNode.style.textColor = state.textColor;
+                }
               });
             } else {
               // For regular nodes, update as normal
@@ -963,6 +968,15 @@ export const useCanvasStore = create<CanvasState>()(
               
               node.style.borderWidth = state.strokeWidth;
               node.style.borderStyle = state.strokeStyle;
+              
+              // Update text color and font settings for text nodes
+              if (node.type === 'text') {
+                node.style.textColor = state.textColor;
+                node.style.fontSize = `${state.fontSize}px`;
+                node.style.textAlign = state.textAlign;
+                node.style.verticalAlign = state.verticalAlign;
+                node.style.fontWeight = state.fontWeight;
+              }
             }
           }
         });

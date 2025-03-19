@@ -20,14 +20,18 @@ export default function TextControls() {
     setTextAlign, 
     setVerticalAlign,
     setFontWeight,
-    updateColorsForTheme
+    updateColorsForTheme,
+    pushToHistory,
+    updateSelectedNodeStyles
   } = useCanvasStore();
   
   // Use the tailwind colors hook for theme-aware color handling
   const {
     defaultStrokeShade,
     hasThemeChanged,
-    isDarkMode
+    isDarkMode,
+    strokeShades,
+    getColorHsl
   } = useTailwindColors();
 
   // Get the selected text node
@@ -46,6 +50,18 @@ export default function TextControls() {
     return colorName;
   };
 
+  // Helper function to extract shade from a color
+  const getShade = (colorName: string): string => {
+    if (!colorName || colorName === 'none') return defaultStrokeShade;
+    
+    const parts = colorName.split('-');
+    if (parts.length === 2) {
+      return parts[1];
+    }
+    
+    return defaultStrokeShade;
+  };
+
   // Initialize state from the selected node or defaults
   const [fontSize, setLocalFontSize] = useState(
     textStyle.fontSize ? parseInt(textStyle.fontSize.toString().replace('px', '')) : 14
@@ -58,6 +74,9 @@ export default function TextControls() {
   const [selectedColorBase, setSelectedColorBase] = useState<string>(
     getBaseColor(textStyle.textColor as string || textColor)
   )
+  const [selectedColorShade, setSelectedColorShade] = useState<string>(
+    getShade(textStyle.textColor as string || textColor)
+  )
 
   // Update text color when theme changes
   useEffect(() => {
@@ -65,9 +84,13 @@ export default function TextControls() {
       // When theme changes, update the text color with the appropriate shade
       const newColor = `${selectedColorBase}-${defaultStrokeShade}`;
       setTextColor(newColor);
+      setSelectedColorShade(defaultStrokeShade);
       
       // Use the centralized function to update all node colors
       updateColorsForTheme(isDarkMode);
+
+      // Push to history
+      pushToHistory();
     }
   }, [
     hasThemeChanged, 
@@ -75,8 +98,23 @@ export default function TextControls() {
     defaultStrokeShade, 
     setTextColor, 
     updateColorsForTheme, 
-    isDarkMode
+    isDarkMode,
+    pushToHistory
   ]);
+
+  // Update selected color when text node selection changes
+  useEffect(() => {
+    if (textColor) {
+      const parts = textColor.split('-');
+      if (parts.length === 2) {
+        setSelectedColorBase(parts[0]);
+        setSelectedColorShade(parts[1]);
+      } else {
+        setSelectedColorBase(textColor);
+        setSelectedColorShade(defaultStrokeShade);
+      }
+    }
+  }, [textColor, defaultStrokeShade]);
 
   // Get the appropriate Tailwind class for the selected color
   const getColorClass = (colorName: string): string => {
@@ -121,9 +159,31 @@ export default function TextControls() {
       return;
     }
     
+    if (colorBase === 'black' || colorBase === 'white') {
+      // Use appropriate shade based on theme
+      const shade = isDarkMode ? '300' : '800';
+      const newColor = `${colorBase}-${shade}`;
+      setTextColor(newColor);
+      setSelectedColorShade(shade);
+      return;
+    }
+    
     // Use the appropriate shade based on the theme
-    const newColor = `${colorBase}-${defaultStrokeShade}`;
+    const newColor = `${colorBase}-${selectedColorShade || defaultStrokeShade}`;
     setTextColor(newColor);
+    updateSelectedNodeStyles();
+  }
+
+  // Handle color shade change
+  const handleColorShadeChange = (shade: string) => {
+    if (selectedColorBase === 'none') {
+      return;
+    }
+    
+    const newColor = `${selectedColorBase}-${shade}`;
+    setTextColor(newColor);
+    setSelectedColorShade(shade);
+    updateSelectedNodeStyles();
   }
 
   // Render color buttons
@@ -170,6 +230,41 @@ export default function TextControls() {
     );
   };
 
+  // Render shade buttons
+  const renderShadeButtons = () => {
+    const isDisabled = selectedColorBase === 'none';
+    
+    return (
+      <div>
+        <ToggleGroup type="single" className="justify-start" value={selectedColorShade} onValueChange={handleColorShadeChange} disabled={isDisabled}>
+          <div className="flex gap-1">
+            {strokeShades.map((shade) => {
+              const colorWithShade = selectedColorBase === 'none' ? 'none' : `${selectedColorBase}-${shade}`;
+              const hsl = getColorHsl(colorWithShade);
+              
+              return (
+                <ToggleGroupItem 
+                  key={`shade-${shade}`} 
+                  value={shade}
+                  className="h-8 w-8 p-0 flex items-center justify-center rounded-sm"
+                >
+                  <div 
+                    className="w-4 h-4 rounded-sm" 
+                    style={{
+                      background: `hsl(${hsl})`,
+                      opacity: isDisabled ? 0.5 : 1,
+                      border: '1px solid hsl(var(--border))'
+                    }}
+                  />
+                </ToggleGroupItem>
+              );
+            })}
+          </div>
+        </ToggleGroup>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-row items-center justify-between w-full">
       <Label htmlFor="fill-color" className="text-sm font-medium text-muted-foreground mr-2">Text</Label>
@@ -185,6 +280,12 @@ export default function TextControls() {
           <Card className="p-2 border-none">
             <Label className="text-xs text-muted-foreground mb-2 block">Color</Label>
             {renderColorButtons()}
+          </Card>
+
+          {/* Shade selection */}
+          <Card className="p-2 border-none">
+            <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
+            {renderShadeButtons()}
           </Card>
 
           {/* Weight selection */}
