@@ -947,8 +947,20 @@ export const useCanvasStore = create<CanvasState>()(
                 node.style = {};
               }
               node.style.borderColor = strokeColorHex;
+              
+              // Apply backgroundColor to all nodes, including lines
+              // For lines, this won't affect the line itself, but will be used for marker fills
               node.style.backgroundColor = fillColorHex;
-              node.style.borderRadius = `${state.borderRadius}px`;
+              
+              // Store fillColor in data as well for easier reference
+              if (!node.data) node.data = {};
+              node.data.fillColor = fillColorHex;
+              
+              // Only set borderRadius for non-line nodes (unless they need it)
+              if (!['line', 'arrow'].includes(node.type) || node.data?.needsBorderRadius) {
+                node.style.borderRadius = `${state.borderRadius}px`;
+              }
+              
               node.style.borderWidth = state.strokeWidth;
               node.style.borderStyle = state.strokeStyle;
             }
@@ -1762,6 +1774,9 @@ export const useCanvasStore = create<CanvasState>()(
           }
         }
         
+        // Get the current fill color for markers
+        const fillColorHex = getTailwindColor(state.fillColor);
+        
         // Create a new line node using NodeRegistry with theme awareness
         const baseNode = nodeRegistry.createNode(type, { x, y }, id, isDark);
         
@@ -1770,7 +1785,10 @@ export const useCanvasStore = create<CanvasState>()(
           ...baseNode,
           dimensions: { width: 1, height: 1 }, // Will be calculated based on points
           // Use the utility function to merge styles consistently
-          style: mergeNodeStyles(baseNode.style, state, type),
+          style: {
+            ...mergeNodeStyles(baseNode.style, state, type),
+            backgroundColor: fillColorHex, // Add fill color for markers
+          },
           points: [
             { x: 0, y: 0 }, // First point is at the origin (relative to position)
             { x: 0, y: 0 }  // Second point starts at the same place, will be updated
@@ -1779,7 +1797,8 @@ export const useCanvasStore = create<CanvasState>()(
             ...baseNode.data,
             startMarker: state.startMarker,
             endMarker: state.endMarker,
-            markerFillStyle: state.markerFillStyle
+            markerFillStyle: state.markerFillStyle,
+            fillColor: fillColorHex // Store fill color in data too
           }
         };
         
@@ -2325,6 +2344,9 @@ export const useCanvasStore = create<CanvasState>()(
         // Push current state to history before making changes
         get().pushToHistory();
         
+        // Get the current fill color 
+        const fillColorHex = getTailwindColor(state.fillColor);
+        
         let updatedAnyNode = false;
         
         state.nodes.forEach(node => {
@@ -2335,6 +2357,14 @@ export const useCanvasStore = create<CanvasState>()(
             node.data.startMarker = state.startMarker;
             node.data.endMarker = state.endMarker;
             node.data.markerFillStyle = state.markerFillStyle;
+            
+            // Ensure fillColor is set in both data and style
+            // Use existing fillColor if available, otherwise use current fillColor
+            const currentFillColor = node.data.fillColor || fillColorHex;
+            node.data.fillColor = currentFillColor;
+            
+            if (!node.style) node.style = {};
+            node.style.backgroundColor = currentFillColor;
             
             updatedAnyNode = true;
           }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Node, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
 import Marker from '../shapes/Marker';
 import { isElbowLine, generateRoundedElbowPathData } from '../../lib/utils/elbow-line-utils';
+import { useCanvasStore } from '../../lib/store/canvas-store';
 
 interface LineInProgressProps {
   lineInProgress: Node;
@@ -11,6 +12,8 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
   lineInProgress
 }) => {
   const { position, dimensions, points, style, type, data } = lineInProgress;
+  // Get global fillColor from store to use for markers
+  const globalFillColor = useCanvasStore(state => state.fillColor);
 
   // Extract marker settings from node data
   const startMarker = (data?.startMarker as MarkerShape) || 'none';
@@ -19,8 +22,12 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
 
   if (!points || points.length < 1 || !dimensions) return null;
 
-  // Get color for markers
+  // Get colors for markers
   const markerColor = (style?.borderColor as string) || 'black';
+  // Use the node's backgroundColor, or data.fillColor, or the global fill color, or fall back to a default
+  const markerFillColor = (style?.backgroundColor as string) || 
+                         (data?.fillColor as string) || 
+                         (typeof globalFillColor === 'string' ? globalFillColor : '#4299e1'); // Use global fill or default
 
   // Calculate angles for markers if we have enough points
   let startAngle = 0;
@@ -115,6 +122,7 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
             fillStyle={markerFillStyle}
             isStart={true}
             color={markerColor}
+            fillColor={markerFillColor}
             x={points[0].x}
             y={points[0].y}
             angle={startAngle}
@@ -128,6 +136,7 @@ const LineInProgress: React.FC<LineInProgressProps> = ({
             fillStyle={markerFillStyle}
             isStart={false}
             color={markerColor}
+            fillColor={markerFillColor}
             x={points[points.length-1].x}
             y={points[points.length-1].y}
             angle={endAngle}

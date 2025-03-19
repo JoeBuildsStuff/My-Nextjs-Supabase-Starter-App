@@ -6,6 +6,7 @@ interface MarkerProps {
   fillStyle: FillStyle;
   isStart: boolean;
   color?: string;
+  fillColor?: string;
   x: number;
   y: number;
   angle: number;
@@ -16,6 +17,7 @@ const Marker: React.FC<MarkerProps> = ({
   fillStyle, 
   isStart, 
   color = 'black',
+  fillColor,
   x,
   y,
   angle
@@ -23,9 +25,9 @@ const Marker: React.FC<MarkerProps> = ({
   if (shape === 'none') return null;
   
   const isFilled = fillStyle === 'filled';
-  const fill = isFilled ? color : 'transparent';
+  const fill = isFilled ? (fillColor || color) : 'transparent';
   const stroke = color;
-  const strokeWidth = isFilled ? 0 : 1.5;
+  const strokeWidth = 1.5;
   
   // Adjust angle for start marker (point away from the line)
   const adjustedAngle = isStart ? angle + 180 : angle;

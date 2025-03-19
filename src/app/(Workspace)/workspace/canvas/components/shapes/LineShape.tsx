@@ -2,6 +2,7 @@ import React from 'react';
 import { Node, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
 import Marker from './Marker';
 import { adjustElbowMiddlePoint, isElbowLine, generateRoundedElbowPathData } from '../../lib/utils/elbow-line-utils';
+import { useCanvasStore } from '../../lib/store/canvas-store';
 
 interface LineShapeProps {
   node: Node;
@@ -11,6 +12,8 @@ interface LineShapeProps {
 
 const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoint }) => {
   const { points, style, type, data } = node;
+  // Get global fillColor from store to use for markers
+  const globalFillColor = useCanvasStore(state => state.fillColor);
 
   // Extract marker settings from node data
   const startMarker = (data?.startMarker as MarkerShape) || 'none';
@@ -78,8 +81,12 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
     endAngle = startAngle;
   }
 
-  // Get color for markers
+  // Get colors for markers
   const markerColor = (style?.borderColor as string) || 'black';
+  // Use the node's backgroundColor, or data.fillColor, or the global fill color, or fall back to a default
+  const markerFillColor = (style?.backgroundColor as string) || 
+                         (data?.fillColor as string) || 
+                         (typeof globalFillColor === 'string' ? globalFillColor : '#4299e1'); // Use global fill or default
 
   return (
     <svg 
@@ -109,6 +116,7 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
           fillStyle={markerFillStyle}
           isStart={true}
           color={markerColor}
+          fillColor={markerFillColor}
           x={points[0].x}
           y={points[0].y}
           angle={startAngle}
@@ -122,6 +130,7 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
           fillStyle={markerFillStyle}
           isStart={false}
           color={markerColor}
+          fillColor={markerFillColor}
           x={points[points.length-1].x}
           y={points[points.length-1].y}
           angle={endAngle}
