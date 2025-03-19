@@ -1917,20 +1917,29 @@ const Canvas: React.FC<CanvasProps> = ({
   
   // Handle text change
   const handleTextChange = (nodeId: string, text: string) => {
+    const updatedNodes = useCanvasStore.getState().nodes.map(node => 
+      node.id === nodeId ? { ...node, data: { ...node.data, text, isNew: false } } : node
+    );
     useCanvasStore.setState(state => {
-      const node = state.nodes.find(n => n.id === nodeId);
-      if (node) {
-        if (!node.data) node.data = {};
-        node.data.text = text;
-        node.data.isNew = false;
-      }
+      state.nodes = updatedNodes;
       return state;
     });
-    
-    // Push to history after text change
     useCanvasStore.getState().pushToHistory();
+    if (onNodesChange) onNodesChange(updatedNodes);
   };
-
+  
+  // Add handler for empty text shapes
+  const handleEmptyTextShape = (nodeId: string) => {
+    // Filter out the empty text node
+    const updatedNodes = useCanvasStore.getState().nodes.filter(node => node.id !== nodeId);
+    useCanvasStore.setState(state => {
+      state.nodes = updatedNodes;
+      return state;
+    });
+    useCanvasStore.getState().pushToHistory();
+    if (onNodesChange) onNodesChange(updatedNodes);
+  };
+  
   // Handle paste event for JSON data
   const handlePaste = (e: React.ClipboardEvent) => {
     // If we're in presentation mode, don't allow pasting
@@ -2191,6 +2200,7 @@ const Canvas: React.FC<CanvasProps> = ({
             hoveredConnectionPoint={hoveredConnectionPoint}
             selectedLineEndpoint={selectedLineEndpoint}
             onTextChange={handleTextChange}
+            onEmptyText={handleEmptyTextShape}
           />
         ))}
         

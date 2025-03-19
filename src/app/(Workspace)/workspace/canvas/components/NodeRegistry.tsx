@@ -110,7 +110,7 @@ export const defaultNodeTemplates: Record<string, NodeTemplate> = {
       borderWidth: 2,
       borderStyle: "solid",
       borderRadius: "8px",
-      textColor: "black",
+      textColor: undefined,
       fontSize: "14px",
       fontFamily: "sans-serif",
       textAlign: "left",
@@ -183,9 +183,8 @@ class NodeRegistry {
     if (themeAwareStyle.stroke === "black" && isDark) {
       themeAwareStyle.stroke = "white";
     }
-    if (themeAwareStyle.textColor === "black" && isDark) {
-      themeAwareStyle.textColor = "white";
-    }
+    // Don't override textColor here as it will be set by mergeNodeStyles
+    // from the canvasStore state
     
     return {
       id,

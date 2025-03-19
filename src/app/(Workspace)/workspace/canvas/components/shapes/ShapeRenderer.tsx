@@ -18,6 +18,7 @@ interface ShapeRendererProps {
   hoveredConnectionPoint: { nodeId: string; position: ConnectionPointPosition } | null;
   selectedLineEndpoint: { nodeId: string; pointIndex: number } | null;
   onTextChange?: (nodeId: string, text: string) => void;
+  onEmptyText?: (nodeId: string) => void;
 }
 
 const ShapeRenderer: React.FC<ShapeRendererProps> = ({
@@ -29,7 +30,8 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   onConnectionPointClick,
   hoveredConnectionPoint,
   selectedLineEndpoint,
-  onTextChange
+  onTextChange,
+  onEmptyText
 }) => {
   const { id, type, position, dimensions, style, data } = node;
 
@@ -176,6 +178,7 @@ const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             node={node} 
             isSelected={isSelected}
             onTextChange={onTextChange}
+            onEmpty={onEmptyText}
           />
         );
 

@@ -41,7 +41,7 @@ const ColorControls: React.FC<ColorControlsProps> = ({
     setStrokeStyle,
     updateColorsForTheme,
     pushToHistory,
-    updateSelectedIconStyles
+    updateSelectedIconStyles,
   } = useCanvasStore();
   
   // Use the tailwind colors hook for theme-aware color handling

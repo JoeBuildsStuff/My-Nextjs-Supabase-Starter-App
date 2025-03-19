@@ -5,6 +5,7 @@ interface TextShapeProps {
   node: Node;
   isSelected: boolean;
   onTextChange?: (nodeId: string, text: string) => void;
+  onEmpty?: (nodeId: string) => void;
 }
 
 // Utility function to convert Tailwind color names to CSS color values
@@ -209,7 +210,7 @@ const convertTailwindColorToCss = (colorName: string): string => {
  * TextShape component renders a text node with editing capabilities
  * It handles both display and editing modes with appropriate styling
  */
-const TextShape: React.FC<TextShapeProps> = ({ node, isSelected, onTextChange }) => {
+const TextShape: React.FC<TextShapeProps> = ({ node, isSelected, onTextChange, onEmpty }) => {
   const { id, style, data } = node;
   // Initialize editing state based on whether this is a new text shape
   const [isEditing, setIsEditing] = useState(data?.isNew || false);
@@ -234,9 +235,18 @@ const TextShape: React.FC<TextShapeProps> = ({ node, isSelected, onTextChange })
 
   const handleBlur = () => {
     setIsEditing(false);
+    
+    // Check if text is empty or only whitespace
+    if (!text.trim()) {
+      // If onEmpty is provided, call it with the node id to trigger deletion
+      if (onEmpty) {
+        onEmpty(id);
+      }
+      return;
+    }
+    
     if (onTextChange) {
-      // Only update if there's text content
-      onTextChange(id, text || 'Enter text here');
+      onTextChange(id, text);
     }
   };
 
@@ -244,9 +254,18 @@ const TextShape: React.FC<TextShapeProps> = ({ node, isSelected, onTextChange })
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       setIsEditing(false);
+      
+      // Check if text is empty or only whitespace
+      if (!text.trim()) {
+        // If onEmpty is provided, call it with the node id to trigger deletion
+        if (onEmpty) {
+          onEmpty(id);
+        }
+        return;
+      }
+      
       if (onTextChange) {
-        // Only update if there's text content
-        onTextChange(id, text || 'Enter text here');
+        onTextChange(id, text);
       }
     } else if (e.key === 'Escape') {
       setIsEditing(false);
@@ -321,11 +340,6 @@ const TextShape: React.FC<TextShapeProps> = ({ node, isSelected, onTextChange })
     background: 'transparent',
     outline: 'none',
     resize: 'none',
-    // Use a primary color border when editing
-    border: style?.borderWidth ? 
-      `${style.borderWidth}px ${style.borderStyle || 'solid'} hsl(var(--primary))` : 
-      '2px solid hsl(var(--primary))',
-    borderRadius: (style?.borderRadius as string) || '12px',
     display: 'block', // Override flex display for textarea
     justifyContent: 'normal', // Override justifyContent for textarea
     height: style?.verticalAlign === 'bottom' ? 'auto' : '100%',
@@ -356,7 +370,7 @@ const TextShape: React.FC<TextShapeProps> = ({ node, isSelected, onTextChange })
     <div style={containerStyle}>
       <div style={textDisplayStyle} onDoubleClick={handleDoubleClick}>
         <div style={contentStyle}>
-          {text || <span className='text-muted-foreground'>Double-click to add text</span>}
+          {text}
         </div>
       </div>
     </div>
