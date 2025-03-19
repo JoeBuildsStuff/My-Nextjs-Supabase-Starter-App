@@ -42,6 +42,9 @@ const ColorControls: React.FC<ColorControlsProps> = ({
     updateColorsForTheme,
     pushToHistory,
     updateSelectedIconStyles,
+    textColor,
+    setTextColor,
+    nodes,
   } = useCanvasStore();
   
   // Use the tailwind colors hook for theme-aware color handling
@@ -60,6 +63,8 @@ const ColorControls: React.FC<ColorControlsProps> = ({
   const [selectedStrokeShade, setSelectedStrokeShade] = useState<string>(defaultShade);
   const [selectedFillBase, setSelectedFillBase] = useState<string>('');
   const [selectedFillShade, setSelectedFillShade] = useState<string>(defaultShade);
+  const [selectedTextBase, setSelectedTextBase] = useState<string>('');
+  const [selectedTextShade, setSelectedTextShade] = useState<string>(defaultShade);
   
   // State for icon controls if needed
   const [iconConfig, setIconConfig] = useState<IconConfig>(defaultIconConfig || {
@@ -78,6 +83,9 @@ const ColorControls: React.FC<ColorControlsProps> = ({
     { name: 'dashed', icon: <MoreHorizontal className="h-4 w-4" /> },
     { name: 'dotted', icon: <Grip className="h-4 w-4" /> }
   ];
+
+  // Check if a text node is selected
+  const isTextNodeSelected = nodes.some(node => node.selected && node.type === 'text');
 
   // Update parent component when icon config changes
   useEffect(() => {
@@ -199,6 +207,42 @@ const ColorControls: React.FC<ColorControlsProps> = ({
     setStrokeStyle(style);
   };
 
+  // Handle text color selection
+  const handleTextColorChange = (colorBase: string) => {
+    if (colorBase === 'none') {
+      setTextColor(colorBase);
+      setSelectedTextBase(colorBase);
+      return;
+    }
+    
+    if (colorBase === 'black' || colorBase === 'white') {
+      // Use appropriate shade based on theme
+      const shade = isDarkMode ? '300' : '800';
+      const newColor = `${colorBase}-${shade}`;
+      setTextColor(newColor);
+      setSelectedTextBase(colorBase);
+      setSelectedTextShade(shade);
+      return;
+    }
+    
+    // Use the default shade for the current theme
+    const newColor = `${colorBase}-${defaultStrokeShade}`;
+    setTextColor(newColor);
+    setSelectedTextBase(colorBase);
+    setSelectedTextShade(defaultStrokeShade);
+  };
+
+  const handleTextShadeChange = (shade: string) => {
+    if (selectedTextBase === 'none') {
+      return;
+    }
+    
+    const newColor = `${selectedTextBase}-${shade}`;
+    setTextColor(newColor);
+    setSelectedTextShade(shade);
+    setDefaultShade(shade);
+  };
+
   // Initialize selected base colors from current colors and set default shades based on theme
   useEffect(() => {
     if (strokeColor) {
@@ -225,6 +269,16 @@ const ColorControls: React.FC<ColorControlsProps> = ({
         setSelectedFillShade(parts[1]);
       } else {
         setSelectedFillBase(fillColor);
+      }
+    }
+
+    if (textColor) {
+      const parts = textColor.split('-');
+      if (parts.length === 2) {
+        setSelectedTextBase(parts[0]);
+        setSelectedTextShade(parts[1]);
+      } else {
+        setSelectedTextBase(textColor);
       }
     }
 
@@ -266,6 +320,16 @@ const ColorControls: React.FC<ColorControlsProps> = ({
       }
     }
     
+    if (textColor) {
+      const parts = textColor.split('-');
+      if (parts.length === 2) {
+        setSelectedTextBase(parts[0]);
+        setSelectedTextShade(parts[1]);
+      } else {
+        setSelectedTextBase(textColor);
+      }
+    }
+    
     // Update icon config when node selection changes
     if (showIconControls) {
       setIconConfig({
@@ -273,7 +337,7 @@ const ColorControls: React.FC<ColorControlsProps> = ({
         iconStrokeWidth: strokeWidth
       });
     }
-  }, [strokeColor, fillColor, strokeWidth, showIconControls]);
+  }, [strokeColor, fillColor, textColor, strokeWidth, showIconControls]);
 
   // Update colors when theme changes
   useEffect(() => {
@@ -308,6 +372,14 @@ const ColorControls: React.FC<ColorControlsProps> = ({
         }
       }
       
+      // For text
+      if (selectedTextBase && selectedTextBase !== 'none') {
+        if (!strokeShades.includes(selectedTextShade)) {
+          setSelectedTextShade(defaultStrokeShade);
+          setTextColor(`${selectedTextBase}-${defaultStrokeShade}`);
+        }
+      }
+      
       // Update the default shade in the store
       setDefaultShade(defaultStrokeShade);
       
@@ -323,6 +395,8 @@ const ColorControls: React.FC<ColorControlsProps> = ({
     selectedStrokeShade,
     selectedFillBase,
     selectedFillShade,
+    selectedTextBase,
+    selectedTextShade,
     selectedIconBase,
     selectedIconShade,
     strokeShades,
@@ -332,6 +406,7 @@ const ColorControls: React.FC<ColorControlsProps> = ({
     setDefaultShade,
     setStrokeColor,
     setFillColor,
+    setTextColor,
     updateColorsForTheme,
     isDarkMode,
     pushToHistory,
@@ -339,7 +414,7 @@ const ColorControls: React.FC<ColorControlsProps> = ({
   ]);
 
   // Render the color button in the trigger based on whether it's "none" or a regular color
-  const renderColorButton = (colorName: string, isStroke: boolean, isIcon: boolean = false) => {
+  const renderColorButton = (colorName: string, isStroke: boolean, isText: boolean = false) => {
     if (colorName === "none") {
       return (
         <div className="relative h-4 w-4">
@@ -360,17 +435,31 @@ const ColorControls: React.FC<ColorControlsProps> = ({
 
     const hsl = getColorHsl(colorName);
     
-    if (isStroke || isIcon) {
+    if (isStroke) {
       // For stroke trigger, use the same style as the line style toggle group items
       return (
         <div 
           className="w-4 h-4" 
           style={{ 
-            border: `${strokeWidth}px ${isIcon ? 'solid' : strokeStyle} hsl(${hsl})`,
+            border: `${strokeWidth}px ${strokeStyle} hsl(${hsl})`,
             borderRadius: '2px',
             backgroundColor: 'transparent'
           }}
         />
+      );
+    }
+    
+    if (isText) {
+      // For text trigger, use a text "A" character with the color
+      return (
+        <div 
+          className="w-4 h-4 flex items-center justify-center text-xs font-bold"
+          style={{ 
+            color: `hsl(${hsl})`,
+          }}
+        >
+          A
+        </div>
       );
     }
     
@@ -575,6 +664,35 @@ const ColorControls: React.FC<ColorControlsProps> = ({
               </PopoverContent>
             </Popover>
           </div>
+          
+          {/* Text color picker - only show when a text node is selected */}
+          {isTextNodeSelected && (
+            <div className="flex flex-row items-center justify-between w-full">
+              <Label htmlFor="text-color" className="text-sm font-medium text-muted-foreground mr-2">Text</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    {renderColorButton(textColor, false, true)}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
+                  <div className="space-y-4">
+                    {/* Color grid */}
+                    <Card className="p-2 border-none">
+                      <Label className="text-xs text-muted-foreground mb-2 block">Color</Label>
+                      {renderColorButtons(selectedTextBase, handleTextColorChange)}
+                    </Card>
+                    
+                    {/* Shade selector */}
+                    <Card className="p-2 border-none">
+                      <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
+                      {renderShadeButtons(selectedTextBase, selectedTextShade, handleTextShadeChange, true)}
+                    </Card>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
     </div>
   );
 };
