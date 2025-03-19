@@ -41,7 +41,8 @@ const Marker: React.FC<{
   className?: string;
   fillColor?: string;
   strokeColor?: string;
-}> = ({ shape, fillStyle, isStart, className = '', fillColor, strokeColor }) => {
+  includeLine?: boolean;
+}> = ({ shape, fillStyle, isStart, className = '', fillColor, strokeColor, includeLine = true }) => {
   if (shape === 'none') return null;
   
   const isFilled = fillStyle === 'filled';
@@ -108,11 +109,11 @@ const Marker: React.FC<{
       {isStart ? (
         <>
           {renderShape()}
-          <Minus className="w-3 h-3" style={{ stroke: strokeColor }} />
+          {includeLine && <Minus className="w-3 h-3" style={{ stroke: strokeColor }} />}
         </>
       ) : (
         <>
-          <Minus className="w-3 h-3" style={{ stroke: strokeColor }} />
+          {includeLine && <Minus className="w-3 h-3" style={{ stroke: strokeColor }} />}
           {renderShape()}
         </>
       )}
@@ -198,14 +199,61 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
   
   // Update local state when store changes
   useEffect(() => {
-    setConfig(prev => ({
-      ...prev,
-      lineType: lineType,
-      fillStyle: markerFillStyle,
-      startMarker: startMarker,
-      endMarker: endMarker
-    }));
+    // Get the currently selected line node, if any
+    const selectedNodes = useCanvasStore.getState().nodes.filter(node => 
+      node.selected && (node.type === 'line' || node.type === 'arrow')
+    );
+    
+    // If a line/arrow is selected, use its properties
+    if (selectedNodes.length === 1) {
+      const selectedLine = selectedNodes[0];
+      const lineData = selectedLine.data || {};
+      
+      setConfig(prev => ({
+        ...prev,
+        lineType: (lineData.lineType as LineType) || lineType,
+        fillStyle: (lineData.markerFillStyle as FillStyle) || markerFillStyle,
+        startMarker: (lineData.startMarker as MarkerShape) || startMarker,
+        endMarker: (lineData.endMarker as MarkerShape) || endMarker
+      }));
+    } else {
+      // If no line is selected or multiple lines selected, use the global settings
+      setConfig(prev => ({
+        ...prev,
+        lineType: lineType,
+        fillStyle: markerFillStyle,
+        startMarker: startMarker,
+        endMarker: endMarker
+      }));
+    }
   }, [lineType, markerFillStyle, startMarker, endMarker, strokeColor, fillColor]);
+  
+  // Add a new effect to listen for changes in selection
+  useEffect(() => {
+    // Setup a subscription to the store
+    const unsubscribe = useCanvasStore.subscribe((state) => {
+      // When selection changes, update the config
+      const selectedLines = state.nodes.filter(node => 
+        node.selected && (node.type === 'line' || node.type === 'arrow')
+      );
+      
+      if (selectedLines.length === 1) {
+        const selectedLine = selectedLines[0];
+        const lineData = selectedLine.data || {};
+        
+        setConfig(prev => ({
+          ...prev,
+          lineType: (lineData.lineType as LineType) || lineType,
+          fillStyle: (lineData.markerFillStyle as FillStyle) || markerFillStyle,
+          startMarker: (lineData.startMarker as MarkerShape) || startMarker,
+          endMarker: (lineData.endMarker as MarkerShape) || endMarker
+        }));
+      }
+    });
+    
+    // Clean up the subscription
+    return () => unsubscribe();
+  }, [lineType, markerFillStyle, startMarker, endMarker]);
   
   // Update parent component when config changes
   useEffect(() => {
@@ -313,6 +361,7 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
   
   // Create marker options with proper colors
   const createMarkerOptions = (isStart: boolean) => {
+    // Use the current config's fillStyle instead of the global state
     const fillValue = config.fillStyle === 'filled' ? `hsl(${fillHsl})` : 'none';
     const strokeValue = `hsl(${strokeHsl})`;
     
@@ -331,6 +380,7 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
           isStart={isStart}
           fillColor={fillValue}
           strokeColor={strokeValue}
+          includeLine={true}
         /> 
       },
       { 
@@ -342,6 +392,7 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
           isStart={isStart}
           fillColor={fillValue}
           strokeColor={strokeValue}
+          includeLine={true}
         /> 
       },
       { 
@@ -353,6 +404,7 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
           isStart={isStart}
           fillColor={fillValue}
           strokeColor={strokeValue}
+          includeLine={true}
         /> 
       },
       { 
@@ -364,62 +416,41 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
           isStart={isStart}
           fillColor={fillValue}
           strokeColor={strokeValue}
+          includeLine={true}
         /> 
       },
     ];
-  };
-  
-  const MarkerComponent = ({ type, position, style }: { type: MarkerShape, position: 'start' | 'end', style: React.CSSProperties }) => {
-    // Map marker types to their components
-    const components = {
-      triangle: Triangle,
-      circle: Circle,
-      square: Square,
-      diamond: Diamond
-    };
-    
-    // Get the correct component based on type
-    const Component = components[type as keyof typeof components];
-    
-    // If no marker type is specified, return null
-    if (!Component) return null;
-    
-    // Calculate rotation based on position
-    const rotation = position === 'start' ? '-rotate-90' : position === 'end' ? 'rotate-90' : '';
-    
-    // Calculate margin based on position
-    const margin = position === 'start' ? '-mr-1' : position === 'end' ? '-ml-1' : '';
-    
-    return (
-      <Component 
-        className={`${rotation} ${margin}`} 
-        style={{ ...style, width: '12px', height: '12px' }} 
-      />
-    );
   };
   
   const renderPreview = () => {
     const fillValue = config.fillStyle === 'filled' ? `hsl(${fillHsl})` : 'none';
     const strokeValue = `hsl(${strokeHsl})`;
     
-    const markerStyle = {
-      stroke: strokeValue,
-      fill: fillValue
-    };
-    
     return (
-      <div className="flex items-center">
-        <MarkerComponent 
-          type={config.startMarker} 
-          position="start" 
-          style={markerStyle} 
-        />
-        <Minus className="" style={{ stroke: strokeValue }} />
-        <MarkerComponent 
-          type={config.endMarker} 
-          position="end" 
-          style={markerStyle} 
-        />
+      <div className="flex items-center h-4 w-8 justify-center">
+        {config.startMarker !== 'none' && (
+          <Marker 
+            shape={config.startMarker} 
+            fillStyle={config.fillStyle} 
+            isStart={true}
+            fillColor={fillValue}
+            strokeColor={strokeValue}
+            className="h-3 w-3"
+            includeLine={false}
+          />
+        )}
+        <Minus className="h-4 w-4" style={{ stroke: strokeValue }} />
+        {config.endMarker !== 'none' && (
+          <Marker 
+            shape={config.endMarker} 
+            fillStyle={config.fillStyle} 
+            isStart={false}
+            fillColor={fillValue}
+            strokeColor={strokeValue}
+            className="h-3 w-3"
+            includeLine={false}
+          />
+        )}
       </div>
     );
   };
