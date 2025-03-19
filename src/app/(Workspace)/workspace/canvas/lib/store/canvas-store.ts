@@ -572,8 +572,7 @@ export const useCanvasStore = create<CanvasState>()(
     // History actions
     pushToHistory: () => 
       set((state) => {
-        console.log('Pushing to history, current index:', state.historyIndex, 'history length:', state.history.length);
-        
+
         // Create a deep copy of the current state
         const currentState = {
           nodes: deepClone(state.nodes),
@@ -590,8 +589,6 @@ export const useCanvasStore = create<CanvasState>()(
         // Add the current state to history
         state.history.push(currentState);
         state.historyIndex = state.history.length - 1;
-        
-        console.log('After push: index:', state.historyIndex, 'history length:', state.history.length);
         
         // Limit history size to prevent memory issues
         if (state.history.length > 50) {
@@ -686,7 +683,6 @@ export const useCanvasStore = create<CanvasState>()(
         
         // Push to history before making changes
         if (shouldPushToHistory) {
-          console.log('Pushing to history before changing stroke color');
           // Create a deep copy of the current state
           const currentState = {
             nodes: deepClone(state.nodes),
@@ -697,8 +693,6 @@ export const useCanvasStore = create<CanvasState>()(
           // Add the current state to history
           state.history.push(currentState);
           state.historyIndex = state.history.length - 1;
-          
-          console.log('After push in setStrokeColor: index:', state.historyIndex, 'history length:', state.history.length);
         }
         
         // Now update the nodes
