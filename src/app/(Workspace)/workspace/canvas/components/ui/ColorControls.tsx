@@ -237,6 +237,44 @@ const ColorControls: React.FC<ColorControlsProps> = ({
     }
   }, []);
 
+  // Update selected colors when the node selection changes
+  useEffect(() => {
+    if (strokeColor) {
+      const parts = strokeColor.split('-');
+      if (parts.length === 2) {
+        setSelectedStrokeBase(parts[0]);
+        setSelectedStrokeShade(parts[1]);
+        if (showIconControls) {
+          setSelectedIconBase(parts[0]);
+          setSelectedIconShade(parts[1]);
+        }
+      } else {
+        setSelectedStrokeBase(strokeColor);
+        if (showIconControls) {
+          setSelectedIconBase(strokeColor);
+        }
+      }
+    }
+    
+    if (fillColor) {
+      const parts = fillColor.split('-');
+      if (parts.length === 2) {
+        setSelectedFillBase(parts[0]);
+        setSelectedFillShade(parts[1]);
+      } else {
+        setSelectedFillBase(fillColor);
+      }
+    }
+    
+    // Update icon config when node selection changes
+    if (showIconControls) {
+      setIconConfig({
+        iconColor: strokeColor,
+        iconStrokeWidth: strokeWidth
+      });
+    }
+  }, [strokeColor, fillColor, strokeWidth, showIconControls]);
+
   // Update colors when theme changes
   useEffect(() => {
     if (hasThemeChanged) {
