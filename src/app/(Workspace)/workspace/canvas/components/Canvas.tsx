@@ -652,6 +652,10 @@ const Canvas: React.FC<CanvasProps> = ({
   };
   
   // Helper function to find a connection point at a position
+  // is responsible for locating connection points on shapes when 
+  // the user's mouse is at a specific position. It's a key part 
+  // of the canvas drawing functionality that enables connecting 
+  // lines to shapes.
   const findConnectionPointAtPosition = (x: number, y: number): { nodeId: string; position: ConnectionPointPosition } | null => {
     // Check for connection points if we're drawing a line OR dragging a line endpoint
     if (!((['line', 'arrow'].includes(activeTool) && lineInProgress) || 
@@ -766,7 +770,8 @@ const Canvas: React.FC<CanvasProps> = ({
         
         if (node) {
           // Calculate the exact connection point position
-          const connectionPoint = calculateConnectionPointPosition(node, position);
+          // since this is for the start of the line we can use start position
+          const connectionPoint = calculateConnectionPointPosition(node, position, true, lineInProgress || undefined, 'start');
           
           // Start drawing a line from this connection point
           startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
@@ -1073,7 +1078,9 @@ const Canvas: React.FC<CanvasProps> = ({
           const node = displayNodes?.find(n => n.id === nodeId);
           
           if (node) {
-            const connectionPoint = calculateConnectionPointPosition(node, position);
+            // calculateConnectionPointPosition will return a position and consider if a marker is present to adjust
+            // for an offset to accomodate the marker.
+            const connectionPoint = calculateConnectionPointPosition(node, position, true, lineInProgress || undefined, 'end');
             // Pass false for isShiftPressed to ensure we don't apply angle constraints
             updateLineDraw(connectionPoint.x, connectionPoint.y, false);
           }
@@ -1384,8 +1391,9 @@ const Canvas: React.FC<CanvasProps> = ({
       if (!node) return;
       
       // Calculate the exact connection point position using our utility
-      const connectionPoint = calculateConnectionPointPosition(node, position);
-      
+      // calculateConnectionPointPosition will return a position and consider if a marker is present to adjust
+      // for an offset to accomodate the marker.  
+
       if (lineInProgress) {
         // If we already have a line in progress, finish it at this connection point
         // Use the unified helper function to connect the line endpoint to the connection point
@@ -1400,6 +1408,8 @@ const Canvas: React.FC<CanvasProps> = ({
         finishLineDraw();
       } else {
         // Start a new line from this connection point
+        const connectionPoint = calculateConnectionPointPosition(node, position, true, lineInProgress || undefined, 'start');
+      
         startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
         setIsDrawingLine(true);
         

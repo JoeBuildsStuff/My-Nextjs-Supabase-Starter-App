@@ -207,7 +207,8 @@ export function determineOptimalElbowDirection(
  */
 export function findOptimalElbowConnectionPoints(
   startShape: Node,
-  endShape: Node
+  endShape: Node,
+  line?: Node
 ): {
   startPosition: ConnectionPointPosition;
   endPosition: ConnectionPointPosition;
@@ -332,8 +333,8 @@ export function findOptimalElbowConnectionPoints(
   // Calculate the actual pixel coordinates of these connection points
   // This uses another function that knows how to find the exact coordinate 
   // on the edge of a shape based on its position code (n, s, e, w, etc.)
-  const startPoint = calculateConnectionPointPosition(startShape, startPosition, true);
-  const endPoint = calculateConnectionPointPosition(endShape, endPosition, true);
+  const startPoint = calculateConnectionPointPosition(startShape, startPosition, true, line, 'start');
+  const endPoint = calculateConnectionPointPosition(endShape, endPosition, true, line, 'end');
   
   // Return all the information we've determined
   return {
@@ -614,7 +615,7 @@ export function updateLineWithElbowRouting(
     
     if (startShape && endShape) {
       // We found both shapes, so find optimal connection points for an elbow connection
-      const optimalPoints = findOptimalElbowConnectionPoints(startShape, endShape);
+      const optimalPoints = findOptimalElbowConnectionPoints(startShape, endShape, line);
       
       // Update connection positions based on what we found
       startPosition = optimalPoints.startPosition;
@@ -636,7 +637,7 @@ export function updateLineWithElbowRouting(
         
         // If the connection is dynamic (can move) and we have the shape, update the point
         if (startConnection.dynamic && startShape) {
-          const point = calculateConnectionPointPosition(startShape, startConnection.position, true);
+          const point = calculateConnectionPointPosition(startShape, startConnection.position, true, line, 'start');
           startPoint.x = point.x;
           startPoint.y = point.y;
         }
@@ -648,7 +649,7 @@ export function updateLineWithElbowRouting(
         
         // If the connection is dynamic and we have the shape, update the point
         if (endConnection.dynamic && endShape) {
-          const point = calculateConnectionPointPosition(endShape, endConnection.position, true);
+          const point = calculateConnectionPointPosition(endShape, endConnection.position, true, line, 'end');
           endPoint.x = point.x;
           endPoint.y = point.y;
         }
@@ -665,14 +666,14 @@ export function updateLineWithElbowRouting(
         if (startConnection.dynamic) {
           // For a dynamic connection, find the best connection point based on where
           // the end point is located
-          const optimalConnection = findOptimalConnectionPoint(startShape, endPoint, true);
+          const optimalConnection = findOptimalConnectionPoint(startShape, endPoint, true, line, 'start');
           startPosition = optimalConnection.position;
           startPoint.x = optimalConnection.point.x;
           startPoint.y = optimalConnection.point.y;
         } else {
           // For a fixed connection, use the specified position
           startPosition = startConnection.position;
-          const point = calculateConnectionPointPosition(startShape, startConnection.position, true);
+          const point = calculateConnectionPointPosition(startShape, startConnection.position, true, line, 'start');
           startPoint.x = point.x;
           startPoint.y = point.y;
         }
@@ -687,14 +688,14 @@ export function updateLineWithElbowRouting(
         if (endConnection.dynamic) {
           // For a dynamic connection, find the best connection point based on where
           // the start point is located
-          const optimalConnection = findOptimalConnectionPoint(endShape, startPoint, true);
+          const optimalConnection = findOptimalConnectionPoint(endShape, startPoint, true, line, 'end');
           endPosition = optimalConnection.position;
           endPoint.x = optimalConnection.point.x;
           endPoint.y = optimalConnection.point.y;
         } else {
           // For a fixed connection, use the specified position
           endPosition = endConnection.position;
-          const point = calculateConnectionPointPosition(endShape, endConnection.position, true);
+          const point = calculateConnectionPointPosition(endShape, endConnection.position, true, line, 'end');
           endPoint.x = point.x;
           endPoint.y = point.y;
         }

@@ -67,7 +67,7 @@ const ConnectionPoints: React.FC<ConnectionPointsProps> = ({
     
     // Calculate the absolute position for each connection point
     const points = positions.reduce((acc, position) => {
-      const absolutePos = calculateConnectionPointPosition(node, position as ConnectionPointPosition);
+      const absolutePos = calculateConnectionPointPosition(node, position as ConnectionPointPosition, false);
       
       // Convert to relative position within the container
       const relativeX = absolutePos.x - node.position.x;
