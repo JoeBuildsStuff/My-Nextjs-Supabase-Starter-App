@@ -103,6 +103,8 @@ export interface CanvasState {
   startMarker: MarkerShape;
   endMarker: MarkerShape;
   markerFillStyle: FillStyle;
+  // Add animated property
+  animated: boolean;
   
   // Line drawing state
   lineInProgress: Node | null;
@@ -226,6 +228,12 @@ export interface CanvasState {
   
   // Add a new function to update selected line types
   updateSelectedLineTypes: () => void;
+  
+  // Add setter for line animation
+  setLineAnimation: (animated: boolean) => void;
+  
+  // Add a new function to update selected line animations
+  updateSelectedLineAnimations: () => void;
 
   // Add this to the CanvasState interface
   toggleNodeSelection: (nodeId: string) => void;
@@ -538,6 +546,7 @@ export const useCanvasStore = create<CanvasState>()(
     startMarker: 'none' as MarkerShape,
     endMarker: 'none' as MarkerShape,
     markerFillStyle: 'filled' as FillStyle,
+    animated: false,
     // Line drawing state
     lineInProgress: null,
     selectedPointIndices: null,
@@ -2495,6 +2504,44 @@ export const useCanvasStore = create<CanvasState>()(
         state.nodes = updatedNodes;
       });
     },
+    
+    // Add setter for line animation
+    setLineAnimation: (animated) => {
+      set({ animated });
+      // Update selected lines with the new animation state
+      get().updateSelectedLineAnimations();
+    },
+    
+    // Add function to update selected line animations
+    updateSelectedLineAnimations: () =>
+      set((state) => {
+        const selectedLines = state.nodes.filter(
+          node => node.selected && (node.type === 'line' || node.type === 'arrow')
+        );
+
+        if (selectedLines.length === 0) return;
+        
+        // Push current state to history before making changes
+        get().pushToHistory();
+        
+        let updatedAnyNode = false;
+        
+        state.nodes.forEach(node => {
+          if (node.selected && (node.type === 'line' || node.type === 'arrow')) {
+            if (!node.data) node.data = {};
+            
+            // Update animation setting
+            node.data.animated = state.animated;
+            
+            updatedAnyNode = true;
+          }
+        });
+        
+        // Create a new nodes array to trigger a re-render
+        if (updatedAnyNode) {
+          state.nodes = [...state.nodes];
+        }
+      }),
 
     // Add this to the CanvasState interface
     toggleNodeSelection: (nodeId) => 

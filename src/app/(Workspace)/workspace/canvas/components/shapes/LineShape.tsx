@@ -19,6 +19,8 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
   const startMarker = (data?.startMarker as MarkerShape) || 'none';
   const endMarker = (data?.endMarker as MarkerShape) || (type === 'arrow' ? 'triangle' : 'none');
   const markerFillStyle = (data?.markerFillStyle as FillStyle) || 'filled';
+  // Extract animation setting from node data
+  const isAnimated = data?.animated === true;
 
   if (!points || points.length < 2) return null;
 
@@ -107,7 +109,30 @@ const LineShape: React.FC<LineShapeProps> = ({ node, isSelected, selectedEndpoin
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeDasharray={(style?.borderStyle as string) === 'dashed' ? '5,5' : (style?.borderStyle as string) === 'dotted' ? '2,2' : 'none'}
+        className={isAnimated ? "animated-line" : ""}
+        style={{
+          ...(isAnimated && {
+            strokeDasharray: (style?.borderStyle as string) === 'dashed' ? '5,5' : (style?.borderStyle as string) === 'dotted' ? '2,2' : '5,5',
+            strokeDashoffset: '0',
+            animation: 'dash-animation 5s linear infinite'
+          })
+        }}
       />
+      
+      {/* Add a style element with the animation definition */}
+      {isAnimated && (
+        <defs>
+          <style>
+            {`
+              @keyframes dash-animation {
+                to {
+                  stroke-dashoffset: -100;
+                }
+              }
+            `}
+          </style>
+        </defs>
+      )}
       
       {/* Start marker */}
       {startMarker !== 'none' && (

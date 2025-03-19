@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useCanvasStore, MarkerShape, FillStyle } from '../../lib/store/canvas-store';
 import { updateAllLineConnections } from '../../lib/utils/connection-utils';
 import { useTailwindColors } from '../../lib/utils/use-tailwind-colors';
+import { Switch } from '@/components/ui/switch';
 
 // Define types
 type LineType = 'straight' | 'elbow';
@@ -26,6 +27,7 @@ interface LineEndpointConfig {
   fillStyle: FillStyle;
   startMarker: MarkerShape;
   endMarker: MarkerShape;
+  animated: boolean;
 }
 
 interface LineEndpointProps {
@@ -163,12 +165,15 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
     endMarker, 
     markerFillStyle,
     lineType,
+    animated,
     setStartMarker,
     setEndMarker,
     setMarkerFillStyle,
     setLineType,
+    setLineAnimation,
     updateSelectedLineMarkers,
     updateSelectedLineTypes,
+    updateSelectedLineAnimations,
     strokeColor,
     fillColor,
     updateColorsForTheme
@@ -187,6 +192,7 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
     fillStyle: markerFillStyle,
     startMarker: startMarker,
     endMarker: endMarker,
+    animated: animated,
     ...defaultConfig
   };
   
@@ -214,7 +220,8 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
         lineType: (lineData.lineType as LineType) || lineType,
         fillStyle: (lineData.markerFillStyle as FillStyle) || markerFillStyle,
         startMarker: (lineData.startMarker as MarkerShape) || startMarker,
-        endMarker: (lineData.endMarker as MarkerShape) || endMarker
+        endMarker: (lineData.endMarker as MarkerShape) || endMarker,
+        animated: (lineData.animated as boolean) || animated
       }));
     } else {
       // If no line is selected or multiple lines selected, use the global settings
@@ -223,10 +230,11 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
         lineType: lineType,
         fillStyle: markerFillStyle,
         startMarker: startMarker,
-        endMarker: endMarker
+        endMarker: endMarker,
+        animated: animated
       }));
     }
-  }, [lineType, markerFillStyle, startMarker, endMarker, strokeColor, fillColor]);
+  }, [lineType, markerFillStyle, startMarker, endMarker, animated, strokeColor, fillColor]);
   
   // Add a new effect to listen for changes in selection
   useEffect(() => {
@@ -246,14 +254,15 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
           lineType: (lineData.lineType as LineType) || lineType,
           fillStyle: (lineData.markerFillStyle as FillStyle) || markerFillStyle,
           startMarker: (lineData.startMarker as MarkerShape) || startMarker,
-          endMarker: (lineData.endMarker as MarkerShape) || endMarker
+          endMarker: (lineData.endMarker as MarkerShape) || endMarker,
+          animated: (lineData.animated as boolean) || animated
         }));
       }
     });
     
     // Clean up the subscription
     return () => unsubscribe();
-  }, [lineType, markerFillStyle, startMarker, endMarker]);
+  }, [lineType, markerFillStyle, startMarker, endMarker, animated]);
   
   // Update parent component when config changes
   useEffect(() => {
@@ -290,6 +299,11 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
       // Update selected lines to use the new line type
       updateSelectedLineTypes();
       return; // Skip the rest of the function since updateSelectedLineTypes handles everything
+    } else if (key === 'animated') {
+      setLineAnimation(value as boolean);
+      // Update selected lines to use the new animation state
+      updateSelectedLineAnimations();
+      return; // Skip the rest of the function since updateSelectedLineAnimations handles everything
     }
     
     // Update selected lines
@@ -465,6 +479,8 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent side="right" className="w-fit space-y-4" sideOffset={15} align="start">
+          
+          {/* Line type toggle for straight or elbow */}
           <ToggleSection 
             label="Type" 
             value={config.lineType} 
@@ -472,7 +488,8 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
             onChange={(value) => updateConfig('lineType', value as LineType)}
             className="mb-4"
           />
-          
+
+          {/* Fill style toggle for filled or outlined */}
           <ToggleSection 
             label="Fill" 
             value={config.fillStyle} 
@@ -480,7 +497,8 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
             onChange={(value) => updateConfig('fillStyle', value as FillStyle)}
             className="mb-4"
           />
-          
+
+          {/* Start marker toggle for triangle, circle, square, or diamond */}
           <ToggleSection 
             label="Start" 
             value={config.startMarker} 
@@ -488,13 +506,28 @@ const LineEndpointControls: React.FC<LineEndpointProps> = ({
             onChange={(value) => updateConfig('startMarker', value as MarkerShape)}
             className="mb-4"
           />
-          
+
+          {/* End marker toggle for triangle, circle, square, or diamond */}
           <ToggleSection 
             label="End" 
             value={config.endMarker} 
             options={createMarkerOptions(false)} 
             onChange={(value) => updateConfig('endMarker', value as MarkerShape)}
           />
+
+          <div className={`flex flex-col`}>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground mb-2 block">Animate</Label>
+            </div>
+            <Switch 
+              checked={config.animated}
+              onCheckedChange={(checked) => {
+                updateConfig('animated', checked);
+              }}
+            />
+          </div>
+
+
         </PopoverContent>
       </Popover>
     </div>
