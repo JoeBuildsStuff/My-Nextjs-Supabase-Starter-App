@@ -76,8 +76,7 @@ const ConnectionPoints: React.FC<ConnectionPointsProps> = ({
       acc[position] = { x: relativeX, y: relativeY };
       return acc;
     }, {} as Record<string, { x: number, y: number }>);
-    
-    console.log('Calculated connection points:', points);
+  
     return points;
   }, [node]);
   

@@ -669,7 +669,6 @@ export const useCanvasStore = create<CanvasState>()(
         
         // Directly update selected nodes
         const strokeColorHex = getTailwindColor(color);
-        console.log('Setting stroke color to:', strokeColorHex);
         
         let updatedAnyNode = false;
         let shouldPushToHistory = false;
@@ -698,7 +697,6 @@ export const useCanvasStore = create<CanvasState>()(
         // Now update the nodes
         state.nodes.forEach(node => {
           if (node.selected) {
-            console.log('Updating stroke for node:', node.id);
             
             // If this is a group, only update its children, not the group container
             if (node.data?.isGroup === true) {
