@@ -91,30 +91,6 @@ export function calculateConnectionPointPosition(
         directionX = 1;
         directionY = 0;
         break;
-      case 'nw':
-        connectionX = centerX - radius * COS_45_DEG;
-        connectionY = centerY - radius * COS_45_DEG;
-        directionX = -COS_45_DEG;
-        directionY = -COS_45_DEG;
-        break;
-      case 'ne':
-        connectionX = centerX + radius * COS_45_DEG;
-        connectionY = centerY - radius * COS_45_DEG;
-        directionX = COS_45_DEG;
-        directionY = -COS_45_DEG;
-        break;
-      case 'sw':
-        connectionX = centerX - radius * COS_45_DEG;
-        connectionY = centerY + radius * COS_45_DEG;
-        directionX = -COS_45_DEG;
-        directionY = COS_45_DEG;
-        break;
-      case 'se':
-        connectionX = centerX + radius * COS_45_DEG;
-        connectionY = centerY + radius * COS_45_DEG;
-        directionX = COS_45_DEG;
-        directionY = COS_45_DEG;
-        break;
     }
   } else if (node.type === 'diamond') {
     // Diamond-specific connection point calculations
@@ -151,30 +127,6 @@ export function calculateConnectionPointPosition(
         rectY = centerY;
         directionX = 1;
         directionY = 0;
-        break;
-      case 'nw':
-        rectX = x;
-        rectY = y;
-        directionX = -1;
-        directionY = -1;
-        break;
-      case 'ne':
-        rectX = x + width;
-        rectY = y;
-        directionX = 1;
-        directionY = -1;
-        break;
-      case 'sw':
-        rectX = x;
-        rectY = y + height;
-        directionX = -1;
-        directionY = 1;
-        break;
-      case 'se':
-        rectX = x + width;
-        rectY = y + height;
-        directionX = 1;
-        directionY = 1;
         break;
     }
     
@@ -221,26 +173,6 @@ export function calculateConnectionPointPosition(
         directionX = 1;
         directionY = 0;
         break;
-      case 'sw':
-        connectionX = x;
-        connectionY = y + height;
-        directionX = -1;
-        directionY = 1;
-        break;
-      case 'se':
-        connectionX = x + width;
-        connectionY = y + height;
-        directionX = 1;
-        directionY = 1;
-        break;
-      // nw and ne are not used for triangles
-      case 'nw':
-      case 'ne':
-        connectionX = centerX;
-        connectionY = y;
-        directionX = 0;
-        directionY = -1;
-        break;
     }
   } else {
     // Default rectangle/text/other shapes
@@ -268,30 +200,6 @@ export function calculateConnectionPointPosition(
         connectionY = y + height / 2;
         directionX = 1;
         directionY = 0;
-        break;
-      case 'nw':
-        connectionX = x;
-        connectionY = y;
-        directionX = -1;
-        directionY = -1;
-        break;
-      case 'ne':
-        connectionX = x + width;
-        connectionY = y;
-        directionX = 1;
-        directionY = -1;
-        break;
-      case 'sw':
-        connectionX = x;
-        connectionY = y + height;
-        directionX = -1;
-        directionY = 1;
-        break;
-      case 'se':
-        connectionX = x + width;
-        connectionY = y + height;
-        directionX = 1;
-        directionY = 1;
         break;
     }
   }
@@ -337,7 +245,7 @@ export function findOptimalConnectionPoint(
 ): { position: ConnectionPointPosition, point: { x: number, y: number } } {
   // All possible connection positions
   const connectionPositions: ConnectionPointPosition[] = [
-    'n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'
+    'n', 's', 'e', 'w'
   ];
   
   let minDistance = Number.MAX_VALUE;
@@ -399,7 +307,7 @@ export function findNearestConnectionPoint(
   
   // All possible connection positions
   const connectionPositions: ConnectionPointPosition[] = [
-    'n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'
+    'n', 's', 'e', 'w'
   ];
   
   let nearestPoint: NearestConnectionPoint | null = null;

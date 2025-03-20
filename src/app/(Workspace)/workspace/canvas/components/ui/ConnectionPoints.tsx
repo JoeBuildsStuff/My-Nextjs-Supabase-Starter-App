@@ -7,7 +7,6 @@ import { calculateConnectionPointPosition } from '@/app/(Workspace)/workspace/ca
 
 export type ConnectionPointPosition = 
   | 'n' | 's' | 'e' | 'w'  // Cardinal directions
-  | 'nw' | 'ne' | 'sw' | 'se';  // Corners
 
 interface ConnectionPointsProps {
   node: Node;
@@ -63,7 +62,7 @@ const ConnectionPoints: React.FC<ConnectionPointsProps> = ({
     if (!node.dimensions) return {};
     
     // All possible connection positions
-    const positions: ConnectionPointPosition[] = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'];
+    const positions: ConnectionPointPosition[] = ['n', 's', 'e', 'w'];
     
     // Calculate the absolute position for each connection point
     const points = positions.reduce((acc, position) => {

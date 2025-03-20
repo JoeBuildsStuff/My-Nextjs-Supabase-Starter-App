@@ -692,7 +692,7 @@ const Canvas: React.FC<CanvasProps> = ({
       if (!node.dimensions) continue;
       
       // Check each possible connection point position
-      const connectionPositions: ConnectionPointPosition[] = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'];
+      const connectionPositions: ConnectionPointPosition[] = ['n', 's', 'e', 'w'];
       
       for (const position of connectionPositions) {
         // Calculate the connection point position
@@ -1526,7 +1526,7 @@ const Canvas: React.FC<CanvasProps> = ({
       if (!node.dimensions) continue;
       
       // Check each possible connection point position
-      const connectionPositions: ConnectionPointPosition[] = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'];
+      const connectionPositions: ConnectionPointPosition[] = ['n', 's', 'e', 'w'];
       
       for (const position of connectionPositions) {
         // Calculate the connection point position

@@ -177,7 +177,7 @@ Connections define how lines are attached to other nodes. This allows lines to s
 | \`targetNodeId\` | string | ID of the target node that the line is connected to |
 | \`targetPosition\` | string | Position on the target node where the line connects |
 
-Target positions can be cardinal directions ("n", "s", "e", "w") or corners ("nw", "ne", "sw", "se").
+Target positions can be cardinal directions ("n", "s", "e", "w").
 
 ## Color Format
 

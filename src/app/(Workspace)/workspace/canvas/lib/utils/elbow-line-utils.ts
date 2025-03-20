@@ -292,7 +292,7 @@ export function findOptimalElbowConnectionPoints(
     }
   }
   // If using east connection from first shape
-  else if (startPosition === 'e') {
+  else {
     if (dy > 0) {
       // Second shape is below first shape
       endPosition = 'n'; // Use north connection of second shape
@@ -301,24 +301,7 @@ export function findOptimalElbowConnectionPoints(
       endPosition = 's'; // Use south connection of second shape
     }
   }
-  // Default fallback for corner cases
-  else {
-    // If we're using a corner connection point on the first shape,
-    // choose the opposite corner on the second shape
-    if (dx > 0 && dy > 0) {
-      // Second shape is to the right and below
-      endPosition = 'nw';
-    } else if (dx > 0 && dy <= 0) {
-      // Second shape is to the right and above
-      endPosition = 'sw';
-    } else if (dx <= 0 && dy > 0) {
-      // Second shape is to the left and below
-      endPosition = 'ne';
-    } else {
-      // Second shape is to the left and above
-      endPosition = 'se';
-    }
-  }
+
 
   // Validate and adjust the connection points to avoid passing through shapes
   [startPosition, endPosition] = validateConnectionPoints(
