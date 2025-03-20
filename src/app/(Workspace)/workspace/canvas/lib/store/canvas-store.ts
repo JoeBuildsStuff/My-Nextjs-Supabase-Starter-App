@@ -64,7 +64,8 @@ export type ToolType =
   | 'text' 
   | 'eraser'
   | 'lock'
-  | 'icon';
+  | 'icon'
+  | 'examples';
 
 // Add marker types
 export type MarkerShape = 'none' | 'triangle' | 'circle' | 'square' | 'diamond';
@@ -241,6 +242,10 @@ export interface CanvasState {
   // Icon sheet state
   isIconSheetOpen: boolean;
   toggleIconSheet: () => void;
+
+  // Examples sheet state
+  isExamplesSheetOpen: boolean;
+  toggleExamplesSheet: () => void;
   
   // Add this new function to the CanvasState interface
   updateSelectedIconStyles: () => void;
@@ -2559,11 +2564,17 @@ export const useCanvasStore = create<CanvasState>()(
         };
       }),
     
-    // Icon sheet state
-    isIconSheetOpen: false,
-    toggleIconSheet: () => set(state => {
-      state.isIconSheetOpen = !state.isIconSheetOpen;
-    }),
+      // Icon sheet state
+      isIconSheetOpen: false,
+      toggleIconSheet: () => set(state => {
+        state.isIconSheetOpen = !state.isIconSheetOpen;
+      }),
+
+      // Examples sheet state
+      isExamplesSheetOpen: false,
+      toggleExamplesSheet: () => set(state => {
+        state.isExamplesSheetOpen = !state.isExamplesSheetOpen;
+      }),
     
     // Add this new function to the CanvasState interface
     updateSelectedIconStyles: () =>

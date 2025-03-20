@@ -47,7 +47,7 @@ const TopMenuControls = ({ position, presentationModeOnly = false }: TopMenuCont
    </Button>
  </DropdownMenuTrigger>
  <DropdownMenuContent align="start" className="w-fit">
-   <DropdownMenuLabel>Grid Settings</DropdownMenuLabel>
+   <DropdownMenuLabel>Grid Settings (⌘G)</DropdownMenuLabel>
    <DropdownMenuSeparator />
 
    <div className="p-4 space-y-6">
@@ -69,6 +69,7 @@ const TopMenuControls = ({ position, presentationModeOnly = false }: TopMenuCont
                    <li>• Smaller grid size offers finer control</li>
                    <li>• Hold Shift to temporarily disable snapping</li>
                    <li>• Double-click grid toggle to reset to defaults</li>
+                   <li>• Use ⌘G / Ctrl+G to toggle grid</li>
                  </ul>
                </div>
              </TooltipContent>

@@ -14,6 +14,7 @@ import { isElbowLine } from '../lib/utils/elbow-line-utils';
 import { toast } from '@/hooks/use-toast';
 import Toolbar from './ui/Toolbar';
 import IconSheet from './ui/IconSheet';
+import ExamplesSheet from './ui/ExamplesSheet';
 
 interface CanvasProps {
   width?: number;
@@ -63,7 +64,8 @@ const Canvas: React.FC<CanvasProps> = ({
     setStartMarker,
     setMarkerFillStyle,
     updateSelectedLineMarkers,
-    toggleNodeSelection
+    toggleNodeSelection,
+    setSnapToGrid
   } = useCanvasStore();
   
   // State for tracking mouse interactions
@@ -325,6 +327,10 @@ const Canvas: React.FC<CanvasProps> = ({
         
         // Select all nodes
         selectMultipleNodes(allNodeIds);
+      } else if (e.key === 'g' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !isEditingText) {
+        // Handle Cmd+G / Ctrl+G to toggle grid
+        e.preventDefault();
+        setSnapToGrid(!snapToGrid);
       }
       
       // Shortcuts for line markers - only when a line is selected
@@ -366,7 +372,7 @@ const Canvas: React.FC<CanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [lineInProgress, cancelLineDraw, selectedPointIndices, deleteSelectedPoints, setStartMarker, setMarkerFillStyle, updateSelectedLineMarkers, copyCanvasToClipboard]);
+  }, [lineInProgress, cancelLineDraw, selectedPointIndices, deleteSelectedPoints, setStartMarker, setMarkerFillStyle, updateSelectedLineMarkers, copyCanvasToClipboard, snapToGrid]);
   
   // Add effect to deselect all nodes when line tool is selected
   useEffect(() => {
@@ -2222,6 +2228,7 @@ const Canvas: React.FC<CanvasProps> = ({
       </div>
       <Toolbar />
       <IconSheet />
+      <ExamplesSheet />
     </div>
   );
 };

@@ -18,12 +18,13 @@ import {
   Cylinder,
   Triangle,
   Smile,
+  Network,
 } from 'lucide-react';
 import { useCanvasStore, ToolType } from '@/app/(Workspace)/workspace/canvas/lib/store/canvas-store';
 import { useTheme } from 'next-themes';
 
 const Toolbar = () => {
-  const { activeTool, setActiveTool, transform, createShapeAtPosition, toggleIconSheet } = useCanvasStore();
+  const { activeTool, setActiveTool, transform, createShapeAtPosition, toggleIconSheet, toggleExamplesSheet } = useCanvasStore();
   const { resolvedTheme } = useTheme();
   const isDarkTheme = resolvedTheme === 'dark';
   
@@ -41,7 +42,8 @@ const Toolbar = () => {
     9: 'pen',
     10: 'text',
     11: 'eraser',
-    12: 'icon'
+    12: 'icon',
+    13: 'examples',
   };
   
   const tools = [
@@ -66,7 +68,8 @@ const Toolbar = () => {
     { id: 11, icon: <Eraser className="" size={16} />, name: "Eraser"},
     { type: 'separator' },
     // Icon tool
-    { id: 12, icon: <Smile className="" size={16} />, name: "Icons"}
+    { id: 12, icon: <Smile className="" size={16} />, name: "Icons"},
+    { id: 13, icon: <Network className="" size={16} />, name: "Examples"}
   ];
 
   // Handle tool selection
@@ -78,6 +81,14 @@ const Toolbar = () => {
       // If icon tool is selected, open the icon sheet
       if (toolType === 'icon') {
         toggleIconSheet();
+        setActiveTool('select');
+        return;
+      }
+
+      // If network tool is selected, open the network sheet
+      if (toolType === 'examples') {
+        toggleExamplesSheet();
+        setActiveTool('select');
         return;
       }
       
