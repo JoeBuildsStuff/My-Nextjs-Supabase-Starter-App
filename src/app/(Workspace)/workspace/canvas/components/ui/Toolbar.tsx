@@ -13,7 +13,6 @@ import {
   Minus,
   Pen,
   Type,
-  Eraser,
   Diamond,
   Cylinder,
   Triangle,
@@ -41,7 +40,6 @@ const Toolbar = () => {
     8: 'line',
     9: 'pen',
     10: 'text',
-    11: 'eraser',
     12: 'icon',
     13: 'examples',
   };
@@ -65,7 +63,6 @@ const Toolbar = () => {
     { type: 'separator' },
     // Content tools
     { id: 10, icon: <Type className="" size={16} />, name: "Text"},
-    { id: 11, icon: <Eraser className="" size={16} />, name: "Eraser"},
     { type: 'separator' },
     // Icon tool
     { id: 12, icon: <Smile className="" size={16} />, name: "Icons"},

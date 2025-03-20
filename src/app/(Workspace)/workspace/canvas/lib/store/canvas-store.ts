@@ -538,7 +538,7 @@ export const useCanvasStore = create<CanvasState>()(
     transform: { x: 0, y: 0, zoom: 1 },
     activeTool: 'select' as ToolType,
     gridSize: 20,
-    snapToGrid: true,
+    snapToGrid: false,
     strokeColor: `black-${initialStrokeDefaultShade}`,
     fillColor: `white-${initialFillDefaultShade}`,
     defaultShade: initialStrokeDefaultShade,

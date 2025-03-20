@@ -12,7 +12,6 @@ import { calculateConnectionPointPosition, deepClone } from '../lib/utils/connec
 import AlignmentGuide from './alignment/AlignmentGuide';
 import { isElbowLine } from '../lib/utils/elbow-line-utils';
 import { toast } from '@/hooks/use-toast';
-import Toolbar from './ui/Toolbar';
 import IconSheet from './ui/IconSheet';
 import ExamplesSheet from './ui/ExamplesSheet';
 
@@ -2226,7 +2225,6 @@ const Canvas: React.FC<CanvasProps> = ({
           />
         )}
       </div>
-      <Toolbar />
       <IconSheet />
       <ExamplesSheet />
     </div>
