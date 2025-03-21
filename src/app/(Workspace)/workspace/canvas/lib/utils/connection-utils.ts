@@ -291,7 +291,6 @@ export function findNearestConnectionPoint(
   x: number,
   y: number,
   excludeNodeId?: string,
-  threshold: number = CONNECTION_SNAP_THRESHOLD,
   line?: Node,
   startOrEnd?: 'start' | 'end'
 ): NearestConnectionPoint | null {
@@ -311,7 +310,7 @@ export function findNearestConnectionPoint(
   ];
   
   let nearestPoint: NearestConnectionPoint | null = null;
-  let minDistance = threshold; // Only consider points within threshold
+  let minDistance = CONNECTION_SNAP_THRESHOLD; // Only consider points within threshold
   
   // Check each node and each connection point
   for (const node of eligibleNodes) {
