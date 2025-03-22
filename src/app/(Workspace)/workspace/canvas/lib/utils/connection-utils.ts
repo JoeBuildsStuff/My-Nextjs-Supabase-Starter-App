@@ -1,4 +1,4 @@
-import { Node, Connection } from '../store/canvas-store';
+import { Node, Connection, MarkerShape } from '../store/canvas-store';
 import { ConnectionPointPosition } from '../../components/ui/ConnectionPoints';
 import { isElbowLine, updateLineWithElbowRouting } from './elbow-line-utils';
 
@@ -21,13 +21,16 @@ const SIN_45_DEG = 0.7071; // sin(45°)
  * @param position The position of the connection point
  * @param isConnected Optional flag to indicate if this is for a connected line endpoint
  * @param line Optional line node that is being connected to this point
+ * @param startOrEnd Optional start or end of the line
  */
 export function calculateConnectionPointPosition(
   node: Node,
   position: ConnectionPointPosition,
   isConnected?: boolean,
   line?: Node,
-  startOrEnd?: 'start' | 'end'
+  startOrEnd?: 'start' | 'end',
+  startMarker?: MarkerShape, // refactor this function to use the startMarker and endMarker, left line:node for backwards compatibility 
+  endMarker?: MarkerShape
 ): { x: number, y: number } {
   if (!node.dimensions) {
     return { x: node.position.x, y: node.position.y };
@@ -42,24 +45,7 @@ export function calculateConnectionPointPosition(
   let directionY = 0;
   
   // Get additional offset from line properties if available
-  let connectionPointOffset = CONNECTION_POINT_OFFSET;
-  
-  // Adjust offset based on line properties if available
-  if (line && line.data) {
-    // Example: thicker lines might need larger offsets
-    const lineStyle = line.data.style as { strokeWidth?: number } | undefined;
-    if (lineStyle?.strokeWidth && lineStyle.strokeWidth > 2) {
-      // Increase offset for thicker lines
-      connectionPointOffset += (lineStyle.strokeWidth - 2) * 0.5;
-    }
-    
-    // If line has a specific type, we could adjust the connection style
-    const lineType = line.data.lineType as string | undefined;
-    if (lineType === 'dotted' || lineType === 'dashed') {
-      // Slightly increase offset for dotted/dashed lines
-      connectionPointOffset += 2;
-    }
-  }
+  const connectionPointOffset = CONNECTION_POINT_OFFSET;
   
   if (node.type === 'circle') {
     const radius = Math.min(width, height) / 2;
@@ -211,14 +197,21 @@ export function calculateConnectionPointPosition(
     directionY /= length;
   }
 
-  // Apply the offset only if this is for a connected line endpoint and the line has a marker
-  if (isConnected && connectionPointOffset !== 0 && line?.data) {
+  // Apply the offset only if the line has a marker
+  // TODO: this is old function dependent on LINE node, refactor to use startMarker and endMarker
+  if (connectionPointOffset !== 0 && line?.data) {
     const lineData = line.data as { startMarker?: string, endMarker?: string };
     const hasMarker = (lineData.startMarker && lineData.startMarker !== 'none') && startOrEnd === 'start' || 
                       (lineData.endMarker && lineData.endMarker !== 'none') && startOrEnd === 'end';
-    
-    if (hasMarker) {
-      connectionX += directionX * connectionPointOffset;
+       if (hasMarker) {
+            connectionX += directionX * connectionPointOffset;
+      connectionY += directionY * connectionPointOffset;
+    }
+  // TODO: this is what we should use, the dependency on a linenode is left for backwards compatibility, but need to refactor other functions
+  } else if (connectionPointOffset !== 0 && ((startMarker !== 'none' && startOrEnd === 'start') || (endMarker !== 'none' && startOrEnd === 'end'))) {
+    // Apply the offset only if the line has a marker
+    if (connectionPointOffset !== 0 && ((startMarker !== 'none' && startOrEnd === 'start') || (endMarker !== 'none' && startOrEnd === 'end'))) {
+            connectionX += directionX * connectionPointOffset;
       connectionY += directionY * connectionPointOffset;
     }
   }

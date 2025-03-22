@@ -60,6 +60,7 @@ const Canvas: React.FC<CanvasProps> = ({
     deleteSelectedPoints,
     createConnection,
     markerFillStyle,
+    startMarker,
     setStartMarker,
     setMarkerFillStyle,
     updateSelectedLineMarkers,
@@ -769,19 +770,25 @@ const Canvas: React.FC<CanvasProps> = ({
       const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y);
       
       if (connectionPointData) {
+       // TODO: I dont think this is needed anymore as we are using handleConnectionPointClick
+
+       // handleMouseDown is not fired when clicking on a connection point
+       // handleConnectionPointClick is fired when clicking on a connection point
+
+
         // Start drawing a line from this connection point
-        const { nodeId, position } = connectionPointData;
-        const node = displayNodes?.find(n => n.id === nodeId);
+        // const { nodeId, position } = connectionPointData;
+        // const node = displayNodes?.find(n => n.id === nodeId);
         
-        if (node) {
-          // Calculate the exact connection point position
-          // since this is for the start of the line we can use start position
-          const connectionPoint = calculateConnectionPointPosition(node, position, true, lineInProgress || undefined, 'start');
+        // if (node) {
+        //   // Calculate the exact connection point position
+        //   // since this is for the start of the line we can use start position
+        //   const connectionPoint = calculateConnectionPointPosition(node, position, true, lineInProgress || undefined, 'start');
           
-          // Start drawing a line from this connection point
-          startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
-          setIsDrawingLine(true);
-        }
+        //   // Start drawing a line from this connection point
+        //   startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
+        //   setIsDrawingLine(true);
+        // }
       } else {
         // If no connection point is hovered, proceed with normal line drawing
         if (lineInProgress) {
@@ -1400,20 +1407,27 @@ const Canvas: React.FC<CanvasProps> = ({
       // for an offset to accomodate the marker.  
 
       if (lineInProgress) {
+        // TODO: Is this needed?  How can we click on a connection point and not have a line in progress?
+        // What circumstance can we click on a connection point and have a line in progress?
+
         // If we already have a line in progress, finish it at this connection point
         // Use the unified helper function to connect the line endpoint to the connection point
         const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
-        connectLineToPoint(
-          lineInProgress.id,
-          pointIndex,
-          { nodeId, position }
-        );
-        
+        createConnection({
+          sourceNodeId: lineInProgress.id,   
+          sourcePointIndex: pointIndex,     
+          targetNodeId: nodeId,     
+          targetPosition: position   
+        });
+      
         // Important: Only finish the line draw AFTER we've established the connection
         finishLineDraw();
       } else {
+        // TODO: Confirmed this is needed, as we can click to start a new line from a connection point
+
+
         // Start a new line from this connection point
-        const connectionPoint = calculateConnectionPointPosition(node, position, true, lineInProgress || undefined, 'start');
+        const connectionPoint = calculateConnectionPointPosition(node, position, true, lineInProgress || undefined, 'start', startMarker);
       
         startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
         setIsDrawingLine(true);
@@ -1422,10 +1436,10 @@ const Canvas: React.FC<CanvasProps> = ({
         const lineId = useCanvasStore.getState().lineInProgress?.id;
         if (lineId) {
           createConnection({
-            sourceNodeId: lineId,     // Correct property name
-            sourcePointIndex: 0,       // First point of the line
-            targetNodeId: nodeId,      // Correct property name
-            targetPosition: position   // Correct property name
+            sourceNodeId: lineId,     
+            sourcePointIndex: 0,     
+            targetNodeId: nodeId,     
+            targetPosition: position   
           });
         }
       }
@@ -1583,9 +1597,11 @@ const Canvas: React.FC<CanvasProps> = ({
       });
       return;
     }
-    
+
+    const startOrEnd = pointIndex === 0 ? 'start' : 'end';
+
     // Calculate the exact connection point position
-    const connectionPoint = calculateConnectionPointPosition(node, position);
+    const connectionPoint = calculateConnectionPointPosition(node, position, true, lineNode || undefined, startOrEnd);
     
     // Create the connection in the store
     createConnection({
