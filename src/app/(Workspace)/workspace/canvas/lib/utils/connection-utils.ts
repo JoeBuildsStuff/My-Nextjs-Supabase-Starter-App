@@ -203,17 +203,15 @@ export function calculateConnectionPointPosition(
     const lineData = line.data as { startMarker?: string, endMarker?: string };
     const hasMarker = (lineData.startMarker && lineData.startMarker !== 'none') && startOrEnd === 'start' || 
                       (lineData.endMarker && lineData.endMarker !== 'none') && startOrEnd === 'end';
-       if (hasMarker) {
-            connectionX += directionX * connectionPointOffset;
+    if (hasMarker) {
+      connectionX += directionX * connectionPointOffset;
       connectionY += directionY * connectionPointOffset;
     }
-  // TODO: this is what we should use, the dependency on a linenode is left for backwards compatibility, but need to refactor other functions
-  } else if (connectionPointOffset !== 0 && ((startMarker !== 'none' && startOrEnd === 'start') || (endMarker !== 'none' && startOrEnd === 'end'))) {
-    // Apply the offset only if the line has a marker
-    if (connectionPointOffset !== 0 && ((startMarker !== 'none' && startOrEnd === 'start') || (endMarker !== 'none' && startOrEnd === 'end'))) {
-            connectionX += directionX * connectionPointOffset;
-      connectionY += directionY * connectionPointOffset;
-    }
+    // TODO: this is what we should use, the dependency on a linenode is left for backwards compatibility, but need to refactor other functions
+  } else if (connectionPointOffset !== 0 && ((startMarker && startMarker !== 'none' && startOrEnd === 'start') || 
+                                           (endMarker && endMarker !== 'none' && startOrEnd === 'end'))) {
+    connectionX += directionX * connectionPointOffset;
+    connectionY += directionY * connectionPointOffset;
   }
 
   return { x: connectionX, y: connectionY };
