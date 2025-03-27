@@ -65,7 +65,8 @@ const Canvas: React.FC<CanvasProps> = ({
     setMarkerFillStyle,
     updateSelectedLineMarkers,
     toggleNodeSelection,
-    setSnapToGrid
+    setSnapToGrid,
+    endMarker,
   } = useCanvasStore();
   
   // State for tracking mouse interactions
@@ -657,66 +658,6 @@ const Canvas: React.FC<CanvasProps> = ({
     return undefined;
   };
   
-  // Helper function to find a connection point at a position
-  // is responsible for locating connection points on shapes when 
-  // the user's mouse is at a specific position. It's a key part 
-  // of the canvas drawing functionality that enables connecting 
-  // lines to shapes.
-  const findConnectionPointAtPosition = (x: number, y: number): { nodeId: string; position: ConnectionPointPosition } | null => {
-    // Check for connection points if we're drawing a line OR dragging a line endpoint
-    if (!((['line', 'arrow'].includes(activeTool) && lineInProgress) || 
-          (isDraggingPoint && selectedLineEndpoint !== null))) {
-      return null;
-    }
-
-    // Get all nodes that can have connection points (exclude the line in progress and groups)
-    const nodesWithConnectionPoints = displayNodes?.filter(node => {
-      // Skip the node if:
-      // 1. It's a line (has points)
-      // 2. It's a group
-      // 3. It's the current line in progress
-      // 4. It's the line we're currently dragging an endpoint of
-      const isCurrentLine = lineInProgress && node.id === lineInProgress.id;
-      const isDraggedLine = selectedLineEndpoint && node.id === selectedLineEndpoint.nodeId;
-      
-      return !node.points && !node.data?.isGroup && !isCurrentLine && !isDraggedLine;
-    }) || [];
-    
-    // Connection point size from ConnectionPoints component
-    const handleSize = 10;
-    // Increase the click radius significantly to make it easier to hit connection points
-    const clickRadius = handleSize + 10; // Much larger radius for easier connection
-    
-    // Check each node for connection points
-    for (const node of nodesWithConnectionPoints) {
-      if (!node.dimensions) continue;
-      
-      // Check each possible connection point position
-      const connectionPositions: ConnectionPointPosition[] = ['n', 's', 'e', 'w'];
-      
-      for (const position of connectionPositions) {
-        // Calculate the connection point position
-        const connectionPoint = calculateConnectionPointPosition(node, position);
-        
-        // Calculate distance from mouse to connection point
-        const distance = Math.sqrt(
-          Math.pow(x - connectionPoint.x, 2) + 
-          Math.pow(y - connectionPoint.y, 2)
-        );
-        
-        // If mouse is close enough to the connection point, return it
-        if (distance <= clickRadius) {
-          return {
-            nodeId: node.id,
-            position
-          };
-        }
-      }
-    }
-    
-    return null;
-  };
-  
   // Handle mouse down for panning, shape creation, or node interaction
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only handle left mouse button
@@ -767,7 +708,7 @@ const Canvas: React.FC<CanvasProps> = ({
       setNodeStartPos(startPositions);
     } else if (['line', 'arrow'].includes(activeTool)) {
       // Check if we're hovering over a connection point
-      const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y);
+      const connectionPointData = findNearbyConnectionPoint(x, y);
       
       if (connectionPointData) {
        // TODO: I dont think this is needed anymore as we are using handleConnectionPointClick
@@ -1047,7 +988,7 @@ const Canvas: React.FC<CanvasProps> = ({
         const y = (e.clientY - rect.top - transform.y) / transform.zoom;
         
         // Check if we're hovering over a connection point
-        const connectionPointData = findConnectionPointAtPosition(x, y);
+        const connectionPointData = findNearbyConnectionPoint(x, y);
         
         // Update the hovered connection point state
         if (JSON.stringify(connectionPointData) !== JSON.stringify(hoveredConnectionPoint)) {
@@ -1113,7 +1054,7 @@ const Canvas: React.FC<CanvasProps> = ({
         // Check if we're dropping on a connection point
         // First check if we already have a hovered connection point, then try to find one at the current position,
         // and finally check for nearby connection points with a larger radius
-        const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y) || findNearbyConnectionPoint(x, y);
+        const connectionPointData = findNearbyConnectionPoint(x, y);
         
         if (connectionPointData) {
           // Use the unified helper function to connect the line endpoint to the connection point
@@ -1135,7 +1076,7 @@ const Canvas: React.FC<CanvasProps> = ({
         
         // First check if we already have a hovered connection point, then try to find one at the current position,
         // and finally check for nearby connection points with a larger radius
-        const connectionPointData = hoveredConnectionPoint || findConnectionPointAtPosition(x, y) || findNearbyConnectionPoint(x, y);
+        const connectionPointData = findNearbyConnectionPoint(x, y);
 
         if (connectionPointData) {
           // Use the unified helper function to connect the line endpoint to the connection point
@@ -1387,6 +1328,11 @@ const Canvas: React.FC<CanvasProps> = ({
         // If we already have a line in progress, finish it at this connection point
         // Use the unified helper function to connect the line endpoint to the connection point
         const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
+        
+        // Get marker information from line in progress - we create the connection directly without using this marker info
+        const lineData = lineInProgress.data || {};
+        console.log('Connecting line with markers:', lineData.startMarker, lineData.endMarker);
+        
         createConnection({
           sourceNodeId: lineInProgress.id,   
           sourcePointIndex: pointIndex,     
@@ -1397,11 +1343,17 @@ const Canvas: React.FC<CanvasProps> = ({
         // Important: Only finish the line draw AFTER we've established the connection
         finishLineDraw();
       } else {
-        // TODO: Confirmed this is needed, as we can click to start a new line from a connection point
-
-
-        // Start a new line from this connection point
-        const connectionPoint = calculateConnectionPointPosition(node, position, true, lineInProgress || undefined, 'start', startMarker);
+        // Start a new line from this connection point - use startMarker and endMarker from the store state
+        // that's already available in the component scope
+        const connectionPoint = calculateConnectionPointPosition(
+          node, 
+          position, 
+          true, 
+          undefined, 
+          'start', 
+          startMarker,
+          endMarker
+        );
       
         startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
         setIsDrawingLine(true);
@@ -1493,7 +1445,46 @@ const Canvas: React.FC<CanvasProps> = ({
     if (hoveredConnectionPoint) {
       const node = displayNodes?.find(n => n.id === hoveredConnectionPoint.nodeId);
       if (node) {
-        const connectionPoint = calculateConnectionPointPosition(node, hoveredConnectionPoint.position);
+        // Get marker information if we have a selected line
+        let startOrEnd: 'start' | 'end' | undefined = undefined;
+        let startMarker: MarkerShape | undefined = undefined;
+        let endMarker: MarkerShape | undefined = undefined;
+        
+        // If we have a selected line with an endpoint, get marker info
+        if (selectedLineEndpoint) {
+          const lineNode = displayNodes?.find(n => n.id === selectedLineEndpoint.nodeId);
+          
+          if (lineNode) {
+            // Determine if this is a start or end point
+            const { pointIndex } = selectedLineEndpoint;
+            
+            if (lineNode.points && (pointIndex === 0 || pointIndex === lineNode.points.length - 1)) {
+              startOrEnd = pointIndex === 0 ? 'start' : 'end';
+              
+              // Get marker info from line data
+              const lineData = lineNode.data || {};
+              startMarker = lineData.startMarker as MarkerShape || 'none';
+              endMarker = lineData.endMarker as MarkerShape || 'none';
+            }
+          }
+        } else if (lineInProgress) {
+          // If we're drawing a new line, use its marker settings
+          const lineData = lineInProgress.data || {};
+          startOrEnd = 'end'; // Always end for a line in progress
+          startMarker = lineData.startMarker as MarkerShape || 'none';
+          endMarker = lineData.endMarker as MarkerShape || 'none';
+        }
+        
+        const connectionPoint = calculateConnectionPointPosition(
+          node, 
+          hoveredConnectionPoint.position, 
+          true, 
+          undefined, 
+          startOrEnd, 
+          startMarker, 
+          endMarker
+        );
+        
         const distance = Math.sqrt(
           Math.pow(x - connectionPoint.x, 2) + 
           Math.pow(y - connectionPoint.y, 2)
@@ -1510,6 +1501,36 @@ const Canvas: React.FC<CanvasProps> = ({
     let closestPoint: { nodeId: string; position: ConnectionPointPosition; distance: number } | null = null;
     let minDistance = nearbyRadius;
     
+    // Get marker information if we have a selected line
+    let startOrEnd: 'start' | 'end' | undefined = undefined;
+    let startMarker: MarkerShape | undefined = undefined;
+    let endMarker: MarkerShape | undefined = undefined;
+    
+    // If we have a selected line with an endpoint, get marker info
+    if (selectedLineEndpoint) {
+      const lineNode = displayNodes?.find(n => n.id === selectedLineEndpoint.nodeId);
+      
+      if (lineNode) {
+        // Determine if this is a start or end point
+        const { pointIndex } = selectedLineEndpoint;
+        
+        if (lineNode.points && (pointIndex === 0 || pointIndex === lineNode.points.length - 1)) {
+          startOrEnd = pointIndex === 0 ? 'start' : 'end';
+          
+          // Get marker info from line data
+          const lineData = lineNode.data || {};
+          startMarker = lineData.startMarker as MarkerShape || 'none';
+          endMarker = lineData.endMarker as MarkerShape || 'none';
+        }
+      }
+    } else if (lineInProgress) {
+      // If we're drawing a new line, use its marker settings
+      const lineData = lineInProgress.data || {};
+      startOrEnd = 'end'; // Always end for a line in progress
+      startMarker = lineData.startMarker as MarkerShape || 'none';
+      endMarker = lineData.endMarker as MarkerShape || 'none';
+    }
+    
     for (const node of nodesWithConnectionPoints) {
       if (!node.dimensions) continue;
       
@@ -1517,8 +1538,16 @@ const Canvas: React.FC<CanvasProps> = ({
       const connectionPositions: ConnectionPointPosition[] = ['n', 's', 'e', 'w'];
       
       for (const position of connectionPositions) {
-        // Calculate the connection point position
-        const connectionPoint = calculateConnectionPointPosition(node, position);
+        // Calculate the connection point position with marker information
+        const connectionPoint = calculateConnectionPointPosition(
+          node, 
+          position, 
+          true, 
+          undefined, 
+          startOrEnd, 
+          startMarker, 
+          endMarker
+        );
         
         // Calculate distance from mouse to connection point
         const distance = Math.sqrt(

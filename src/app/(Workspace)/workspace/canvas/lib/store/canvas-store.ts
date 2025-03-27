@@ -2012,12 +2012,25 @@ export const useCanvasStore = create<CanvasState>()(
         // Push current state to history before making changes
         get().pushToHistory();
         
+        // Determine if this is a start or end point, and get marker info
+        const isStart = pointIndex === 0;
+        const isEnd = pointIndex === node.points.length - 1;
+        const startOrEnd = isStart ? 'start' : isEnd ? 'end' : undefined;
+        
+        // Get marker information from the node's data if available
+        const nodeData = node.data || {};
+        const startMarker = nodeData.startMarker as MarkerShape || 'none';
+        const endMarker = nodeData.endMarker as MarkerShape || 'none';
+        
         // Check if we should snap to a connection point on another node
         const nearestConnectionPoint = findNearestConnectionPoint(
           state.nodes,
           x, 
           y, 
-          nodeId // Exclude the current line node
+          nodeId, // Exclude the current line node
+          startOrEnd,
+          startMarker,
+          endMarker
         );
         
         let finalX = x;
@@ -2106,12 +2119,20 @@ export const useCanvasStore = create<CanvasState>()(
         // Push current state to history before making changes
         get().pushToHistory();
         
+        // Get marker information from the node's data if available
+        const nodeData = node.data || {};
+        const startMarker = nodeData.startMarker as MarkerShape || 'none';
+        const endMarker = nodeData.endMarker as MarkerShape || 'none';
+        
         // Check if we should snap to a connection point on another node
         const nearestConnectionPoint = findNearestConnectionPoint(
           state.nodes,
           x, 
           y, 
-          nodeId // Exclude the current line node
+          nodeId, // Exclude the current line node
+          undefined, // Middle points don't have a start/end designation
+          startMarker,
+          endMarker
         );
         
         let finalX = x;

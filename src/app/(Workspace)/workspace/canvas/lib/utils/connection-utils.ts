@@ -282,8 +282,9 @@ export function findNearestConnectionPoint(
   x: number,
   y: number,
   excludeNodeId?: string,
-  line?: Node,
-  startOrEnd?: 'start' | 'end'
+  startOrEnd?: 'start' | 'end',
+  startMarker?: MarkerShape,
+  endMarker?: MarkerShape
 ): NearestConnectionPoint | null {
   // Skip line nodes and the excluded node
   const eligibleNodes = nodes.filter(node => 
@@ -306,8 +307,17 @@ export function findNearestConnectionPoint(
   // Check each node and each connection point
   for (const node of eligibleNodes) {
     for (const position of connectionPositions) {
-      // Don't apply offset when finding nearest connection point
-      const pointPos = calculateConnectionPointPosition(node, position, false, line, startOrEnd);
+      // Pass marker information for proper connection point calculation
+      const pointPos = calculateConnectionPointPosition(
+        node, 
+        position, 
+        true, 
+        undefined, 
+        startOrEnd, 
+        startMarker, 
+        endMarker
+      );
+      
       const dx = pointPos.x - x;
       const dy = pointPos.y - y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -635,11 +645,16 @@ export function updateAllLineConnections(
             y: (prevPoint.y + nextPoint.y) / 2
           };
         }
-        
         // Only proceed if we have a valid reference point
         if (referencePoint) {
           // Find the optimal connection point based on the reference point
-          const optimalConnection = findOptimalConnectionPoint(shapeNode, referencePoint, true, updatedLine);
+          const optimalConnection = findOptimalConnectionPoint(
+            shapeNode, 
+            referencePoint, 
+            true, 
+            updatedLine, 
+            connectionInfo.pointIndex === 0 ? 'start' : connectionInfo.pointIndex === updatedLine.points.length - 1 ? 'end' : undefined
+          );
           
           // Update the connection position in our copy
           connectionInfo.position = optimalConnection.position;

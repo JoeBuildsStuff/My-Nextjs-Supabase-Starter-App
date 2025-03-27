@@ -185,8 +185,8 @@ const DuplicateButton: React.FC<DuplicateButtonProps> = ({ node }) => {
     // Calculate connection points
     // Currently defaulting duplicate line to not include start or end markers
     // TODO: Make this configurable, let user choose if they want markers or not from the sidecontrols lineendpointcontrols.tsx
-    const sourcePoint = calculateConnectionPointPosition(sourceNode, config.sourcePosition, false, undefined, 'start');
-    const targetPoint = calculateConnectionPointPosition(targetNode, config.targetPosition, false, undefined, 'end');
+    const sourcePoint = calculateConnectionPointPosition(sourceNode, config.sourcePosition, true, undefined, 'start');
+    const targetPoint = calculateConnectionPointPosition(targetNode, config.targetPosition, true, undefined, 'end');
 
     // Create the line node using NodeRegistry with default settings
     const baseNode = nodeRegistry.createNode('line', { x: sourcePoint.x, y: sourcePoint.y }, lineId);
