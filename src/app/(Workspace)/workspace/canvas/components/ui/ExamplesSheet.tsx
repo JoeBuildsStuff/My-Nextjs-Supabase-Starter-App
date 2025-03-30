@@ -13,6 +13,7 @@ import basicExample from '../../examples/basic.json';
 import agenticOverviewExample from '../../examples/agentic-overview.json';
 import chatBotExample from '../../examples/chat-bot.json';
 import agentComponentsExample from '../../examples/agent-components.json';
+import repeatProcessExample from '../../examples/repeat-process.json';
 
 // Define interface for example data
 interface ExampleData {
@@ -65,7 +66,8 @@ const ExamplesSheet = () => {
     { name: "Basic", data: basicExample as ExampleData },
     { name: "Agentic Overview", data: agenticOverviewExample as ExampleData },
     { name: "Chatbot", data: chatBotExample as ExampleData },
-    { name: "Agent Components", data: agentComponentsExample as ExampleData }
+    { name: "Agent Components", data: agentComponentsExample as ExampleData },
+    { name: "Repeat Process", data: repeatProcessExample as ExampleData }
   ].filter(example => 
     example.name.toLowerCase().includes(searchQuery.toLowerCase())
   );

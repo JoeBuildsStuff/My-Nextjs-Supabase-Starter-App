@@ -2630,5 +2630,3 @@ export const useCanvasStore = create<CanvasState>()(
       }),
   }))
 ); 
-
-// Helper function to generate elbow points has been moved to elbow-line-utils.ts
