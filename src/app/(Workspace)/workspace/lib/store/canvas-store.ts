@@ -1,0 +1,1 @@
+export type ConnectionPointPosition = 'n' | 's' | 'e' | 'w'; 

@@ -66,6 +66,7 @@ export function distanceToLineSegment(
 1.1 is done!
 
 
+1.2 is done - but integrated into node-utils instread of an alignment-utils
 ### 1.2 Create Alignment Utility Functions
 
 **File:** `src/app/(Workspace)/workspace/canvas/lib/utils/alignment-utils.ts`
@@ -105,9 +106,11 @@ export function getSnappedPosition(
   // ...existing implementation...
 }
 ```
+1.2 is done - but integrated into node-utils instread of an alignment-utils
 
 ## Step 2: Create Custom Hooks
 
+2.1 is done!
 ### 2.1 Create Canvas Mouse Hook
 
 **File:** `src/app/(Workspace)/workspace/canvas/hooks/useCanvasMouse.ts`
@@ -181,7 +184,12 @@ export function useCanvasMouse(canvasRef: RefObject<HTMLDivElement>) {
   };
 }
 ```
+2.1 is done!
 
+2.1 is done!
+
+
+2.2 is done but integrated with 2.1
 ### 2.2 Create Line Drawing Hook
 
 **File:** `src/app/(Workspace)/workspace/canvas/hooks/useLineDrawing.ts`
@@ -252,6 +260,8 @@ export function useLineDrawing(canvasRef: RefObject<HTMLDivElement>) {
   };
 }
 ```
+2.2 is done but integrated with 2.1
+
 
 ### 2.3 Create Keyboard Shortcuts Hook
 
