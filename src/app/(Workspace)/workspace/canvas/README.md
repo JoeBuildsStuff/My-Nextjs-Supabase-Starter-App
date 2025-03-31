@@ -1,195 +1,80 @@
-## Canvas Tool Functionality
+# Canvas Module Documentation
 
-The Canvas Tool provides a powerful diagramming and drawing interface with the following key features:
+Welcome to the Canvas module documentation. This interactive diagramming and drawing tool provides a powerful way to create visual representations of ideas, processes, and designs.
 
-### Shape Creation and Manipulation
+## Documentation Index
 
-1. **Adding Shapes to Canvas**
-   - Select a shape tool (rectangle, circle, diamond, cylinder) from the toolbar
-   - Click on the canvas to place the shape at that position
-   - The shape is automatically created with default styling and dimensions
+### Overview and Concepts
+- [Canvas Module Documentation](DOCUMENTATION.md) - Overview of the Canvas module, its architecture, and key features
+- [Technical Implementation](TECHNICAL-IMPLEMENTATION.md) - Detailed explanation of the technical implementation for developers
+- [Getting Started Guide](GETTING-STARTED.md) - Step-by-step guide to using the Canvas module
+- [Key Functions](KEY-FUNCTIONS.md) - Detailed explanations of core functionality
+- [Technical Debt Assessment](TECHNICAL-DEBT.md) - Analysis of current technical debt and improvement recommendations
+- [Canvas Refactoring Plan](CANVAS-REFACTORING-PLAN.md) - Detailed plan for refactoring Canvas.tsx component
+- [Test Coverage Plan](TEST-COVERAGE-PLAN.md) - Testing strategy for ensuring refactoring quality
 
-   ```typescript
-   // Shape creation in Canvas.tsx
-   const handleMouseDown = (e: React.MouseEvent) => {
-     if (['rectangle', 'circle', 'diamond', 'cylinder'].includes(activeTool)) {
-       const rect = canvasRef.current?.getBoundingClientRect();
-       if (rect) {
-         const x = (e.clientX - rect.left - transform.x) / transform.zoom;
-         const y = (e.clientY - rect.top - transform.y) / transform.zoom;
-         
-         const snappedX = snapToGrid ? Math.round(x / gridSize) * gridSize : x;
-         const snappedY = snapToGrid ? Math.round(y / gridSize) * gridSize : y;
-         
-         createShapeAtPosition(activeTool, snappedX, snappedY);
-       }
-     }
-   }
-   ```
+### Features
 
-2. **Shape Selection and Movement**
-   - Click on a shape to select it (when using the select tool)
-   - Selected shapes display resize handles and connection points
-   - Drag selected shapes to move them around the canvas
-   - When shapes are moved, any connected lines will automatically update to maintain their connections
+The Canvas module provides a comprehensive set of features for creating and editing diagrams:
 
-### Line Drawing with Shape Anchoring
+- **Rich Shape Library**: Rectangle, Circle, Diamond, Triangle, Cylinder
+- **Flexible Line Tools**: Lines, Arrows, Elbow connectors
+- **Text and Annotations**: Add and format text elements
+- **Smart Connections**: Auto-routing and connection points
+- **Styling Options**: Colors, fills, strokes, line styles
+- **Grouping and Layers**: Organize elements with grouping and z-order control
+- **Alignment and Distribution**: Precisely position elements with alignment guides
+- **History Management**: Comprehensive undo/redo system
+- **Presentation Mode**: Clean view for presenting diagrams
+- **Import/Export**: Share diagrams as JSON data
 
-1. **Starting a Line from a Shape**
-   - Select the line or arrow tool from the toolbar
-   - When a shape is hovered with the line tool active, connection points appear around the shape
-   - Click on a connection point to start drawing a line from that anchor point
-   - The line's starting point is now anchored to that shape
+### Example Usage
 
-   ```typescript
-   // Connection point handling in Canvas.tsx
-   const handleConnectionPointClick = (nodeId: string, position: ConnectionPointPosition) => {
-     // Make sure we're using the line or arrow tool
-     if (!['line', 'arrow'].includes(activeTool)) {
-       return;
-     }
-     
-     // Find the node to get its actual position
-     const node = displayNodes?.find(n => n.id === nodeId);
-     if (!node) return;
-     
-     // Calculate the exact connection point position using our utility
-     const connectionPoint = calculateConnectionPointPosition(node, position);
-     
-     // Start a new line from this connection point
-     startLineDraw(connectionPoint.x, connectionPoint.y, activeTool as 'line' | 'arrow');
-     setIsDrawingLine(true);
-     
-     // Store the connection information for the start point
-     const lineId = useCanvasStore.getState().lineInProgress?.id;
-     if (lineId) {
-       useCanvasStore.setState(state => {
-         state.connections.push({
-           lineId,
-           pointIndex: 0, // First point of the line
-           shapeId: nodeId,
-           position
-         });
-         return state;
-       });
-     }
-   }
-   ```
+```tsx
+import Canvas from '@/app/(Workspace)/workspace/canvas/components/Canvas';
 
-2. **Drawing and Completing Lines**
-   - After starting a line, move the cursor to draw the line
-   - The line follows your cursor movement
-   - To complete the line:
-     - Click on another shape's connection point to anchor the end of the line
-     - Click anywhere on the canvas to end the line without anchoring
-     - Double-click to finish the line at the current position
+const MyDiagramPage = () => {
+  return (
+    <div className="w-full h-screen">
+      <Canvas />
+    </div>
+  );
+};
 
-   ```typescript
-   // Finishing a line at a connection point
-   if (lineInProgress) {
-     // If we already have a line in progress, finish it at this connection point
-     updateLineDraw(connectionPoint.x, connectionPoint.y, isShiftPressed);
-     
-     // Store the connection information before finishing the line
-     const lineId = lineInProgress.id;
-     const pointIndex = lineInProgress.points ? lineInProgress.points.length - 1 : 1;
-     
-     // Add the connection to the store
-     useCanvasStore.setState(state => {
-       state.connections.push({
-         lineId,
-         pointIndex,
-         shapeId: nodeId,
-         position
-       });
-       return state;
-     });
-     
-     finishLineDraw();
-   }
-   ```
+export default MyDiagramPage;
+```
 
-3. **Connected Line Behavior**
-   - Lines anchored to shapes will maintain their connection when shapes are moved
-   - The connection points (anchors) are calculated based on the shape's type and dimensions
-   - When a shape is moved, all connected lines are automatically updated
+## Structure
 
-   ```typescript
-   // Updating connected lines when shapes move (in canvas-store.ts)
-   updateNodePosition: (nodeId, x, y) => {
-     set(state => {
-       const node = state.nodes.find(n => n.id === nodeId);
-       if (node) {
-         // Update the node position
-         node.position.x = newX;
-         node.position.y = newY;
-         
-         // Update any connected lines
-         if (state.connections) {
-           state.connections.forEach(connection => {
-             if (connection.shapeId === nodeId) {
-               // Find the connected line
-               const lineIndex = state.nodes.findIndex(n => n.id === connection.lineId);
-               if (lineIndex !== -1) {
-                 const line = state.nodes[lineIndex];
-                 
-                 // Calculate the new connection point position
-                 const connectionPoint = calculateConnectionPointPosition(node, connection.position);
-                 
-                 // Update the line using our utility function
-                 state.nodes[lineIndex] = updateConnectedLine(line, connection, connectionPoint);
-               }
-             }
-           });
-         }
-       }
-     });
-   }
-   ```
+The Canvas module is organized as follows:
 
-### Connection Points System
+```
+/canvas
+├── components/          # React components
+├── lib/                 # Utilities and logic
+│   ├── store/           # State management
+│   └── utils/           # Helper functions
+├── examples/            # Example diagrams
+├── DOCUMENTATION.md     # Main documentation
+├── TECHNICAL-IMPLEMENTATION.md    # Technical details
+├── GETTING-STARTED.md   # User guide
+├── KEY-FUNCTIONS.md     # Core functionality reference
+├── TECHNICAL-DEBT.md    # Technical debt assessment
+├── CANVAS-REFACTORING-PLAN.md     # Canvas.tsx refactoring plan
+├── TEST-COVERAGE-PLAN.md          # Testing strategy documentation
+└── README.md            # This file
+```
 
-1. **Connection Point Positions**
-   - Each shape has 8 connection points positioned around its perimeter:
-     - 4 cardinal points (north, south, east, west)
-     - 4 corner points (northwest, northeast, southwest, southeast)
-   - The exact position of these points is calculated based on the shape's geometry
+## Contributing
 
-   ```typescript
-   // Connection point positions in ConnectionPoints.tsx
-   export type ConnectionPointPosition = 
-     | 'n' | 's' | 'e' | 'w'  // Cardinal directions
-     | 'nw' | 'ne' | 'sw' | 'se';
-   ```
+When contributing to the Canvas module:
 
-2. **Shape-Specific Connection Points**
-   - Different shapes have connection points positioned appropriately:
-     - Rectangles: Points along the edges and corners
-     - Circles: Points distributed evenly around the circumference
-     - Diamonds: Points at the vertices and midpoints of edges
-   - Connection points are only visible when the line or arrow tool is active
+1. Maintain the separation of concerns between the UI, state management, and utilities
+2. Add unit tests for any new functionality
+3. Update the documentation to reflect changes
+4. Follow the existing code style and patterns
+5. Review the technical debt assessment before making significant changes
 
-### Technical Implementation
+## License
 
-The canvas functionality is implemented using several key components:
-
-1. **State Management**
-   - Uses Zustand with Immer for immutable state updates
-   - Tracks nodes (shapes), connections, and the current drawing state
-   - Maintains a history stack for undo/redo operations
-
-2. **Connection Tracking**
-   - Connections are stored as references between line endpoints and shape anchor points
-   - Each connection includes:
-     - The line ID
-     - The point index (0 for start, 1+ for end/intermediate points)
-     - The shape ID
-     - The connection position on the shape
-
-3. **Rendering System**
-   - Uses React components for shapes, lines, and UI elements
-   - SVG for rendering lines and arrows
-   - CSS for styling and positioning shapes
-
-This implementation allows for a flexible and intuitive diagramming experience where shapes can be easily connected with lines that maintain their relationships even as elements are moved around the canvas.
-
+This Canvas module is part of the larger application and is made available as open source software. 
