@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useCanvasStore, Node, MarkerShape } from '../lib/store/canvas-store';
 import { useCanvasMouse } from '../hooks/useCanvasMouse';
+import { toast } from '@/hooks/use-toast';
 
-export function useKeyboardShortcuts(copyCanvasToClipboard: () => void) {
+export function useKeyboardShortcuts() {
     const canvasRef = useRef<HTMLDivElement>(null);
     
     const { 
@@ -19,6 +20,7 @@ export function useKeyboardShortcuts(copyCanvasToClipboard: () => void) {
         setMarkerFillStyle,
         updateSelectedLineMarkers,
         setSnapToGrid,
+        presentationMode,
       } = useCanvasStore();
 
   // Get the mouse interactions from our custom hook
@@ -28,6 +30,53 @@ export function useKeyboardShortcuts(copyCanvasToClipboard: () => void) {
 
   // Get nodes from the store for use in keyboard shortcuts
   const getNodesFromStore = () => useCanvasStore.getState().nodes;
+  
+  // Copy canvas data to clipboard
+  const copyCanvasToClipboard = () => {
+    const { nodes, connections } = useCanvasStore.getState();
+    
+    // Check if any nodes are selected
+    const selectedNodes = nodes.filter(node => node.selected);
+    
+    // If nodes are selected, only copy those nodes and their connections
+    const nodesToCopy = selectedNodes.length > 0 ? selectedNodes : nodes;
+    
+    // Get only the connections that involve the nodes being copied
+    const nodeIds = nodesToCopy.map(node => node.id);
+    const relevantConnections = connections.filter(conn => 
+      nodeIds.includes(conn.lineId) && nodeIds.includes(conn.shapeId)
+    );
+    
+    // Prepare the export data
+    const exportData = {
+      nodes: nodesToCopy,
+      connections: relevantConnections,
+      version: "1.0",
+      exportDate: new Date().toISOString()
+    };
+    
+    // Convert to JSON string
+    const jsonString = JSON.stringify(exportData, null, 2);
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(jsonString)
+      .then(() => {
+        toast({
+          title: "Copied to Clipboard",
+          description: selectedNodes.length > 0 
+            ? `Copied ${selectedNodes.length} selected node${selectedNodes.length === 1 ? '' : 's'} to clipboard.`
+            : "The canvas JSON data has been copied to your clipboard."
+        });
+      })
+      .catch(err => {
+        console.error('Could not copy text: ', err);
+        toast({
+          title: "Copy Failed",
+          description: "Failed to copy to clipboard. Please try again.",
+          variant: "destructive"
+        });
+      });
+  };
   
   // Add event listeners for keyboard events
   useEffect(() => {
@@ -177,9 +226,113 @@ export function useKeyboardShortcuts(copyCanvasToClipboard: () => void) {
     selectMultipleNodes
   ]);
 
-  
+  // Handle paste event for JSON data
+  const handlePaste = (e: React.ClipboardEvent) => {
+    // If we're in presentation mode, don't allow pasting
+    if (presentationMode) return;
+    
+    // Check if we're editing text (input or textarea)
+    const target = e.target as HTMLElement;
+    const isEditingText = target.tagName === 'INPUT' || 
+                         target.tagName === 'TEXTAREA' || 
+                         target.isContentEditable;
+    
+    // If we're editing text, let the default paste behavior happen
+    if (isEditingText) return;
+    
+    // Get clipboard data as text
+    const clipboardText = e.clipboardData.getData('text');
+    
+    try {
+      // Try to parse the clipboard text as JSON
+      const jsonData = JSON.parse(clipboardText);
+      
+      // Validate the JSON data
+      if (!jsonData || typeof jsonData !== 'object' || !Array.isArray(jsonData.nodes)) {
+        // Not valid canvas JSON data, ignore
+        return;
+      }
+      
+      // Check if nodes have required properties
+      for (const node of jsonData.nodes) {
+        if (!node.id || !node.type || !node.position) {
+          // Invalid node data, ignore
+          return;
+        }
+      }
+      
+      // Get current store state to save to history
+      useCanvasStore.getState().pushToHistory();
+      
+      // Generate new IDs for the pasted nodes to avoid conflicts
+      const idMap = new Map<string, string>();
+      const newNodes = jsonData.nodes.map((node: Node) => {
+        const newId = `${node.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        idMap.set(node.id, newId);
+        
+        // Create a new node with a new ID
+        return {
+          ...node,
+          id: newId,
+          // Offset the position slightly to make it clear it's a new node
+          position: {
+            x: node.position.x + 20,
+            y: node.position.y + 20
+          },
+          // Make sure the node is selected
+          selected: true
+        };
+      });
+      
+      // Update connections to use the new IDs
+      const newConnections = jsonData.connections && Array.isArray(jsonData.connections) 
+        ? jsonData.connections.map((conn: { lineId: string; shapeId: string }) => {
+            // Skip connections that reference nodes not in the paste data
+            if (!idMap.has(conn.lineId) || !idMap.has(conn.shapeId)) {
+              return null;
+            }
+            
+            return {
+              ...conn,
+              lineId: idMap.get(conn.lineId) || conn.lineId,
+              shapeId: idMap.get(conn.shapeId) || conn.shapeId
+            };
+          }).filter(Boolean)
+        : [];
+      
+      // Add the new nodes and connections to the canvas
+      useCanvasStore.setState(state => {
+        // Deselect all existing nodes
+        state.nodes.forEach(node => {
+          node.selected = false;
+        });
+        
+        // Add the new nodes to the existing ones
+        state.nodes = [...state.nodes, ...newNodes];
+        
+        // Add the new connections to the existing ones
+        if (newConnections.length > 0) {
+          state.connections = [...state.connections, ...newConnections];
+        }
+        
+        return state;
+      });
+      
+      // Prevent default paste behavior
+      e.preventDefault();
+      
+      // Show success toast
+      toast({
+        title: "Import Successful",
+        description: `Pasted ${newNodes.length} nodes to the canvas.`,
+      });
+    } catch {
+      // Not JSON or other error, let default paste behavior happen
+      return;
+    }
+  };
 
   return {
-    // Any exposed methods or state if needed
+    handlePaste
   };
 }
