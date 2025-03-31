@@ -1,3 +1,41 @@
+// ======================================================
+// useCanvasMouse.ts - Mouse Interaction Logic
+// ======================================================
+//
+// Purpose:
+// - Manages all mouse-related interactions for the canvas
+// - Handles mouse events (down, move, up, double-click)
+// - Manages selection, dragging, line drawing states
+// - Implements pointer-based editing behaviors
+//
+// This file should contain:
+// - Mouse event handlers for canvas interactions
+// - Logic for detecting mouse interactions with nodes
+// - Support for drag, selection, and movement operations
+// - Position calculation for mouse-based operations
+// - Management of mouse state (hover, drag, etc.)
+//
+// Add to this file when:
+// - Implementing new mouse gestures/interactions
+// - Enhancing selection/dragging mechanics
+// - Adding point/connection detection logic
+// - Implementing new drawing interactions
+// - Adding snapping, guides, or alignment behaviors
+//
+// Example future additions:
+// - Implementing multi-touch support
+// - Adding lasso selection support
+// - Supporting context menus at specific positions
+// - Adding hover effects and tooltips
+// - Implementing scroll-to-zoom behavior variations
+//
+// DON'T add to this file:
+// - Keyboard-only interaction logic
+// - Visual rendering code (this is for behavior only)
+// - Complex shape algorithms (use utils)
+// - State management not related to mouse interactions
+// ======================================================
+
 'use client';
 
 

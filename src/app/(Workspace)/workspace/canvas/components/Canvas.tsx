@@ -1,3 +1,38 @@
+// ======================================================
+// Canvas.tsx - Main Canvas Component
+// ======================================================
+//
+// Purpose:
+// - Primary React component that renders the canvas UI
+// - Manages the visual representation of nodes, grid, selection, etc.
+// - Composes all UI-related components into a unified canvas
+//
+// This file should contain:
+// - The main Canvas component JSX structure
+// - Component props definitions and interfaces
+// - Basic component lifecycle management
+// - Visual rendering logic for canvas components
+// - Composition of sub-components (ShapeRenderer, Grid, etc.)
+//
+// Add to this file when:
+// - Adding new visual UI components to the canvas
+// - Modifying the canvas rendering structure
+// - Adding new props that affect the canvas display
+// - Implementing canvas-wide visual features (like grid types)
+//
+// Example future additions:
+// - Adding a minimap component
+// - Implementing canvas background customization
+// - Adding canvas status indicators or overlays
+// - Implementing canvas export/print UI components
+//
+// DON'T add to this file:
+// - Complex event handling logic (use hooks)
+// - State management logic (use store)
+// - Utility functions (use utils)
+// - Mouse/keyboard interaction logic (use hooks)
+// ======================================================
+
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';

@@ -1,3 +1,41 @@
+// ======================================================
+// useKeyboardShortcuts.ts - Keyboard Interaction Logic
+// ======================================================
+//
+// Purpose:
+// - Implements all keyboard-based interactions for the canvas
+// - Manages keyboard shortcuts and key combinations
+// - Handles clipboard operations (copy, paste, cut)
+// - Controls keyboard-based node manipulation
+//
+// This file should contain:
+// - Keyboard event listeners and handlers
+// - Key combination detection logic
+// - Implementation of shortcut behaviors
+// - Keyboard navigation and selection logic
+// - Clipboard operation handlers
+//
+// Add to this file when:
+// - Adding new keyboard shortcuts
+// - Enhancing keyboard navigation/selection
+// - Implementing new clipboard behaviors
+// - Adding keyboard modifiers for mouse operations
+// - Creating keyboard-triggered commands
+//
+// Example future additions:
+// - Implementing undo/redo shortcuts
+// - Adding support for custom key bindings
+// - Implementing multi-key gestures
+// - Adding support for accessibility keyboard navigation
+// - Implementing keyboard shortcuts panel/help
+//
+// DON'T add to this file:
+// - Mouse-only interaction logic
+// - Visual rendering code
+// - State logic not related to keyboard interactions
+// - Complex algorithms (use utils)
+// ======================================================
+
 import { useEffect, useRef } from 'react';
 import { useCanvasStore, Node, MarkerShape } from '../lib/store/canvas-store';
 import { useCanvasMouse } from '../hooks/useCanvasMouse';

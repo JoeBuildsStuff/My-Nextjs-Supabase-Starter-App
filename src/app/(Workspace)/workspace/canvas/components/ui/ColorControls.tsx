@@ -449,20 +449,6 @@ const ColorControls: React.FC<ColorControlsProps> = ({
       );
     }
     
-    if (isText) {
-      // For text trigger, use a text "A" character with the color
-      return (
-        <div 
-          className="w-4 h-4 flex items-center justify-center text-xs font-bold"
-          style={{ 
-            color: `hsl(${hsl})`,
-          }}
-        >
-          A
-        </div>
-      );
-    }
-    
     // For fill trigger, use Square with fill color and border
     return (
       <Square 
@@ -664,35 +650,6 @@ const ColorControls: React.FC<ColorControlsProps> = ({
               </PopoverContent>
             </Popover>
           </div>
-          
-          {/* Text color picker - only show when a text node is selected */}
-          {isTextNodeSelected && (
-            <div className="flex flex-row items-center justify-between w-full">
-              <Label htmlFor="text-color" className="text-sm font-medium text-muted-foreground mr-2">Text</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    {renderColorButton(textColor, false, true)}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent side="right" sideOffset={15} align="start" className="w-auto p-2">
-                  <div className="space-y-4">
-                    {/* Color grid */}
-                    <Card className="p-2 border-none">
-                      <Label className="text-xs text-muted-foreground mb-2 block">Color</Label>
-                      {renderColorButtons(selectedTextBase, handleTextColorChange)}
-                    </Card>
-                    
-                    {/* Shade selector */}
-                    <Card className="p-2 border-none">
-                      <Label className="text-xs text-muted-foreground mb-2 block">Shade</Label>
-                      {renderShadeButtons(selectedTextBase, selectedTextShade, handleTextShadeChange, true)}
-                    </Card>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
     </div>
   );
 };

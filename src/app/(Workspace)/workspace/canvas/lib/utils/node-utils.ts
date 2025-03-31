@@ -1,3 +1,42 @@
+// ======================================================
+// node-utils.ts - Node Calculation and Processing Utilities
+// ======================================================
+//
+// Purpose:
+// - Provides utility functions for node operations
+// - Implements geometric calculations for nodes
+// - Contains helper functions for node positioning and detection
+// - Manages alignment, intersection, and proximity calculations
+//
+// This file should contain:
+// - Pure utility functions for working with nodes
+// - Geometric algorithms (distance, intersection, etc.)
+// - Bounding box and collision detection logic
+// - Alignment and snapping calculations
+// - Position and dimension calculations
+//
+// Add to this file when:
+// - Creating new mathematical utilities for nodes
+// - Implementing geometric algorithms for canvas operations
+// - Adding helper functions for node manipulation
+// - Creating detection/calculation utilities
+// - Adding export/import utilities for nodes
+//
+// Example future additions:
+// - Implementing grid-snap adjustment utilities
+// - Adding automatic layout algorithms
+// - Creating distribution and alignment helpers
+// - Implementing connection path optimization
+// - Adding node grouping/ungrouping utilities
+//
+// DON'T add to this file:
+// - React component code
+// - UI rendering logic
+// - State management logic
+// - Event handlers (use hooks)
+// - Store-specific operations
+// ======================================================
+
 import { Node } from '../store/canvas-store';
 
 // Find a node at a specific position
