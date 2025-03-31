@@ -44,7 +44,6 @@ const ColorControls: React.FC<ColorControlsProps> = ({
     updateSelectedIconStyles,
     textColor,
     setTextColor,
-    nodes,
   } = useCanvasStore();
   
   // Use the tailwind colors hook for theme-aware color handling
@@ -337,7 +336,7 @@ const ColorControls: React.FC<ColorControlsProps> = ({
         iconStrokeWidth: strokeWidth
       });
     }
-  }, [strokeColor, fillColor, textColor, strokeWidth, showIconControls]);
+  }, [strokeColor, fillColor, textColor, strokeWidth, showIconControls, setSelectedStrokeBase, setSelectedStrokeShade, setSelectedIconBase, setSelectedIconShade, setSelectedFillBase, setSelectedFillShade, setSelectedTextBase, setSelectedTextShade, setIconConfig]);
 
   // Update colors when theme changes
   useEffect(() => {
