@@ -85,7 +85,7 @@ const ColorControls: React.FC<ColorControlsProps> = ({
   ];
 
   // Check if a text node is selected
-  const isTextNodeSelected = nodes.some(node => node.selected && node.type === 'text');
+  // const isTextNodeSelected = nodes.some(node => node.selected && node.type === 'text');
 
   // Update parent component when icon config changes
   useEffect(() => {
@@ -208,40 +208,40 @@ const ColorControls: React.FC<ColorControlsProps> = ({
   };
 
   // Handle text color selection
-  const handleTextColorChange = (colorBase: string) => {
-    if (colorBase === 'none') {
-      setTextColor(colorBase);
-      setSelectedTextBase(colorBase);
-      return;
-    }
+  // const handleTextColorChange = (colorBase: string) => {
+  //   if (colorBase === 'none') {
+  //     setTextColor(colorBase);
+  //     setSelectedTextBase(colorBase);
+  //     return;
+  //   }
     
-    if (colorBase === 'black' || colorBase === 'white') {
-      // Use appropriate shade based on theme
-      const shade = isDarkMode ? '300' : '800';
-      const newColor = `${colorBase}-${shade}`;
-      setTextColor(newColor);
-      setSelectedTextBase(colorBase);
-      setSelectedTextShade(shade);
-      return;
-    }
+  //   if (colorBase === 'black' || colorBase === 'white') {
+  //     // Use appropriate shade based on theme
+  //     const shade = isDarkMode ? '300' : '800';
+  //     const newColor = `${colorBase}-${shade}`;
+  //     setTextColor(newColor);
+  //     setSelectedTextBase(colorBase);
+  //     setSelectedTextShade(shade);
+  //     return;
+  //   }
     
-    // Use the default shade for the current theme
-    const newColor = `${colorBase}-${defaultStrokeShade}`;
-    setTextColor(newColor);
-    setSelectedTextBase(colorBase);
-    setSelectedTextShade(defaultStrokeShade);
-  };
+  //   // Use the default shade for the current theme
+  //   const newColor = `${colorBase}-${defaultStrokeShade}`;
+  //   setTextColor(newColor);
+  //   setSelectedTextBase(colorBase);
+  //   setSelectedTextShade(defaultStrokeShade);
+  // };
 
-  const handleTextShadeChange = (shade: string) => {
-    if (selectedTextBase === 'none') {
-      return;
-    }
+  // const handleTextShadeChange = (shade: string) => {
+  //   if (selectedTextBase === 'none') {
+  //     return;
+  //   }
     
-    const newColor = `${selectedTextBase}-${shade}`;
-    setTextColor(newColor);
-    setSelectedTextShade(shade);
-    setDefaultShade(shade);
-  };
+  //   const newColor = `${selectedTextBase}-${shade}`;
+  //   setTextColor(newColor);
+  //   setSelectedTextShade(shade);
+  //   setDefaultShade(shade);
+  // };
 
   // Initialize selected base colors from current colors and set default shades based on theme
   useEffect(() => {
@@ -415,6 +415,8 @@ const ColorControls: React.FC<ColorControlsProps> = ({
 
   // Render the color button in the trigger based on whether it's "none" or a regular color
   const renderColorButton = (colorName: string, isStroke: boolean, isText: boolean = false) => {
+    console.log('isText', isText);
+
     if (colorName === "none") {
       return (
         <div className="relative h-4 w-4">
