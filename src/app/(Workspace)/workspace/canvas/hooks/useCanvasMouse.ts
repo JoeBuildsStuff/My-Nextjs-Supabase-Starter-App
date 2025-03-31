@@ -1,4 +1,7 @@
-import { useState, RefObject } from 'react';
+'use client';
+
+
+import { useState, RefObject, useEffect } from 'react';
 import { useCanvasStore, Node, MarkerShape } from '../lib/store/canvas-store';
 import { ConnectionPointPosition } from '../components/ui/ConnectionPoints';
 import { findAlignmentGuides, findClosestLineSegment, findNodeAtPosition, isNodeInSelectionBox, getSnappedPosition } from '../lib/utils/node-utils';
@@ -923,6 +926,85 @@ export function useCanvasMouse(canvasRef: RefObject<HTMLDivElement | null>) {
           console.error('Error handling connection point click:', error);
         }
       };
+
+        // Add effect for wheel event (with passive: false option)
+  useEffect(() => {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) return;
+    
+    const wheelHandler = (e: WheelEvent) => {
+      // Prevent default scrolling behavior
+      e.preventDefault();
+      
+      // Check if we're in presentation mode
+      if (presentationMode) return;
+      
+      // Get the delta values
+      const deltaX = e.deltaX;
+      const deltaY = e.deltaY;
+
+      // Check for Cmd/Ctrl key for zooming
+      if (e.metaKey || e.ctrlKey) {
+        // Get canvas rect
+        const rect = canvasElement.getBoundingClientRect();
+        if (!rect) return;
+        
+        // Calculate mouse position in canvas coordinates (before zoom change)
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Calculate position relative to the content (account for current transform)
+        const contentX = (mouseX - transform.x) / transform.zoom;
+        const contentY = (mouseY - transform.y) / transform.zoom;
+        
+        // Current zoom level
+        const oldZoom = transform.zoom;
+        
+        // New zoom level based on scroll direction
+        let newZoom;
+        if (deltaY < 0) {
+          // Zoom in - wheel up (limit to max zoom of 2.0)
+          newZoom = Math.min(oldZoom + 0.1, 2.0);
+        } else {
+          // Zoom out - wheel down (limit to min zoom of 0.1)
+          newZoom = Math.max(oldZoom - 0.1, 0.1);
+        }
+        
+        // Calculate new transform to keep the point under the mouse fixed
+        const newX = mouseX - contentX * newZoom;
+        const newY = mouseY - contentY * newZoom;
+        
+        // Update the transform in one operation to avoid flickering
+        useCanvasStore.setState(state => {
+          state.transform = {
+            x: newX,
+            y: newY,
+            zoom: newZoom
+          };
+        });
+      } else {
+        // Handle both horizontal and vertical panning
+        // This supports the MX Master's thumb scroll wheel for horizontal panning
+        if (deltaX !== 0) {
+          // Horizontal panning - using the thumb wheel or Shift+scroll on other mice
+          panCanvas(-deltaX, 0);
+        }
+        
+        if (deltaY !== 0) {
+          // Vertical panning with main wheel
+          panCanvas(0, -deltaY);
+        }
+      }
+    };
+    
+    // Add event listener with { passive: false } to allow preventDefault()
+    canvasElement.addEventListener('wheel', wheelHandler, { passive: false });
+    
+    // Cleanup function to remove event listener
+    return () => {
+      canvasElement.removeEventListener('wheel', wheelHandler);
+    };
+  }, [transform, presentationMode, panCanvas]);
 
   return {
     isDragging,

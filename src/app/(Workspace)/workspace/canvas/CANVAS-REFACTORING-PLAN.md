@@ -356,7 +356,7 @@ export function useClipboardOperations(canvasRef: RefObject<HTMLDivElement>) {
 ```
 
 ### 2.5 Create Connection Points Hook
-
+DONE but moved to useCanvasMouse.ts
 **File:** `src/app/(Workspace)/workspace/canvas/hooks/useConnectionPoints.ts`
 
 ```typescript
