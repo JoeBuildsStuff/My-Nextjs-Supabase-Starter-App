@@ -54,6 +54,12 @@ const data = {
       url: "/canvas",
       icon: Presentation,
       isActive: true,
+      items: [
+        {
+          title: "New",
+          url: "/workspace/canvas",
+        }
+      ],
     },
     {
       title: "Forms",
@@ -62,12 +68,8 @@ const data = {
       items: [
         {
           title: "Basic",
-          url: "/forms/basic",
-        },
-        {
-          title: "Advanced",
-          url: "/forms/advanced",
-        },
+          url: "/workspace/forms",
+        }
       ],
     },
     {
@@ -76,23 +78,21 @@ const data = {
       icon: Table,
       items: [
         {
-          title: "Table 1",
-          url: "/tables/1",
-        },
-        {
-          title: "Table 2",
-          url: "/tables/2",
-        },
-        {
-          title: "Table 3",
-          url: "/tables/3",
-        },
+          title: "All Examples",
+          url: "/workspace/tables",
+        }
       ],
     },
     {
       title: "UI Stuff",
       url: "/ui-stuff",
       icon: Badge,
+      items: [
+        {
+          title: "All Examples",
+          url: "/workspace/ui-stuff",
+        }
+      ],
     },
   ],      
 }

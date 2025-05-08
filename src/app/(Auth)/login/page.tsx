@@ -1,10 +1,23 @@
 import { signInWithMagicLink, signInWithGoogle, signInWithGithub, signInWithOTP } from '@/actions/auth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
-const LoginPage = () => {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+
+  const {
+    error,
+    message,
+    email,
+  } = await searchParams
+
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
@@ -15,6 +28,7 @@ const LoginPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+
           <div className="grid grid-cols-2 gap-4">
             <Button 
               variant="outline" 
@@ -90,10 +104,26 @@ const LoginPage = () => {
               </div>
             </div>
           </form>
+
         </CardContent>
+        <CardFooter>
+        {error && message && (
+            <Alert variant={"default"} className="bg-secondary/50">
+              <AlertCircle className="h-4 w-4 -my-[.2rem]" />
+              <AlertTitle className="text-sm">{error === "rate_limit" ? "Slow down there!" : "Uh oh!"}</AlertTitle>
+              <AlertDescription className="pt-2 space-y-2">
+                {typeof message === 'string' ? <span>{decodeURIComponent(message)}</span> : 'An unexpected error occurred.'}
+                {error === "rate_limit" && typeof email === 'string' && (
+                  <>
+                    <span className=""> Please wait before trying again with:</span>
+                    <p className="font-bold">{decodeURIComponent(email)}</p>
+                  </>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardFooter>
       </Card>
     </div>
   );
 };
-
-export default LoginPage;

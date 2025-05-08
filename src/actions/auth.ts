@@ -24,7 +24,7 @@ export async function signInWithMagicLink(formData: FormData) {
 
   if (!result.success) {
     console.log("validation-error", result.error)
-    redirect('/error')
+    redirect('/login?error=validation&message=Invalid email format.')
   }
 
   const { error } = await supabase.auth.signInWithOtp({
@@ -37,6 +37,9 @@ export async function signInWithMagicLink(formData: FormData) {
 
   if (error) {
     console.log("magic-link-error", error)
+    if (error.code === 'over_email_send_rate_limit' && error.message) {
+      redirect(`/login?error=rate_limit&message=${encodeURIComponent(error.message)}&email=${encodeURIComponent(result.data.email)}`)
+    }
     redirect('/error')
   }
 
@@ -104,7 +107,7 @@ export async function signInWithOTP(formData: FormData) {
 
   if (!result.success) {
     console.log("validation-error", result.error)
-    redirect('/error')
+    redirect('/login?error=validation&message=Invalid email format.')
   }
 
   const { error } = await supabase.auth.signInWithOtp({
@@ -116,6 +119,9 @@ export async function signInWithOTP(formData: FormData) {
 
   if (error) {
     console.log("otp-error", error)
+    if (error.code === 'over_email_send_rate_limit' && error.message) {
+      redirect(`/login?error=rate_limit&message=${encodeURIComponent(error.message)}&email=${encodeURIComponent(result.data.email)}`)
+    }
     redirect('/error')
   }
 
