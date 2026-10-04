@@ -5,9 +5,6 @@ import {
   AudioWaveform,
   Command,
   GalleryVerticalEnd,
-  FormInput,
-  Table,
-  Badge,
   Presentation,
 } from "lucide-react"
 
@@ -58,39 +55,6 @@ const data = {
         {
           title: "New",
           url: "/workspace/canvas",
-        }
-      ],
-    },
-    {
-      title: "Forms",
-      url: "/forms",
-      icon: FormInput,
-      items: [
-        {
-          title: "Basic",
-          url: "/workspace/forms",
-        }
-      ],
-    },
-    {
-      title: "Tables",
-      url: "/tables",
-      icon: Table,
-      items: [
-        {
-          title: "All Examples",
-          url: "/workspace/tables",
-        }
-      ],
-    },
-    {
-      title: "UI Stuff",
-      url: "/ui-stuff",
-      icon: Badge,
-      items: [
-        {
-          title: "All Examples",
-          url: "/workspace/ui-stuff",
         }
       ],
     },
